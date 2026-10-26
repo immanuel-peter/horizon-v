@@ -20,14 +20,6 @@ in place; the model, processor, and training code still need implementing.
 Read the [post-training plan](docs/README.md) for implementation steps and
 the [environment guide](docs/steps/00-environment.md) for the GPU setup.
 
-To rebuild the standalone docs viewer:
-
-```bash
-uv run tools/build_docs.py
-```
-
-Open `docs/index.html` in a browser to read it.
-
 ## References
 
 - [K2-Horizon-7B](https://huggingface.co/IFM/K2-Horizon-7B)

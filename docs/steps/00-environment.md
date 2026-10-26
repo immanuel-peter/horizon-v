@@ -21,8 +21,7 @@ horizon-v/
 ├── third_party/miles/       radixark/miles @ 5078ff7, editable (patched in step 8)
 ├── src/k2hv/                build_init.py, sft_rollout.py, reward.py, rl360_reward/
 ├── src/k2hv_sglang/         SGLang model package (step 3)
-├── docs/                    this plan
-└── tools/build_docs.py      renders docs/ into docs/index.html
+└── docs/                    this plan
 ```
 
 ## `pyproject.toml`
@@ -55,10 +54,9 @@ packages = ["src/k2hv", "src/k2hv_sglang"]
 
 ```bash
 uv sync
-uv run tools/build_docs.py
 ```
 
-Use this env for [step 1](01-init-checkpoint.md) (needs about 35 GB RAM), template and processor tests ([step 2](02-processor-and-template.md)) and the docs.
+Use this env for [step 1](01-init-checkpoint.md) (needs about 35 GB RAM) and template and processor tests ([step 2](02-processor-and-template.md)).
 
 ## GPU nodes
 
