@@ -1,0 +1,82 @@
+# Step 0: Environment (uv)
+
+The project uses uv for its code, its dependencies and every command. There are two environments:
+
+The CPU environment and the `k2hv` / `k2hv_sglang` package directories are set
+up. The model, processor, and training modules shown below are planned work.
+The Miles checkout is added when setting up a GPU node.
+
+| Where | CUDA stack (torch, SGLang, flash-attn) | Project code and light deps |
+|---|---|---|
+| Laptop / CPU box | Not needed | `uv sync` from `uv.lock` |
+| GPU nodes | Miles's Docker image | uv venv on top of the image |
+
+## Layout
+
+```text
+horizon-v/
+├── pyproject.toml
+├── uv.lock
+├── .python-version          3.12
+├── third_party/miles/       radixark/miles @ 5078ff7, editable (patched in step 8)
+├── src/k2hv/                build_init.py, sft_rollout.py, reward.py, rl360_reward/
+├── src/k2hv_sglang/         SGLang model package (step 3)
+├── docs/                    this plan
+└── tools/build_docs.py      renders docs/ into docs/index.html
+```
+
+## `pyproject.toml`
+
+```toml
+[project]
+name = "k2-horizon-v"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "huggingface_hub",
+    "pillow",
+    "safetensors",
+    "torch",
+    "transformers==5.19.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/k2hv", "src/k2hv_sglang"]
+```
+
+- `transformers==5.19.0` matches Miles's pin.
+- SGLang, flash-attn and Miles are not listed. On GPU nodes they come from the image ([below](#gpu-nodes)); the laptop does not need them.
+
+## Laptop / CPU box
+
+```bash
+uv sync
+uv run tools/build_docs.py
+```
+
+Use this env for [step 1](01-init-checkpoint.md) (needs about 35 GB RAM), template and processor tests ([step 2](02-processor-and-template.md)) and the docs.
+
+## GPU nodes
+
+Miles runs a patched SGLang fork (`sglang-miles` branch) and prebuilt flash-attn / FA3 wheels, all built in Miles's `docker/Dockerfile`. A PyPI `sglang` resolved by uv would not match it. So start from the Miles image and add the project on top:
+
+```bash
+git clone https://github.com/radixark/miles third_party/miles
+git -C third_party/miles checkout 5078ff7
+
+uv venv --system-site-packages --python "$(which python3)"
+uv pip install --no-deps -e third_party/miles -e .
+
+export UV_NO_SYNC=1
+source .venv/bin/activate
+```
+
+- `--system-site-packages` keeps the image's torch, SGLang fork and flash-attn visible.
+- `--no-deps` stops uv from replacing them with PyPI builds.
+- The editable `third_party/miles` checkout shadows the image's copy, so the weight-sync patch in [step 8](08-rl.md) applies.
+- `UV_NO_SYNC=1` stops `uv run` from syncing `uv.lock` into this venv, which would install a second torch.
+- Activate the venv before `ray start`, so Ray and its workers inherit it. Later steps assume an activated venv on GPU nodes.
