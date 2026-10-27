@@ -18,10 +18,7 @@ and the CPU/MPS build on macOS. The Linux build also runs on CPU machines;
 the venv uses about 5 GB. GPU nodes reuse the Miles image's torch. Follow the
 [environment guide](docs/steps/00-environment.md) for that setup.
 
-Setup needs no GPU or model downloads. The composite model, checkpoint builder,
-verifier, processor and image chat template are implemented. SGLang integration
-and training remain planned. See the [checkpoint handoff](docs/handoff/01-init-checkpoint.md)
-and [processor handoff](docs/handoff/02-processor-and-template.md).
+Setup needs no GPU or model downloads. The composite model, checkpoint tools, processor, image template and SGLang adapter are implemented. The adapter has CPU boundary tests; actual SGLang GPU execution remains unvalidated and training code is still planned. See the [checkpoint handoff](docs/handoff/01-init-checkpoint.md), [processor handoff](docs/handoff/02-processor-and-template.md) and [SGLang handoff](docs/handoff/03-sglang-model.md).
 
 ## Layout
 
@@ -29,7 +26,7 @@ and [processor handoff](docs/handoff/02-processor-and-template.md).
 hf/K2-Horizon-V-init/   Hugging Face checkpoint directory
 src/k2hv/hf             symlink to hf/K2-Horizon-V-init, importable as k2hv.hf.*
 src/k2hv/               checkpoint builder, verifier and file helpers
-src/k2hv_sglang/        SGLang package, planned in step 3
+src/k2hv_sglang/        external SGLang model, multimodal processor and runtime checks
 tests/                 CPU tests with tiny configs
 models/                downloaded source checkpoints, git-ignored
 docs/                  plan and handoff notes
