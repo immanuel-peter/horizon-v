@@ -39,7 +39,7 @@ Both frozen parts stay bit-identical, so text-only behavior is exactly K2's.
 | 9 | [Release](steps/09-release.md) | No |
 
 The checkpoint is built and verified on CPU. The processor and image template
-are implemented and tested on CPU; SGLang integration is next. See the
+are tested on CPU. SGLang integration is next. See the
 [checkpoint handoff](handoff/01-init-checkpoint.md) and
 [processor handoff](handoff/02-processor-and-template.md).
 

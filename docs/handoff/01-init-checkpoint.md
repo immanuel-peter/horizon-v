@@ -3,7 +3,7 @@
 `K2-Horizon-V-init` is built and verified on a Linux CPU machine with 8 vCPUs
 and 62 GiB RAM. The processor, image chat template, SGLang model and training
 code were planned at this checkpoint snapshot. The processor and image template
-are now implemented; see the [processor handoff](02-processor-and-template.md).
+are described in the [processor handoff](02-processor-and-template.md).
 GPU execution is untested.
 
 ## Files and builds
@@ -14,7 +14,7 @@ assets. Weights, the index, `tokenizer.json`, `build_info.json` and `SHA256SUMS`
 are git-ignored. The `src/k2hv/hf` symlink imports the same code as `k2hv.hf.*`.
 The builder checks that the output code matches the code it imports.
 
-The wheel explicitly maps the canonical HF directory to `k2hv/hf`; editable
+The wheel maps the canonical HF directory to `k2hv/hf`; editable
 imports use the symlink. `pyproject.toml` excludes weight files and generated
 outputs by filename. Root `.gitignore` paths alone do not exclude files after
 they are mapped into a package.

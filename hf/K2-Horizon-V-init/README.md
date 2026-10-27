@@ -22,7 +22,7 @@ model = AutoModelForImageTextToText.from_pretrained(
 
 ## Current limits
 
-The processor accepts user images and text, with native GLM PIL preprocessing
+The processor accepts user images and text, with GLM's PIL preprocessing
 and a default cap of 1,024 merged image tokens. Each image has one unexpanded
 `<image>reserved_special_token_12</image>` marker before processing. The processor
 expands it to match the image features. It rejects missing images, mismatched

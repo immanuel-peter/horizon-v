@@ -2,7 +2,7 @@
 
 `K2HorizonVProcessor` is implemented in
 `hf/K2-Horizon-V-init/processing_k2_horizon_v.py`. The same file is importable
-through `k2hv.hf`. It combines K2's original tokenizer with GLM's native image
+through `k2hv.hf`. It combines K2's original tokenizer with GLM's image
 preprocessing. The template adds image and image_url parts in user messages.
 
 ## Local use
@@ -17,7 +17,7 @@ uv run pytest
 ```
 
 `AutoProcessor.from_pretrained("hf/K2-Horizon-V-init", trust_remote_code=True,
-local_files_only=True)` now loads the processor. The README has a complete
+local_files_only=True)` loads the processor. The README has a complete
 image-message example using `apply_chat_template`. Use `tokenize=True` and
 `return_dict=True` to obtain model inputs; the default call returns PyTorch
 tensors. Mixed-length batches need `processor_kwargs={"padding": True}`.
@@ -39,14 +39,13 @@ from the inputs before passing the remaining tensors to the model.
 
 The default is `Glm5NextImageProcessorPil`, including GLM's original rescaling,
 CLIP normalization and patch ordering. Patch size is 14, temporal patch size
-is 2 and spatial merge size is 2. Per-call changes to these dimensions are
-rejected because they change the model's input layout.
+is 2 and spatial merge size is 2. The processor rejects per-call changes to these dimensions because they change the model's input layout.
 
-The token budget uses GLM's native `min_image_tokens` / `max_image_tokens`
+The token budget uses GLM's `min_image_tokens` / `max_image_tokens`
 units, measured after spatial merging. Defaults are 16 and 1024, compared
 with the source checkpoint's cap of 8000. Pass overrides in `images_kwargs`.
 A 448x448 image gives a `[1, 32, 32]` grid, 1024 patch rows of width 1176 and
-256 image-pad tokens. The cap is applied before tokenizing the prompt.
+256 image-pad tokens. The processor applies the cap before tokenizing the prompt.
 
 The processor stores its image backend separately from the tokenizer backend.
 Passing the image backend through the common HF loading kwargs also changes
@@ -63,9 +62,9 @@ PIL and torchvision were compared on CPU with torch 2.14.1 and torchvision
 | 333x517 | 2.38e-7 | 6.82e-8 |
 | 1400x1200 | 0.0150 | 6.97e-5 |
 
-Resizing is not bit-identical between the backends. Default to PIL across
-training and rollouts for consistent inputs. `image_backend="torchvision"`
-is an explicit loading override, not a validated training configuration.
+Resizing is not bit-identical between the backends. Use PIL for both
+training and rollouts so inputs match. `image_backend="torchvision"`
+is a loading override, not a validated training configuration.
 Torchvision is not a project dependency. Matching the Qwen resize factor
 alone does not establish preprocessing parity; check Miles and SGLang's
 whole input paths during integration.
@@ -74,9 +73,9 @@ whole input paths during integration.
 
 The composite config, processor config and image-preprocessor config register
 `AutoProcessor`. `save_pretrained` exports the custom processor code, tokenizer,
-image settings and patched chat template as a portable directory.
+image settings and patched chat template as a directory that loads without the `k2hv` package.
 
-The wheel explicitly maps the canonical HF tree into `k2hv/hf`, while editable
+The wheel maps the canonical HF tree into `k2hv/hf`, while editable
 imports use the existing symlink. Both the wheel and source distribution exclude
 weights and tokenizer data. A wheel built from the source distribution was
 checked in isolation for imports, bundled recipe files and offline processor
@@ -85,8 +84,8 @@ loading with the separately supplied tokenizer.
 The builder includes the new processor files in the checkpoint recipe. The
 verifier preserves exact comparisons for unmodified source assets and checks
 the template against the specific user-image patch. It checks the image
-settings against the source config plus the explicit backend, token cap and
-processor metadata. Full model verification now loads `AutoProcessor` in a
+settings against the source config plus the PIL backend, token cap and
+processor metadata. Full model verification loads `AutoProcessor` in a
 fresh offline process and uses its tensors for the image forward pass.
 
 The model code, tensor schema and seed-0 projector initialization are unchanged.
@@ -112,12 +111,15 @@ does not rerun full-size model or GPU checks.
 
 ## CPU validation
 
-All 105 CPU tests pass on macOS. The tests cover native GLM patch parity, square and non-square images, minimum
-and maximum token budgets, multiple images, mixed text/image batches, marker
-errors, truncation, unchanged text/tool templates at all reasoning efforts,
-assistant masks, standalone offline save/load and a small composite-model
-forward pass. The isolated load test blocks `k2hv` imports and uses empty HF
-caches, so the exported code must work by itself.
+All 105 CPU tests pass on macOS. They cover:
+
+- pixel and grid parity with GLM's processor, square and non-square images, and the minimum and maximum token budgets
+- multiple images and mixed text/image batches
+- marker errors and truncation
+- unchanged text and tool templates at all reasoning efforts
+- assistant masks
+- offline save/load with `k2hv` imports blocked and empty HF caches
+- a small composite-model forward pass
 
 The real pinned K2 tokenizer is also checked locally for unchanged vocabulary,
 exact text-template parity at all three reasoning efforts, 256 tokens for a

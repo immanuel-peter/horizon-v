@@ -8,7 +8,7 @@ for local use, CPU validation and attaching the processor to existing weights.
 
 `K2HorizonVProcessor(ProcessorMixin)` combines:
 
-- GLM's native PIL image processor: patch 14, merge 2, temporal patch 2, same normalization;
+- GLM's PIL image processor: patch 14, merge 2, temporal patch 2, same normalization;
 - K2's tokenizer, unchanged;
 - the patched chat template.
 
@@ -23,7 +23,7 @@ Miles passes every returned key except `input_ids`, `attention_mask` and `mm_tok
 
 Token budget:
 
-- Use GLM's native `min_image_tokens` / `max_image_tokens`, measured in merged
+- Use GLM's `min_image_tokens` / `max_image_tokens`, measured in merged
   image tokens. Defaults here are 16 and 1024. Pass per-call overrides in
   `images_kwargs`; patch and merge dimensions must remain unchanged.
 - Miles's `process_vision_info` falls back to `qwen_vl_utils`, which also uses a
@@ -31,8 +31,7 @@ Token budget:
   resizing; check the full Miles/SGLang image path during integration.
 
 `AutoProcessor` is registered in `processor_config.json`, `preprocessor_config.json`
-and the composite model config. Saving the processor also writes a portable
-processor config, tokenizer and chat template.
+and the composite model config. Saving the processor also writes a processor config, tokenizer and chat template that load without the `k2hv` package.
 
 ## Template patch
 

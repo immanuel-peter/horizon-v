@@ -66,7 +66,7 @@ inputs = processor.apply_chat_template(
 ```
 
 This requires the tokenizer, not the model weights. Image processing defaults
-to the native GLM PIL backend with a cap of 1,024 image tokens. Run `uv run pytest`
+to GLM's PIL backend with a cap of 1,024 image tokens. Run `uv run pytest`
 for CPU tests with a small synthetic tokenizer and model.
 
 Read the [post-training plan](docs/README.md) for implementation steps and

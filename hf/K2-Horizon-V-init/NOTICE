@@ -15,7 +15,7 @@ This checkpoint combines the following works. Each keeps its own license; no ove
    Source:   https://huggingface.co/immanuelpeter/GLM-5.3-Flash-Vision @ 44a87fd4e6e31f5722a375238b7aedce3e0ad2db
              (vision tensors extracted from https://huggingface.co/zai-org/GLM-5.3-Flash)
    Used for: all visual.* weights (unmodified; GLM's downsample and merger modules are not included)
-             and preprocessor_config.json, with an explicit PIL backend, a 1024-token image cap,
+             and preprocessor_config.json, with a PIL backend, a 1024-token image cap,
              and composite processor metadata. Full license text: licenses/MIT-GLM-5.3-Flash-Vision.txt
 
 3. projector.* weights are new: randomly initialized from seed 0, not trained.

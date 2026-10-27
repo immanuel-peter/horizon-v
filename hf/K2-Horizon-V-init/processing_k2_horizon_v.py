@@ -19,8 +19,7 @@ class K2HorizonVProcessor(ProcessorMixin):
 
     Each image must have one unexpanded ``<image>reserved_special_token_12</image>``
     marker in the rendered text. Images are consumed in conversation and batch order.
-    Normal calls return only PyTorch model-input tensors. Explicit offset requests
-    are supported for the inherited assistant-token-mask implementation.
+    Calls return only PyTorch model-input tensors.
     """
 
     valid_processor_kwargs = K2HorizonVProcessorKwargs
@@ -28,7 +27,7 @@ class K2HorizonVProcessor(ProcessorMixin):
     image_start_token = "<image>"
     image_end_token = "</image>"
 
-    def __init__(self, image_processor, tokenizer, chat_template=None, image_backend=None):
+    def __init__(self, image_processor, tokenizer, chat_template=None):
         super().__init__(image_processor, tokenizer, chat_template=chat_template or tokenizer.chat_template)
         self.image_backend = image_processor.backend
         for token in (self.image_token, self.image_start_token, self.image_end_token):
@@ -41,7 +40,6 @@ class K2HorizonVProcessor(ProcessorMixin):
 
     @classmethod
     def _get_arguments_from_pretrained(cls, pretrained_model_name_or_path, processor_dict=None, **kwargs):
-        """Keep image-backend options separate from the tokenizer's backend setting."""
         backend = kwargs.pop("image_backend", kwargs.pop("backend", (processor_dict or {}).get("image_backend", "pil")))
         image_processor = AutoImageProcessor.from_pretrained(pretrained_model_name_or_path, backend=backend, **kwargs)
         tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, **kwargs)
