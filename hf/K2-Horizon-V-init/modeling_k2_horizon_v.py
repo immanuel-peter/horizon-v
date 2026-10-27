@@ -1,9 +1,3 @@
-"""K2-Horizon-V: K2-Horizon-7B with a frozen GLM vision tower and a trainable projector.
-
-This file is copied into every K2-Horizon-V checkpoint and loaded as remote code, so it may only
-import from ``transformers``/``torch`` and sibling modules via relative imports.
-"""
-
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -25,15 +19,9 @@ from .modeling_k2_horizon import K2HorizonForCausalLM
 
 
 class GlmVisionTower(PreTrainedModel):
-    """GLM-5.3-Flash's vision encoder, truncated right after ``post_layernorm``.
+    """Accept patches in merge-window order and return features in the same order.
 
-    Parameter names match GLM-5.3-Flash-Vision's checkpoint (``patch_embed.*``, ``blocks.N.*``,
-    ``post_layernorm.*``). GLM's ``downsample`` and ``merger`` are not instantiated: the projector
-    replaces them.
-
-    Input patches must be in the image processor's merge-window order (each run of
-    ``spatial_merge_size ** 2`` consecutive patches is one 2x2 window, row-major). The output keeps
-    that order, which is what [`Projector`] relies on.
+    Each window contains ``spatial_merge_size ** 2`` consecutive patches in row-major order.
     """
 
     config: Glm5NextVisionConfig
@@ -55,8 +43,6 @@ class GlmVisionTower(PreTrainedModel):
         self.post_init()
 
     def train(self, mode: bool = True):
-        # Frozen and dropout-free: stay in eval mode so enabling gradient checkpointing on the parent
-        # model never wraps these blocks (they only ever run under `torch.no_grad()`).
         return super().train(False)
 
     def forward(self, pixel_values: torch.Tensor, grid_thw: torch.Tensor, **kwargs) -> torch.Tensor:
@@ -85,14 +71,6 @@ class GlmVisionTower(PreTrainedModel):
 
 
 class Projector(nn.Module):
-    """``LayerNorm(d_vit)`` -> 2x2 spatial merge -> ``Linear(4*d_vit, d_llm)`` -> GELU -> ``Linear(d_llm, d_llm)``.
-
-    The merge (`merge`) is ``reshape(-1, 4 * d_vit)``. That is only correct because the GLM image processor emits
-    patches block-major over merge windows (``patchify`` permutes to ``(h/2, w/2, 2, 2, ...)``) and
-    the vision tower preserves the order, so every 4 consecutive rows are one 2x2 window in
-    ``(0,0), (0,1), (1,0), (1,1)`` order. This is the same grouping GLM's own ``downsample`` uses.
-    """
-
     def __init__(self, d_vit: int, d_llm: int, merge_size: int = 2):
         super().__init__()
         self.merge_size = merge_size
@@ -101,7 +79,6 @@ class Projector(nn.Module):
         self.fc2 = nn.Linear(d_llm, d_llm)
 
     def merge(self, x: torch.Tensor) -> torch.Tensor:
-        """``(N, d)`` -> ``(N / merge**2, merge**2 * d)``: each run of consecutive rows becomes one token."""
         group = self.merge_size**2
         if x.ndim != 2 or x.shape[0] % group:
             raise ValueError(
@@ -114,10 +91,6 @@ class Projector(nn.Module):
         return self.fc2(F.gelu(self.fc1(self.merge(self.norm(x)))))
 
     def init_module(self, module: nn.Module, generator: torch.Generator | None = None) -> None:
-        """Initialize one of this projector's leaf modules with torch's default `nn.Linear`/`nn.LayerNorm` scheme.
-
-        Uses `transformers.initialization`, which skips parameters that were already loaded from a checkpoint.
-        """
         if module is self.norm:
             init.ones_(module.weight)
             init.zeros_(module.bias)
@@ -128,7 +101,6 @@ class Projector(nn.Module):
 
     @torch.no_grad()
     def reset_parameters(self, generator: torch.Generator | None = None) -> None:
-        # The draw order (fc1.weight, fc1.bias, fc2.weight, fc2.bias) is part of the init definition.
         for module in (self.norm, self.fc1, self.fc2):
             self.init_module(module, generator)
 
@@ -138,10 +110,10 @@ def build_projector(
 ) -> Projector:
     """Deterministically initialized projector.
 
-    Values are drawn in float32 from a private generator seeded with ``seed`` (independent of the global
-    RNG and of the target dtype), then cast to ``dtype``.
+    Draw values in float32 from a private generator seeded with ``seed``, then cast to ``dtype``.
+    Draws are independent of the global RNG and target dtype. Leave the global RNG state unchanged.
     """
-    with torch.random.fork_rng(devices=[]):  # `nn.Linear.__init__` consumes global RNG state
+    with torch.random.fork_rng(devices=[]):
         projector = Projector(d_vit, d_llm, merge_size)
     projector.reset_parameters(torch.Generator().manual_seed(seed))
     return projector.to(dtype)
@@ -162,7 +134,6 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
     base_model_prefix = ""
     input_modalities = ("image", "text")
     supports_gradient_checkpointing = True
-    # Only the CPU attention paths (eager/sdpa) are validated so far; flash/flex are decided in step 4.
     _supports_sdpa = True
     _supports_attention_backend = True
     _no_split_modules = ["K2HorizonDecoderLayer", "Glm5NextVisionBlock"]
@@ -182,23 +153,19 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
         self.post_init()
 
     def freeze_pretrained_modules(self) -> None:
-        """Only the projector is trainable; the vision tower and the language model stay frozen."""
         self.visual.requires_grad_(False)
         self.language_model.requires_grad_(False)
         self.projector.requires_grad_(True)
 
     @classmethod
     def from_pretrained(cls, *args, **kwargs):
-        # transformers rewraps every loaded tensor as `nn.Parameter(requires_grad=True)`, discarding the flags set
-        # in `__init__`. Without this, the whole 9B model would receive gradients and optimizer state.
         result = super().from_pretrained(*args, **kwargs)
-        model = result[0] if isinstance(result, tuple) else result  # output_loading_info=True returns a tuple
+        model = result[0] if isinstance(result, tuple) else result
         model.freeze_pretrained_modules()
         return result
 
     @torch.no_grad()
     def _init_weights(self, module):
-        # Sub-models initialize their own modules; only the projector's leaves reach this method.
         self.projector.init_module(module)
 
     def get_input_embeddings(self):
@@ -257,14 +224,14 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
             Patch grid of each image.
 
         logits_to_keep (`int` or `torch.Tensor`, *optional*, defaults to 0):
-            As in K2. It must be an explicit parameter: `generate` only sets it to 1 (last position) when `forward`
-            declares it, which keeps long prompts from computing logits for every token.
+            Compute logits for the last N positions, or the positions selected by a tensor.
+            Use 0 for all positions.
 
-        Without `pixel_values` this is exactly K2's forward. The number of `image_token_id` tokens in
-        `input_ids` must equal the number of image features, i.e. ``sum(t*h*w) // merge**2``.
+        The number of `image_token_id` tokens must equal ``sum(t*h*w) // merge**2``.
+        Image placeholders require `pixel_values` during prefill. Without `pixel_values`,
+        ignore `image_grid_thw` and use K2's text path.
         """
         if pixel_values is None:
-            # `generate` drops pixel_values after prefill but keeps image_grid_thw, so a lone grid is ignored.
             if input_ids is not None and self._is_prefill(past_key_values):
                 num_placeholders = int((input_ids == self.config.image_token_id).sum())
                 if num_placeholders:
@@ -304,50 +271,46 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
         )
 
     def _expand_inputs_for_generation(self, expand_size: int = 1, is_encoder_decoder: bool = False, input_ids=None, **model_kwargs):
-        # `generate` repeats every tensor along dim 0 for beams / num_return_sequences. For `pixel_values` dim 0 is
-        # patches, not samples, so the stock expansion would give `[p0, p0, p1, p1, ...]` instead of whole copies of
-        # each image (with matching grids and counts, so nothing would raise). Repeat each sample's images instead.
         if expand_size > 1 and model_kwargs.get("pixel_values") is not None:
             model_kwargs["pixel_values"], model_kwargs["image_grid_thw"] = self._repeat_images_per_sample(
                 input_ids, model_kwargs["pixel_values"], model_kwargs.get("image_grid_thw"), expand_size
             )
-            expanded = {key: model_kwargs.pop(key) for key in ("pixel_values", "image_grid_thw")}
+            expanded_images = {key: model_kwargs.pop(key) for key in ("pixel_values", "image_grid_thw")}
             input_ids, model_kwargs = super()._expand_inputs_for_generation(
                 expand_size=expand_size, is_encoder_decoder=is_encoder_decoder, input_ids=input_ids, **model_kwargs
             )
-            return input_ids, {**model_kwargs, **expanded}
+            return input_ids, {**model_kwargs, **expanded_images}
         return super()._expand_inputs_for_generation(
             expand_size=expand_size, is_encoder_decoder=is_encoder_decoder, input_ids=input_ids, **model_kwargs
         )
 
     def _repeat_images_per_sample(self, input_ids, pixel_values, image_grid_thw, expand_size):
-        """Repeat each sample's complete images `expand_size` times, keeping sample order: [s0, s0, s1, s1, ...]."""
         if input_ids is None or image_grid_thw is None:
             raise ValueError("expanding pixel_values for generation requires input_ids and image_grid_thw")
         merge = self.config.vision_config.spatial_merge_size
         grid = image_grid_thw.to(torch.long)
-        patches = grid.prod(-1).tolist()
-        if sum(patches) != pixel_values.shape[0]:
-            raise ValueError(f"pixel_values has {pixel_values.shape[0]} patches but image_grid_thw describes {sum(patches)}")
-        images = pixel_values.split(patches)  # one chunk per image, in input order
-        tokens = [n // merge**2 for n in patches]
-        placeholders = (input_ids == self.config.image_token_id).sum(-1).tolist()  # per sample
+        patches_per_image = grid.prod(-1).tolist()
+        if sum(patches_per_image) != pixel_values.shape[0]:
+            raise ValueError(f"pixel_values has {pixel_values.shape[0]} patches but image_grid_thw describes {sum(patches_per_image)}")
+        images = pixel_values.split(patches_per_image)
+        tokens_per_image = [n // merge**2 for n in patches_per_image]
+        placeholders_per_sample = (input_ids == self.config.image_token_id).sum(-1).tolist()
 
-        new_pixels, new_grids, first = [], [], 0
-        for count in placeholders:
-            last, used = first, 0
-            while used < count and last < len(tokens):
-                used += tokens[last]
-                last += 1
-            if used != count:
+        expanded_pixels, expanded_grids, first_image = [], [], 0
+        for count in placeholders_per_sample:
+            last_image, assigned_tokens = first_image, 0
+            while assigned_tokens < count and last_image < len(tokens_per_image):
+                assigned_tokens += tokens_per_image[last_image]
+                last_image += 1
+            if assigned_tokens != count:
                 raise ValueError(f"a sample has {count} image placeholder tokens that no whole number of images in image_grid_thw accounts for")
-            if last > first:
-                new_pixels += [torch.cat(images[first:last])] * expand_size
-                new_grids += [grid[first:last]] * expand_size
-            first = last
-        if first != len(tokens):
+            if last_image > first_image:
+                expanded_pixels += [torch.cat(images[first_image:last_image])] * expand_size
+                expanded_grids += [grid[first_image:last_image]] * expand_size
+            first_image = last_image
+        if first_image != len(tokens_per_image):
             raise ValueError("image_grid_thw describes more images than the image placeholder tokens in input_ids")
-        return torch.cat(new_pixels), torch.cat(new_grids)
+        return torch.cat(expanded_pixels), torch.cat(expanded_grids)
 
     @staticmethod
     def _is_prefill(past_key_values) -> bool:

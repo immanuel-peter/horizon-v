@@ -1,21 +1,3 @@
-"""Build the K2-Horizon-V-init checkpoint in place.
-
-    uv run python -m k2hv.build_init \\
-        --k2 models/K2-Horizon-7B \\
-        --glm models/GLM-5.3-Flash-Vision \\
-        --out hf/K2-Horizon-V-init
-
-``hf/K2-Horizon-V-init`` is the Hugging Face repo working tree. Everything we author (model and config code,
-README, NOTICE, licenses, mirrored upstream assets) is tracked in git and must already be there. This tool adds
-only what git does not hold: the weights, their index, ``config.json``, the 20 MB ``tokenizer.json``,
-``build_info.json`` and ``SHA256SUMS``.
-
-The weights are K2-Horizon-7B's (``language_model.*``), the GLM vision tower through ``post_layernorm``
-(``visual.*``) and a deterministically initialized projector (``projector.*``). Source tensors are copied
-byte-for-byte; the large modules are never instantiated (the expected key schema comes from a meta-device model)
-and weights stream shard by shard, so memory stays near one output shard.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -54,19 +36,15 @@ from .hf.configuration_k2_horizon import K2HorizonConfig
 from .hf.configuration_k2_horizon_v import K2HorizonVConfig
 from .hf.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration, build_projector
 
-# The importable model code: k2hv/hf is a symlink to hf/K2-Horizon-V-init.
 PACKAGE_HF_DIR = (Path(__file__).resolve().parent / "hf").resolve()
 
 K2_REPO = "IFM/K2-Horizon-7B"
 GLM_REPO = "immanuelpeter/GLM-5.3-Flash-Vision"
 
-# Plan token ids, verified against the tokenizer that ships with the K2 weights.
 IMAGE_TOKENS = {"<image>": 250031, "</image>": 250032, "reserved_special_token_12": 250062}
 
-# K2's remote-code files are tracked byte-for-byte in hf/K2-Horizon-V-init and must match the source.
 K2_CODE_FILES = ("configuration_k2_horizon.py", "modeling_k2_horizon.py")
 CODE_FILES = ("configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", *K2_CODE_FILES)
-# Tracked files the HF repo needs. Mirrored upstream assets are checked against their sources by verify_init.
 RECIPE_FILES = (
     *CODE_FILES,
     "README.md",
@@ -79,7 +57,6 @@ RECIPE_FILES = (
     "chat_template.jinja",
     "preprocessor_config.json",
 )
-# Git-ignored: copied from the K2 source if absent (too large to track).
 TOKENIZER_FILE = "tokenizer.json"
 BUILD_INFO_NAME = "build_info.json"
 STAGING_DIR = ".building"
@@ -99,13 +76,7 @@ def log(message: str) -> None:
     print(f"[build_init {time.strftime('%H:%M:%S')}] {message}", flush=True)
 
 
-# ---------------------------------------------------------------------------------------------
-# Inputs
-# ---------------------------------------------------------------------------------------------
-
-
 def check_recipe(out_dir: Path, k2_dir: Path) -> None:
-    """The output dir must hold the tracked recipe, and its code must be the code this tool imports and K2's."""
     missing = [name for name in RECIPE_FILES if not (out_dir / name).is_file()]
     if missing:
         raise BuildError(f"{out_dir} is missing tracked recipe files: {missing}. Restore them from git.")
@@ -127,7 +98,6 @@ def check_recipe(out_dir: Path, k2_dir: Path) -> None:
 
 
 def existing_outputs(out_dir: Path) -> list[str]:
-    """Generated artifacts already present in `out_dir` (a build never overwrites these)."""
     found = sorted(p.name for p in out_dir.glob("*.safetensors"))
     found += [name for name in (INDEX_NAME, BUILD_INFO_NAME, MANIFEST_NAME) if (out_dir / name).exists()]
     return found
@@ -148,7 +118,6 @@ def verify_token_ids(tokenizer_json: Path, expected: dict[str, int], vocab_size:
 
 
 def compare_schema(name: str, expected: dict[str, tuple[tuple[int, ...], str]], infos: dict[str, TensorInfo]) -> None:
-    """Strict two-way key/shape/dtype comparison; any dtype difference is an error (no silent casts)."""
     problems = []
     if missing := sorted(set(expected) - set(infos)):
         problems.append(f"{len(missing)} expected tensors missing from source, e.g. {missing[:3]}")
@@ -168,35 +137,27 @@ def compare_schema(name: str, expected: dict[str, tuple[tuple[int, ...], str]], 
 
 
 def expected_schema(config: K2HorizonVConfig, dtype: torch.dtype):
-    """Model on the meta device: the authoritative key/shape/dtype schema, without allocating any weights."""
     with torch.device("meta"):
         model = K2HorizonVForConditionalGeneration._from_config(copy.deepcopy(config), dtype=dtype)
     return {k: (tuple(v.shape), SAFETENSORS_DTYPE[v.dtype]) for k, v in model.state_dict().items()}
 
 
-# ---------------------------------------------------------------------------------------------
-# Output
-# ---------------------------------------------------------------------------------------------
-
-
 def header_bound(key: str, ndim: int) -> int:
-    """Upper bound on one tensor's entry in a safetensors header."""
     return len(key.encode()) + 96 + 22 * ndim
 
 
 def plan_shards(entries: list[tuple[str, int, int]], limit: int) -> list[list[str]]:
-    """Greedy, order-preserving packing of (key, nbytes, ndim) into shards of at most `limit` bytes (header included)."""
-    base = 4096  # header length prefix, __metadata__, alignment padding
+    header_reserve = 4096
     shards: list[list[str]] = []
     current: list[str] = []
-    used = base
+    used = header_reserve
     for key, nbytes, ndim in entries:
         cost = nbytes + header_bound(key, ndim)
-        if base + cost > limit:
+        if header_reserve + cost > limit:
             raise BuildError(f"{key} ({nbytes} bytes) cannot fit in a {limit}-byte shard")
         if current and used + cost > limit:
             shards.append(current)
-            current, used = [], base
+            current, used = [], header_reserve
         current.append(key)
         used += cost
     shards.append(current)
@@ -205,11 +166,6 @@ def plan_shards(entries: list[tuple[str, int, int]], limit: int) -> list[list[st
 
 def tensor_sha256(tensor: torch.Tensor) -> str:
     return hashlib.sha256(tensor.contiguous().view(torch.uint8).numpy().tobytes()).hexdigest()
-
-
-# ---------------------------------------------------------------------------------------------
-# Build
-# ---------------------------------------------------------------------------------------------
 
 
 def build(
@@ -239,7 +195,6 @@ def build(
     if tmp_dir.exists():
         raise BuildError(f"{tmp_dir} exists from an earlier failed build; delete it first.")
 
-    # -- inputs and schema ------------------------------------------------------------------
     check_recipe(out_dir, k2_dir)
     k2_config_dict = json.loads((k2_dir / "config.json").read_text())
     glm_config_dict = json.loads((glm_dir / "config.json").read_text())
@@ -280,7 +235,6 @@ def build(
         f"({excluded_params / 1e6:.2f}M params: downsample.* + merger.*)"
     )
 
-    # -- projector --------------------------------------------------------------------------
     projector = build_projector(
         config.vision_config.hidden_size,
         config.text_config.hidden_size,
@@ -293,8 +247,7 @@ def build(
     if compare_projector != {k: v for k, v in schema.items() if k.startswith(PROJECTOR_PREFIX)}:
         raise BuildError("projector tensors do not match the model's projector schema")
 
-    # -- plan -------------------------------------------------------------------------------
-    sizes: dict[str, tuple[int, int]] = {}  # key -> (nbytes, ndim)
+    sizes: dict[str, tuple[int, int]] = {}
     for key, (shape, _) in schema.items():
         if key.startswith(LM_PREFIX):
             sizes[key] = (k2_infos[key[len(LM_PREFIX):]].nbytes, len(shape))
@@ -310,7 +263,6 @@ def build(
         raise BuildError(f"need ~{total_size / 1e9:.1f} GB in {out_dir}, only {free / 1e9:.1f} GB free")
     log(f"{len(schema)} tensors, {total_size / 1e9:.2f} GB -> {len(shards)} shards (max {max_shard_size / 1e9:.1f} GB each)")
 
-    # -- write ------------------------------------------------------------------------------
     tmp_dir.mkdir()
     try:
         handles: dict[Path, object] = {}
@@ -329,7 +281,7 @@ def build(
         for number, keys in enumerate(shards, 1):
             name = f"model-{number:05d}-of-{len(shards):05d}.safetensors"
             save_file({key: read(key) for key in keys}, tmp_dir / name, metadata={"format": "pt"})
-            (tmp_dir / name).chmod(0o644)  # safetensors creates files 0600; other users must be able to read shards
+            (tmp_dir / name).chmod(0o644)
             weight_map.update({key: name for key in keys})
             size = (tmp_dir / name).stat().st_size
             if size > max_shard_size:
@@ -346,7 +298,6 @@ def build(
             )
         )
 
-        # config.json is tracked; regenerating it is deterministic, so any difference shows up in `git diff`.
         config.architectures = [K2HorizonVForConditionalGeneration.__name__]
         config.auto_map = dict(AUTO_MAP)
         config.save_pretrained(tmp_dir)
@@ -391,7 +342,7 @@ def build(
         (tmp_dir / BUILD_INFO_NAME).write_text(json.dumps(info, indent=2) + "\n")
 
         check_written(tmp_dir, schema, max_shard_size)
-        for staged in sorted(tmp_dir.iterdir()):  # atomic per file: same filesystem
+        for staged in sorted(tmp_dir.iterdir()):
             os.replace(staged, out_dir / staged.name)
         tmp_dir.rmdir()
         log("hashing output files")
@@ -406,7 +357,6 @@ def build(
 
 
 def check_written(directory: Path, schema: dict, max_shard_size: int) -> None:
-    """Header-level check of the written checkpoint against the schema (full validation is `verify_init`)."""
     try:
         infos = read_tensor_infos(directory)
     except CheckpointError as exc:

@@ -1,9 +1,3 @@
-"""K2-Horizon-V composite configuration.
-
-This file is copied into every K2-Horizon-V checkpoint and loaded as remote code, so it may only
-import from ``transformers``/``torch`` and sibling modules via relative imports.
-"""
-
 from huggingface_hub.dataclasses import strict
 
 from transformers.configuration_utils import PreTrainedConfig

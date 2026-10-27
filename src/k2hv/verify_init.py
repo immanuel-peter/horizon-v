@@ -1,14 +1,3 @@
-"""Independently validate a K2-Horizon-V-init checkpoint against its two source checkpoints.
-
-    uv run python -m k2hv.verify_init \\
-        --k2 models/K2-Horizon-7B --glm models/GLM-5.3-Flash-Vision --out models/K2-Horizon-V-init
-
-Static checks (layout, shards, key coverage, byte-for-byte frozen tensors, projector, manifest) run in this
-process. Load and parity checks run in fresh `python -I` subprocesses with HF offline mode, an empty module
-cache and the `k2hv` package import-blocked, so remote code that secretly depends on this repo or on cached
-files fails. AutoProcessor, image templates and GPU behaviour are not checked.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -51,9 +40,6 @@ SHIPPED_CODE = CODE_FILES
 COPIED_FROM_K2 = ("configuration_k2_horizon.py", "modeling_k2_horizon.py", "tokenizer.json", "tokenizer_config.json",
                   "special_tokens_map.json", "chat_template.jinja", "generation_config.json")
 COPIED_FROM_GLM = ("preprocessor_config.json",)
-# Mirrored upstream files that we changed on purpose (step 2: chat_template.jinja, preprocessor_config.json).
-# They are checked against their intended patch there, not for equality with the source.
-PATCHED_FILES: tuple[str, ...] = ()
 PARITY_PROMPT = "The capital of France is Paris. The capital of Japan is"
 
 
@@ -69,11 +55,6 @@ class Report:
     @property
     def ok(self) -> bool:
         return all(c["ok"] for c in self.checks)
-
-
-# ---------------------------------------------------------------------------------------------
-# Static checks
-# ---------------------------------------------------------------------------------------------
 
 
 def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict[str, int] = IMAGE_TOKENS) -> dict:
@@ -108,7 +89,6 @@ def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict
     )
     report.add("config: embeddings untied", config.get("tie_word_embeddings") is False and config["text_config"].get("tie_word_embeddings") is False)
 
-    # sub-configs must round-trip to the sources' configs (semantic equality, not text equality)
     from transformers.models.glm5_next.configuration_glm5_next import Glm5NextVisionConfig
 
     from .hf.configuration_k2_horizon import K2HorizonConfig
@@ -122,12 +102,12 @@ def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict
     report.add("config: text_config equals K2's config.json", same(K2HorizonConfig, config["text_config"], json.loads((k2 / "config.json").read_text())))
     report.add("config: vision_config equals GLM's config.json", same(Glm5NextVisionConfig, config["vision_config"], json.loads((glm / "config.json").read_text())))
 
-    checked = [(n, k2) for n in COPIED_FROM_K2 if n not in PATCHED_FILES] + [(n, glm) for n in COPIED_FROM_GLM if n not in PATCHED_FILES]
+    checked = [(n, k2) for n in COPIED_FROM_K2] + [(n, glm) for n in COPIED_FROM_GLM]
     bad = [n for n, source in checked if (out / n).read_bytes() != (source / n).read_bytes()]
     mit_ok = (out / "licenses/MIT-GLM-5.3-Flash-Vision.txt").read_bytes() == (glm / "LICENSE").read_bytes()
     bad += [] if mit_ok else ["licenses/MIT-GLM-5.3-Flash-Vision.txt"]
     report.add("assets: mirrored upstream files (K2 code, tokenizer, chat template, generation config, preprocessor config, MIT license) "
-               "are byte-identical to the sources", not bad, str(bad) if bad else f"{len(checked) + 1} files; patched on purpose: {list(PATCHED_FILES)}")
+               "are byte-identical to the sources", not bad, str(bad) if bad else f"{len(checked) + 1} files")
 
     revisions = {name: build_info["sources"][name]["revision"] for name in ("k2", "glm")}
     docs = {n: (out / n).read_text() for n in ("README.md", "NOTICE")}
@@ -149,7 +129,7 @@ def check_shards(out: Path, report: Report) -> dict[str, TensorInfo]:
     sizes = {n: (out / n).stat().st_size for n in shard_names}
     report.add(f"shards: each file <= {MAX_SHARD_BYTES / 1e9:.0f} GB", max(sizes.values()) <= MAX_SHARD_BYTES,
                ", ".join(f"{n.split('-')[1]}={s / 1e9:.2f}GB" for n, s in sizes.items()))
-    infos = read_tensor_infos(out)  # raises if index and shard headers disagree
+    infos = read_tensor_infos(out)
     report.add("shards: index entries == shard header entries (both directions)", True, f"{len(infos)} tensors")
     total = sum(i.nbytes for i in infos.values())
     report.add("shards: index total_size equals the tensor bytes", index["metadata"]["total_size"] == total, f"{total}")
@@ -197,7 +177,7 @@ def check_key_coverage(out_infos: dict[str, TensorInfo], k2: Path, glm: Path, co
 
 def _compare_ranges(a: TensorInfo, b: TensorInfo, chunk: int = 64 << 20) -> bool:
     with open(a.file, "rb") as fa, open(b.file, "rb") as fb:
-        fa.seek(a.start), fb.seek(b.start)
+        fa.seek(a.start_offset), fb.seek(b.start_offset)
         remaining = a.nbytes
         while remaining:
             n = min(chunk, remaining)
@@ -233,13 +213,14 @@ def check_projector(out: Path, out_infos, config: dict, report: Report) -> None:
     seed = build_info["projector"]["seed"]
     args = (config["vision_config"]["hidden_size"], config["text_config"]["hidden_size"], config["vision_config"]["spatial_merge_size"])
 
-    def regenerate():
-        torch.manual_seed(12345)  # the global RNG must not matter
-        p = build_projector(*args, seed=seed, dtype=torch.bfloat16)
+    def regenerate(global_seed):
+        with torch.random.fork_rng(devices=[]):
+            torch.random.default_generator.manual_seed(global_seed)
+            p = build_projector(*args, seed=seed, dtype=torch.bfloat16)
         return {PROJECTOR_PREFIX + k: v.detach().contiguous() for k, v in p.state_dict().items()}
 
-    first, second = regenerate(), regenerate()
-    report.add("projector: regenerating from the seed twice is bitwise identical",
+    first, second = regenerate(12345), regenerate(67890)
+    report.add("projector: regeneration is bitwise identical with different global RNG seeds",
                all(torch.equal(first[k].view(torch.int16), second[k].view(torch.int16)) for k in first))
     stored = {}
     for key in first:
@@ -266,7 +247,6 @@ def check_manifest(out: Path, report: Report) -> None:
 
 
 def check_source_integrity(k2: Path, glm: Path, report: Report) -> None:
-    """Source safetensors vs the LFS sha256 that the Hub recorded when they were downloaded."""
     bad, n = [], 0
     for directory in (k2, glm):
         meta_dir = directory / ".cache" / "huggingface" / "download"
@@ -281,14 +261,10 @@ def check_source_integrity(k2: Path, glm: Path, report: Report) -> None:
     report.add("sources: safetensors files match their Hub LFS sha256", not bad, f"{n} files checked" + (f"; BAD {bad}" if bad else ""))
 
 
-# ---------------------------------------------------------------------------------------------
-# Fresh-process checks
-# ---------------------------------------------------------------------------------------------
-
 _LOAD_CHILD = textwrap.dedent(
     """
     import glob, json, os, resource, sys, time
-    sys.modules["k2hv"] = None  # remote code in the checkpoint must not need this repository
+    sys.modules["k2hv"] = None
     sys.modules["k2hv_sglang"] = None
     out, glm, ids_path, result_path, threads = sys.argv[1:6]
     import numpy as np, torch
@@ -323,7 +299,6 @@ _LOAD_CHILD = textwrap.dedent(
     res["untied"] = model.language_model.lm_head.weight.data_ptr() != model.language_model.model.embed_tokens.weight.data_ptr()
     res["attn_impl"] = [model.config._attn_implementation, model.config.vision_config._attn_implementation, model.config.text_config._attn_implementation]
 
-    # the loaded tensors must equal the files exactly (no silent casting or renaming in the loader)
     state, seen, bad = model.state_dict(), set(), []
     for shard in sorted(glob.glob(os.path.join(out, "model-*.safetensors"))):
         with safe_open(shard, "pt") as f:
@@ -341,15 +316,13 @@ _LOAD_CHILD = textwrap.dedent(
         res["text_forward_seconds"] = round(time.time() - t, 1)
     torch.save(logits, result_path + ".logits.pt")
 
-    # tokenizer assets load from the checkpoint directory (not a processor)
     try:
         tok = AutoTokenizer.from_pretrained(out, local_files_only=True, trust_remote_code=False)
         res["tokenizer"] = {"class": type(tok).__name__, "len": len(tok),
                             "ids": [tok.convert_tokens_to_ids(x) for x in ("<image>", "reserved_special_token_12", "</image>")]}
-    except Exception as exc:  # reported, not hidden
+    except Exception as exc:
         res["tokenizer"] = {"error": f"{type(exc).__name__}: {exc}"[:300]}
 
-    # model-level image smoke: hand-built placeholders, upstream patchify, no processor / template
     from transformers.models.glm5_next.image_processing_pil_glm5_next import Glm5NextImageProcessorPil
     from transformers.models.glm5_next.modeling_glm5_next import Glm5NextVisionModel
     pre = json.load(open(os.path.join(out, "preprocessor_config.json")))
@@ -430,7 +403,7 @@ def _run_child(script: str, args: list[str], env: dict, result_path: Path, timeo
 def check_fresh_process(out: Path, k2: Path, glm: Path, report: Report, *, threads: int, atol: float, timeout: int = 7200) -> dict:
     from transformers import AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(k2, trust_remote_code=False)  # tokenizer.json only; never prompt
+    tokenizer = AutoTokenizer.from_pretrained(k2, trust_remote_code=False)
     ids = tokenizer(PARITY_PROMPT, return_tensors="pt")["input_ids"]
 
     with tempfile.TemporaryDirectory(prefix="k2hv-verify-") as tmp:
@@ -496,9 +469,6 @@ def check_fresh_process(out: Path, k2: Path, glm: Path, report: Report, *, threa
         res["wall_seconds"] = round(time.perf_counter() - started, 1)
         res["load_wall_seconds"] = round(elapsed, 1)
     return res
-
-
-# ---------------------------------------------------------------------------------------------
 
 
 def disk_usage(out: Path) -> dict:

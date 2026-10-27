@@ -6,7 +6,6 @@ from k2hv.hf.modeling_k2_horizon_v import Projector, build_projector
 
 
 def _window_ids(grid_h: int, grid_w: int, merge: int = 2):
-    """(row, col) of each patch in merge-window order, as a (N, 2) array."""
     rows, cols = np.meshgrid(np.arange(grid_h), np.arange(grid_w), indexing="ij")
     block = (grid_h // merge, merge, grid_w // merge, merge)
     rows = rows.reshape(block).transpose(0, 2, 1, 3).reshape(-1)
@@ -15,12 +14,11 @@ def _window_ids(grid_h: int, grid_w: int, merge: int = 2):
 
 
 def test_merge_groups_follow_the_glm_image_processor_patch_order():
-    """The projector's `reshape(-1, 4 * d)` is only valid for the order upstream's `patchify` emits."""
     from transformers.models.glm5_next.image_processing_pil_glm5_next import Glm5NextImageProcessorPil
 
     patch, grid_h, grid_w = 4, 6, 8
     image = np.zeros((3, grid_h * patch, grid_w * patch), dtype=np.float32)
-    for r in range(grid_h):  # channel 0 / 1 carry each patch's own (row, col)
+    for r in range(grid_h):
         for c in range(grid_w):
             image[0, r * patch : (r + 1) * patch, c * patch : (c + 1) * patch] = r
             image[1, r * patch : (r + 1) * patch, c * patch : (c + 1) * patch] = c
@@ -29,14 +27,12 @@ def test_merge_groups_follow_the_glm_image_processor_patch_order():
         image, patch_size=patch, merge_size=2, temporal_patch_size=2
     )
     assert (gh, gw) == (grid_h, grid_w)
-    patches = patches.reshape(gh * gw, 3, 2, patch, patch)  # (N, C, T, p, p)
+    patches = patches.reshape(gh * gw, 3, 2, patch, patch)
     emitted = np.stack([patches[:, 0, 0, 0, 0], patches[:, 1, 0, 0, 0]], axis=-1).astype(int)
 
-    # upstream order == block-major over 2x2 windows, row-major inside each window
     np.testing.assert_array_equal(emitted, _window_ids(grid_h, grid_w))
 
-    # ... so merging 4 consecutive patches yields (r,c), (r,c+1), (r+1,c), (r+1,c+1) of one window
-    feats = torch.from_numpy(emitted).float()  # stand-in features: each patch's (row, col)
+    feats = torch.from_numpy(emitted).float()
     merged = Projector(2, 8).merge(feats).reshape(-1, 4, 2)
     for window in range(merged.shape[0]):
         r, c = divmod(window, grid_w // 2)
@@ -105,5 +101,4 @@ def test_init_scheme_matches_torch_defaults():
     for fc in (projector.fc1, projector.fc2):
         bound = fc.in_features**-0.5
         assert fc.weight.abs().max() <= bound and fc.bias.abs().max() <= bound
-        # uniform(-b, b) has std b / sqrt(3), the same as nn.Linear's default
         assert fc.weight.std().item() == pytest.approx(bound / 3**0.5, rel=0.05)

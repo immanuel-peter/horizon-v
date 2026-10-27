@@ -13,9 +13,6 @@ def model():
     return tiny.tiny_model()
 
 
-# --- composition -------------------------------------------------------------------------------
-
-
 def test_state_dict_layout_matches_the_planned_keys(model):
     keys = list(model.state_dict())
     assert {k.split(".")[0] for k in keys} == {"language_model", "visual", "projector"}
@@ -61,9 +58,6 @@ def test_tower_output_equals_native_vision_model_at_post_layernorm(model):
     torch.testing.assert_close(ours, captured["x"], rtol=0, atol=0)
 
 
-# --- forward -----------------------------------------------------------------------------------
-
-
 def test_text_only_is_exactly_ks_original_path(model):
     ids = torch.randint(0, 290, (2, 9))
     mask = torch.ones_like(ids)
@@ -92,7 +86,7 @@ def test_image_features_replace_embeddings_at_pad_positions_only(model):
     is_pad = inputs["input_ids"] == tiny.IMAGE_PAD
     assert is_pad.sum() == 4
     torch.testing.assert_close(seen["embeds"][is_pad], features, rtol=0, atol=0)
-    assert torch.equal(seen["embeds"][~is_pad], token_embeds[~is_pad])  # <image>, </image> and text keep their embeddings
+    assert torch.equal(seen["embeds"][~is_pad], token_embeds[~is_pad])
 
 
 def test_two_images_in_one_sequence_match_encoding_each_alone(model):
@@ -105,11 +99,8 @@ def test_two_images_in_one_sequence_match_encoding_each_alone(model):
         alone_1 = model.get_image_features(both["pixel_values"][:n_first], first["image_grid_thw"])
         alone_2 = model.get_image_features(both["pixel_values"][n_first:], second["image_grid_thw"])
     assert together.shape == (7, 64)
-    torch.testing.assert_close(together, torch.cat([alone_1, alone_2]), rtol=1e-5, atol=1e-5)  # attention stays per image
+    torch.testing.assert_close(together, torch.cat([alone_1, alone_2]), rtol=1e-5, atol=1e-5)
     assert model(**both).logits.shape[:2] == both["input_ids"].shape
-
-
-# --- validation --------------------------------------------------------------------------------
 
 
 def _drop_pad(inputs, n=1):
@@ -157,14 +148,17 @@ def test_bad_grids_are_rejected(model):
         model.get_image_features(pixels, torch.tensor([1, 4, 4]))
     with pytest.raises(ValueError, match="requires image_grid_thw"):
         model(input_ids=inputs["input_ids"], pixel_values=pixels)
-    # generate() keeps image_grid_thw after dropping pixel_values for decode steps; it must be ignored
-    text = inputs["input_ids"][:, :2]
-    assert model(input_ids=text, image_grid_thw=inputs["image_grid_thw"]).logits.shape[:2] == text.shape
     with pytest.raises(ValueError, match="requires input_ids"):
         model(inputs_embeds=torch.zeros(1, 4, 64), pixel_values=pixels, image_grid_thw=inputs["image_grid_thw"])
 
 
-# --- gradients ---------------------------------------------------------------------------------
+def test_text_forward_ignores_image_grid_without_pixel_values(model):
+    inputs = tiny.image_inputs()
+    text = inputs["input_ids"][:, :2]
+    with torch.no_grad():
+        expected = model(input_ids=text).logits
+        actual = model(input_ids=text, image_grid_thw=inputs["image_grid_thw"]).logits
+    assert torch.equal(actual, expected)
 
 
 def _labels(inputs):
@@ -187,7 +181,7 @@ def test_gradients_reach_the_projector_through_the_frozen_language_model():
     model.projector.register_forward_pre_hook(lambda m, args: seen.update(vit_out_requires_grad=args[0].requires_grad))
     grads, loss = _projector_grads(model)
 
-    assert seen["vit_out_requires_grad"] is False  # nothing is recorded through the vision tower
+    assert seen["vit_out_requires_grad"] is False
     assert set(grads) == {n for n, _ in model.named_parameters() if n.startswith("projector.")}
     for name, grad in grads.items():
         assert torch.isfinite(grad).all() and grad.abs().sum() > 0, name
@@ -202,7 +196,7 @@ def test_gradient_checkpointing_gives_the_same_projector_gradients(use_reentrant
 
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": use_reentrant})
     assert model.language_model.model.gradient_checkpointing
-    model.visual.train()  # the tower pins itself to eval, so its blocks never checkpoint
+    model.visual.train()
     assert not model.visual.training
     checkpointed, _ = _projector_grads(model)
 
@@ -217,9 +211,6 @@ def test_frozen_modules_stay_frozen_after_train_and_eval_toggles(model):
     assert [n for n, p in model.named_parameters() if p.requires_grad and not n.startswith("projector.")] == []
 
 
-# --- generation --------------------------------------------------------------------------------
-
-
 def test_generate_with_an_image_uses_pixels_only_for_prefill(model):
     inputs = tiny.image_inputs()
     out = model.generate(**inputs, max_new_tokens=3, do_sample=False, pad_token_id=1)
@@ -230,7 +221,6 @@ def test_generate_with_an_image_uses_pixels_only_for_prefill(model):
 
 
 def test_from_pretrained_keeps_frozen_modules_frozen(tmp_path):
-    """transformers' loader resets requires_grad to True on every loaded parameter; the model must undo that."""
     from k2hv.hf.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration
 
     source = tiny.tiny_model()
@@ -245,11 +235,7 @@ def test_from_pretrained_keeps_frozen_modules_frozen(tmp_path):
         assert torch.equal(tensor, loaded.state_dict()[name]), name
 
 
-# --- generate() integration (review follow-ups) ---------------------------------------------------
-
-
 def test_generate_asks_the_language_model_for_only_the_last_logits(model):
-    """transformers sets logits_to_keep=1 only if forward() declares it; otherwise a long prompt computes full logits."""
     assert model._supports_logits_to_keep()
     seen = []
     handle = model.language_model.register_forward_pre_hook(lambda m, args, kwargs: seen.append(kwargs.get("logits_to_keep")), with_kwargs=True)
@@ -266,11 +252,10 @@ def test_logits_to_keep_is_forwarded_to_the_language_model(model):
         full = model(**inputs).logits
         last = model(**inputs, logits_to_keep=1).logits
     assert last.shape[1] == 1
-    torch.testing.assert_close(last, full[:, -1:], rtol=1e-5, atol=1e-6)  # one row vs all rows: rounding-level differences
+    torch.testing.assert_close(last, full[:, -1:], rtol=1e-5, atol=1e-6)
 
 
 def _mixed_batch():
-    """Three samples: one image, two images, no image. Patches are concatenated in sample order, as the processor does."""
     gen = torch.Generator().manual_seed(3)
     samples = [[(1, 4, 4)], [(1, 2, 6), (1, 4, 4)], []]
     rows, per_sample_pixels, per_sample_grids = [], [], []
@@ -294,10 +279,8 @@ def test_expansion_for_beams_repeats_each_samples_whole_images(model):
     )
     assert torch.equal(expanded_ids, input_ids.repeat_interleave(2, dim=0))
     assert kwargs["attention_mask"].shape[0] == 6
-    # [s0, s0, s1, s1, s2, s2]: each copy is a complete set of that sample's images, in order
     assert torch.equal(kwargs["pixel_values"], torch.cat([pixels[0], pixels[0], pixels[1], pixels[1]]))
     assert torch.equal(kwargs["image_grid_thw"], torch.cat([grids[0], grids[0], grids[1], grids[1]]))
-    # ... so the placeholder count still equals the feature count
     n_features = int(kwargs["image_grid_thw"].prod(-1).sum() // 4)
     assert int((expanded_ids == tiny.IMAGE_PAD).sum()) == n_features
 

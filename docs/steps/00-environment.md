@@ -2,9 +2,9 @@
 
 The project uses uv for its code, its dependencies and every command. There are two environments:
 
-The CPU environment and the `k2hv` / `k2hv_sglang` package directories are set
-up. The model, processor, and training modules shown below are planned work.
-The Miles checkout is added when setting up a GPU node.
+The CPU environment, composite model and checkpoint tools are implemented.
+The processor and training modules shown below are planned. Add the Miles
+checkout when setting up a GPU node.
 
 | Where | CUDA stack (torch, SGLang, flash-attn) | Project code and light deps |
 |---|---|---|
@@ -58,9 +58,13 @@ packages = ["src/k2hv", "src/k2hv_sglang"]
 uv sync
 ```
 
-Use this env for [step 1](01-init-checkpoint.md) (measured peak: about 18 GiB RSS) and template and processor tests ([step 2](02-processor-and-template.md)).
+Use this environment to [build the checkpoint](01-init-checkpoint.md) and test
+the [template and processor](02-processor-and-template.md). The checkpoint build
+peaked at about 18 GiB RSS.
 
-`torch` is not pinned to a build: PyPI gives the CUDA build on Linux, which runs fine on CPU-only boxes (the venv is about 5 GB), and the CPU/MPS build on macOS. `pytest` is in the `dev` dependency group (`uv sync` installs it).
+PyPI supplies the CUDA build of `torch` on Linux and the CPU/MPS build on macOS.
+The Linux build runs on CPU machines and uses about 5 GB for the venv.
+`uv sync` installs `pytest` from the `dev` dependency group.
 
 ## GPU nodes
 

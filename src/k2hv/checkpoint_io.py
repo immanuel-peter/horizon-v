@@ -1,11 +1,3 @@
-"""Framework-free helpers for reading safetensors checkpoints and hashing files.
-
-    uv run python -m k2hv.checkpoint_io manifest hf/K2-Horizon-V-init   # rewrite SHA256SUMS after editing tracked files
-
-Shared by the init-checkpoint builder and its independent verifier. Headers are parsed directly from
-the file bytes, so sizes and offsets do not depend on any tensor library.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -23,7 +15,6 @@ MANIFEST_NAME = "SHA256SUMS"
 LM_PREFIX = "language_model."
 VISUAL_PREFIX = "visual."
 PROJECTOR_PREFIX = "projector."
-# GLM's own token-compression modules; the projector replaces them.
 EXCLUDED_GLM_PREFIXES = ("downsample.", "merger.")
 
 DTYPE_BYTES = {"BF16": 2, "F16": 2, "F32": 4, "F64": 8, "I64": 8, "I32": 4, "I16": 2, "I8": 1, "U8": 1, "BOOL": 1}
@@ -36,14 +27,14 @@ class CheckpointError(RuntimeError):
 @dataclass(frozen=True)
 class TensorInfo:
     file: Path
-    dtype: str  # safetensors dtype string, e.g. "BF16"
+    dtype: str
     shape: tuple[int, ...]
-    start: int  # absolute byte offsets of the payload within `file`
-    end: int
+    start_offset: int
+    end_offset: int
 
     @property
     def nbytes(self) -> int:
-        return self.end - self.start
+        return self.end_offset - self.start_offset
 
     @property
     def numel(self) -> int:
@@ -54,7 +45,10 @@ class TensorInfo:
 
 
 def read_header(path: Path) -> tuple[dict, int]:
-    """Return ``(tensor_entries, data_start)`` for one ``.safetensors`` file (``__metadata__`` dropped)."""
+    """Return ``(tensor_entries, data_start)`` for a safetensors file.
+
+    ``data_start`` is an absolute byte offset. Omit ``__metadata__`` from the entries.
+    """
     with open(path, "rb") as f:
         (header_len,) = struct.unpack("<Q", f.read(8))
         header = json.loads(f.read(header_len))
@@ -63,9 +57,10 @@ def read_header(path: Path) -> tuple[dict, int]:
 
 
 def read_tensor_infos(directory: str | Path) -> dict[str, TensorInfo]:
-    """Tensor headers of a sharded (index.json) or unsharded (model.safetensors) checkpoint.
+    """Read tensor metadata from indexed shards or ``model.safetensors``.
 
-    Raises if the index references a missing shard, disagrees with the shard headers, or a key repeats.
+    Raise ``CheckpointError`` if the index references a missing shard, disagrees with the shard
+    headers, or a key repeats.
     """
     directory = Path(directory)
     index_path, single_path = directory / INDEX_NAME, directory / SINGLE_NAME
@@ -104,7 +99,6 @@ def read_tensor_infos(directory: str | Path) -> dict[str, TensorInfo]:
 
 
 def split_glm_keys(keys) -> tuple[list[str], list[str]]:
-    """Split GLM vision tensor names into (kept, excluded) by the ``downsample``/``merger`` rule."""
     kept, excluded = [], []
     for key in keys:
         (excluded if key.startswith(EXCLUDED_GLM_PREFIXES) else kept).append(key)
@@ -120,10 +114,9 @@ def sha256_file(path: Path, chunk: int = 8 << 20) -> str:
 
 
 def hash_tree(directory: Path, *, exclude: tuple[str, ...] = (MANIFEST_NAME,), workers: int = 4) -> dict[str, str]:
-    """SHA-256 of every regular file under ``directory`` (relative POSIX paths, sorted).
+    """Return file SHA-256s keyed by sorted relative POSIX paths.
 
-    Hidden entries (``.cache/`` from `hf download`, ``.building/``) and ``__pycache__`` (bytecode Python writes next
-    to the sources it imports) are not part of the checkpoint and are skipped.
+    Skip paths in ``exclude``, hidden entries and ``__pycache__`` directories.
     """
     files = sorted(
         p
@@ -153,7 +146,7 @@ def read_manifest(path: Path) -> dict[str, str]:
 
 
 def parse_size(text: str | int) -> int:
-    """``"5GB"`` -> 5_000_000_000 (decimal units, as transformers' ``max_shard_size``)."""
+    """Parse byte counts with decimal KB, MB, GB or TB suffixes."""
     if isinstance(text, int):
         return text
     units = {"KB": 10**3, "MB": 10**6, "GB": 10**9, "TB": 10**12}

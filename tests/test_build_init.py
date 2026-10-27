@@ -15,11 +15,10 @@ from k2hv import build_init, verify_init
 from k2hv.checkpoint_io import hash_tree, read_tensor_infos, split_glm_keys
 
 TOKENS = {"<image>": tiny.IMAGE_START, "</image>": tiny.IMAGE_END, "reserved_special_token_12": tiny.IMAGE_PAD}
-SHARD_LIMIT = 100_000  # bytes; the tiny model is ~330 KB, so this forces several shards
+SHARD_LIMIT_BYTES = 100_000
 
 
 def prepared_out(tmp_path, k2, glm, name="out"):
-    """An HF repo tree holding only the tracked recipe, as it is in git before a build."""
     out = tmp_path / name
     out.mkdir()
     return tiny.write_recipe(out, k2, glm)
@@ -28,7 +27,7 @@ def prepared_out(tmp_path, k2, glm, name="out"):
 def build_tiny(tmp_path, *, glm_sharded=False, name="out", sources=None, **kwargs):
     k2, glm = sources or tiny.write_source_checkpoints(tmp_path / "src", glm_sharded=glm_sharded)
     out = prepared_out(tmp_path, k2, glm, name)
-    info = build_init.build(k2, glm, out, max_shard_size=SHARD_LIMIT, token_ids=TOKENS, **kwargs)
+    info = build_init.build(k2, glm, out, max_shard_size=SHARD_LIMIT_BYTES, token_ids=TOKENS, **kwargs)
     return k2, glm, out, info
 
 
@@ -38,15 +37,11 @@ def built(tmp_path_factory):
 
 
 def test_vendored_k2_code_is_unmodified():
-    """Pinned to the hashes IFM recorded in K2-Horizon-7B's migration_manifest.json (target_hashes)."""
     expected = {
         "configuration_k2_horizon.py": "5c2f993c1053d9462ebea6dea416c897fddfbb4a5edd904e486936b20d4badc5",
         "modeling_k2_horizon.py": "fb09e010956bd51cfa7d4055b4381cff34c9e06164066b49e3546f38b2e6242f",
     }
     assert {n: hashlib.sha256((tiny.HF_DIR / n).read_bytes()).hexdigest() for n in expected} == expected
-
-
-# --- successful builds ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("glm_sharded", [False, True], ids=["glm-single-file", "glm-sharded"])
@@ -66,13 +61,13 @@ def test_build_covers_every_key_and_preserves_frozen_bytes(tmp_path, glm_sharded
 
     shards = sorted(out.glob("model-*.safetensors"))
     assert len(shards) > 1
-    assert all(s.stat().st_size <= SHARD_LIMIT for s in shards)
-    assert all(s.stat().st_mode & 0o044 for s in shards)  # group/other-readable like every other file
+    assert all(s.stat().st_size <= SHARD_LIMIT_BYTES for s in shards)
+    assert all(s.stat().st_mode & 0o044 == 0o044 for s in shards)
     assert {i.dtype for i in out_infos.values()} == {"BF16"}
     for key, src in [("language_model." + k, k2_infos[k]) for k in k2_infos] + [("visual." + k, glm_infos[k]) for k in kept]:
-        assert verify_init._compare_ranges(out_infos[key], src), key  # raw bytes identical, not just numerically equal
+        assert verify_init._compare_ranges(out_infos[key], src), key
     assert not (out / ".building").exists()
-    assert (out / "tokenizer.json").read_bytes() == (k2 / "tokenizer.json").read_bytes()  # ignored upstream file is copied in
+    assert (out / "tokenizer.json").read_bytes() == (k2 / "tokenizer.json").read_bytes()
 
 
 def test_static_verifier_passes_on_a_good_build(built):
@@ -82,7 +77,9 @@ def test_static_verifier_passes_on_a_good_build(built):
     infos = verify_init.check_shards(out, report)
     k2_infos, glm_infos = verify_init.check_key_coverage(infos, k2, glm, config, report)
     verify_init.check_frozen_bytes(infos, k2_infos, glm_infos, report)
+    rng_state = torch.get_rng_state()
     verify_init.check_projector(out, infos, config, report)
+    assert torch.equal(torch.get_rng_state(), rng_state)
     verify_init.check_manifest(out, report)
     failed = [c for c in report.checks if not c["ok"]]
     assert not failed, failed
@@ -91,7 +88,6 @@ def test_static_verifier_passes_on_a_good_build(built):
 
 def test_verifier_catches_corruption(built, tmp_path):
     k2, glm, out, _ = built
-    # flip one byte inside a frozen tensor of a copy
     copy = tmp_path / "copy"
     copy.mkdir()
     for p in out.rglob("*"):
@@ -101,7 +97,7 @@ def test_verifier_catches_corruption(built, tmp_path):
     infos = read_tensor_infos(copy)
     victim = infos["language_model.model.layers.0.mlp.up_proj.weight"]
     data = bytearray(victim.file.read_bytes())
-    data[victim.start + 3] ^= 0x01
+    data[victim.start_offset + 3] ^= 0x01
     victim.file.write_bytes(bytes(data))
 
     report = verify_init.Report()
@@ -109,8 +105,7 @@ def test_verifier_catches_corruption(built, tmp_path):
     verify_init.check_manifest(copy, report)
     assert [c["ok"] for c in report.checks] == [False, False]
 
-    # shipped model code drifting from the package is flagged ("rebuild")
-    (copy / "modeling_k2_horizon_v.py").write_text((copy / "modeling_k2_horizon_v.py").read_text() + "\n# drift\n")
+    (copy / "modeling_k2_horizon_v.py").write_text((copy / "modeling_k2_horizon_v.py").read_text() + "\n\n")
     report = verify_init.Report()
     verify_init.check_layout(copy, k2, glm, report, token_ids=TOKENS)
     stale = [c for c in report.checks if c["name"].startswith("layout: code equals")]
@@ -148,7 +143,7 @@ def test_build_is_deterministic_across_runs(tmp_path):
     _, _, b, _ = build_tiny(tmp_path, name="b", sources=sources)
     ha, hb = hash_tree(a), hash_tree(b)
     differing = {k for k in ha if ha[k] != hb[k]}
-    assert differing <= {"build_info.json", "SHA256SUMS"}  # only the timing/memory record differs
+    assert differing <= {"build_info.json", "SHA256SUMS"}
 
 
 def test_different_seed_changes_only_the_projector(tmp_path):
@@ -158,7 +153,7 @@ def test_different_seed_changes_only_the_projector(tmp_path):
     infos_a, infos_b = read_tensor_infos(a), read_tensor_infos(b)
     for key in infos_a:
         same = verify_init._compare_ranges(infos_a[key], infos_b[key])
-        assert same == (not key.startswith("projector.") or key.startswith("projector.norm.")), key  # LayerNorm init is seed-free
+        assert same == (not key.startswith("projector.") or key.startswith("projector.norm.")), key
 
 
 def test_offline_load_in_a_fresh_process_matches_stock_k2(built, tmp_path):
@@ -166,7 +161,7 @@ def test_offline_load_in_a_fresh_process_matches_stock_k2(built, tmp_path):
     script = textwrap.dedent(
         """
         import json, sys
-        sys.modules["k2hv"] = None  # the checkpoint must not need this repository
+        sys.modules["k2hv"] = None
         out, k2 = sys.argv[1:3]
         import torch
         from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForImageTextToText
@@ -200,15 +195,12 @@ def test_offline_load_in_a_fresh_process_matches_stock_k2(built, tmp_path):
     assert {"configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", "configuration_k2_horizon.py", "modeling_k2_horizon.py"} <= cached
 
 
-# --- refusals and failures -----------------------------------------------------------------------
-
-
 def test_refuses_to_overwrite_an_existing_checkpoint(tmp_path):
     k2, glm, out, _ = build_tiny(tmp_path)
     before = hash_tree(out)
     with pytest.raises(build_init.BuildError, match="refusing to overwrite"):
-        build_init.build(k2, glm, out, token_ids=TOKENS, max_shard_size=SHARD_LIMIT)
-    assert hash_tree(out) == before  # nothing was touched, including the tracked recipe files
+        build_init.build(k2, glm, out, token_ids=TOKENS, max_shard_size=SHARD_LIMIT_BYTES)
+    assert hash_tree(out) == before
     assert not (out / ".building").exists()
 
 
@@ -240,7 +232,7 @@ def test_missing_recipe_file_is_an_error(tmp_path):
 def test_output_code_must_be_the_code_the_schema_came_from(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
     out = prepared_out(tmp_path, k2, glm)
-    (out / "modeling_k2_horizon_v.py").write_text((out / "modeling_k2_horizon_v.py").read_text() + "\n# edited\n")
+    (out / "modeling_k2_horizon_v.py").write_text((out / "modeling_k2_horizon_v.py").read_text() + "\n\n")
     with pytest.raises(build_init.BuildError, match="differs from the code this tool imports"):
         build_init.build(k2, glm, out, token_ids=TOKENS)
 
@@ -297,7 +289,7 @@ def test_wrong_token_id_is_an_error(tmp_path):
 def test_modified_k2_code_is_an_error(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
     out = prepared_out(tmp_path, k2, glm)
-    (k2 / "modeling_k2_horizon.py").write_text((k2 / "modeling_k2_horizon.py").read_text() + "\n# local edit\n")
+    (k2 / "modeling_k2_horizon.py").write_text((k2 / "modeling_k2_horizon.py").read_text() + "\n\n")
     with pytest.raises(build_init.BuildError, match="differs from the tracked copy"):
         build_init.build(k2, glm, out, token_ids=TOKENS)
 
@@ -338,15 +330,12 @@ def test_manifest_cli_refreshes_after_a_tracked_file_changes(built, tmp_path):
     (copy / "README.md").write_text("edited")
     report = verify_init.Report()
     verify_init.check_manifest(copy, report)
-    assert not report.ok  # the old manifest no longer matches
+    assert not report.ok
     assert checkpoint_io.main(["manifest", str(copy)]) == 0
     report = verify_init.Report()
     verify_init.check_manifest(copy, report)
     assert report.ok
-    assert checkpoint_io.main(["manifest", str(tmp_path)]) == 1  # no weights there: refuses
-
-
-# --- shard planner -------------------------------------------------------------------------------
+    assert checkpoint_io.main(["manifest", str(tmp_path)]) == 1
 
 
 def test_plan_shards_packs_in_order_within_the_limit():

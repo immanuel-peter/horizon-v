@@ -19,8 +19,6 @@ dist/
 /runs/
 /third_party/
 
-# hf/<name>/ is the Hugging Face repo working tree: authored files are tracked, weights and per-build
-# outputs are not (written by k2hv.build_init).
 /hf/*/*.safetensors
 /hf/*/model.safetensors.index.json
 /hf/*/tokenizer.json

@@ -1,10 +1,3 @@
-"""Tiny stand-ins for K2-Horizon-7B and GLM-5.3-Flash-Vision.
-
-The configs mirror the structure of the real ``config.json`` files (same keys, including K2's
-``auto_map``) at a size that builds in milliseconds. Token ids are small so the vocab stays tiny;
-the real ids (250031/250032/250062) are only used by the real build.
-"""
-
 import json
 from pathlib import Path
 
@@ -14,8 +7,8 @@ from safetensors.torch import save_file
 VOCAB = 320
 IMAGE_START, IMAGE_END, IMAGE_PAD = 300, 301, 302
 PATCH = 4
-PATCH_DIM = 3 * 2 * PATCH * PATCH  # channels * temporal_patch_size * patch^2
-HF_DIR = Path(__file__).resolve().parents[1] / "hf" / "K2-Horizon-V-init"  # the tracked HF repo tree
+PATCH_DIM = 3 * 2 * PATCH * PATCH
+HF_DIR = Path(__file__).resolve().parents[1] / "hf" / "K2-Horizon-V-init"
 
 
 def k2_config_dict(dtype: str = "float32", **overrides) -> dict:
@@ -113,7 +106,6 @@ def composite_config(dtype: str = "float32"):
 
 
 def tiny_model(dtype: str = "float32", seed: int = 0):
-    """Randomly initialized tiny composite model (projector has non-trivial values)."""
     from k2hv.hf.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration
 
     torch.manual_seed(seed)
@@ -122,7 +114,6 @@ def tiny_model(dtype: str = "float32", seed: int = 0):
 
 
 def image_inputs(grids=((1, 4, 4),), seed: int = 1, batch_tokens_prefix=(5, 6)):
-    """Hand-built multimodal batch: ``prefix + <image> + pads + </image> + suffix`` per image."""
     gen = torch.Generator().manual_seed(seed)
     grid = torch.tensor(grids, dtype=torch.long)
     num_patches = int((grid[:, 0] * grid[:, 1] * grid[:, 2]).sum())
@@ -140,12 +131,6 @@ def image_inputs(grids=((1, 4, 4),), seed: int = 1, batch_tokens_prefix=(5, 6)):
 
 
 def write_source_checkpoints(root: Path, *, k2_shards: int = 2, glm_sharded: bool = False, dtype: str = "bfloat16"):
-    """Write tiny K2/GLM source dirs shaped like the real downloads, with random bf16 weights.
-
-    Returns ``(k2_dir, glm_dir)``. K2 is always sharded with an index (like the real repo); GLM is a
-    single ``model.safetensors`` unless ``glm_sharded``. Also writes every non-weight file the builder
-    needs, with the tokenizer reduced to the three image tokens.
-    """
     from transformers.models.glm5_next.configuration_glm5_next import Glm5NextVisionConfig
     from transformers.models.glm5_next.modeling_glm5_next import Glm5NextVisionModel
 
@@ -154,7 +139,6 @@ def write_source_checkpoints(root: Path, *, k2_shards: int = 2, glm_sharded: boo
     k2_dir.mkdir(parents=True)
     glm_dir.mkdir(parents=True)
 
-    # K2 weights: the stock K2 model's own state dict.
     from k2hv.hf.configuration_k2_horizon import K2HorizonConfig
     from k2hv.hf.modeling_k2_horizon import K2HorizonForCausalLM
 
@@ -185,7 +169,6 @@ def write_source_checkpoints(root: Path, *, k2_shards: int = 2, glm_sharded: boo
         )
     )
 
-    # GLM weights: the full native vision model (including downsample + merger, as in the real repo).
     torch.manual_seed(200)
     glm_cfg = glm_vision_config_dict(dtype)
     glm_state = {
@@ -216,15 +199,12 @@ def _write_sharded(directory: Path, state: dict, num_shards: int) -> None:
     )
 
 
-# Files build_init expects to find in the output directory, split by where they come from.
 AUTHORED = ("configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", "configuration_k2_horizon.py", "modeling_k2_horizon.py",
             "README.md", "NOTICE", "licenses/Apache-2.0.txt")
 FROM_K2 = ("tokenizer_config.json", "special_tokens_map.json", "generation_config.json", "chat_template.jinja")
 
 
 def write_recipe(out: Path, k2_dir: Path, glm_dir: Path) -> Path:
-    """The tracked part of an HF repo tree, as build_init expects it: our files from hf/K2-Horizon-V-init,
-    mirrored upstream files from the (tiny) sources."""
     for name in AUTHORED:
         (out / name).parent.mkdir(parents=True, exist_ok=True)
         (out / name).write_bytes((HF_DIR / name).read_bytes())

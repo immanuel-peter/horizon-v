@@ -21,8 +21,6 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# src/k2hv/hf is a symlink to hf/K2-Horizon-V-init, whose weights are git-ignored by path but would be
-# reached through the symlink. Keep them out of every build.
 [tool.hatch.build]
 exclude = ["*.safetensors", "tokenizer.json", "model.safetensors.index.json", "build_info.json", "SHA256SUMS", ".cache", ".building"]
 

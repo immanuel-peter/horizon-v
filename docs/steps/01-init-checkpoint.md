@@ -1,6 +1,11 @@
 # Step 1: Build the init checkpoint
 
-> **Status:** implemented and verified on CPU. The checkpoint tree is tracked in git as `hf/K2-Horizon-V-init/` (weights ignored); `uv run python -m k2hv.build_init --k2 models/K2-Horizon-7B --glm models/GLM-5.3-Flash-Vision --out hf/K2-Horizon-V-init` adds the weights, index and `config.json` in place, and `k2hv.verify_init` checks the result. It differs from the procedure below in a few places (streamed shards instead of `save_pretrained`, no processor files yet, a `from_pretrained` re-freeze); see the [handoff](../handoff/01-init-checkpoint.md).
+The checkpoint is implemented and verified on CPU. Git tracks its code and
+small assets in `hf/K2-Horizon-V-init/`. `k2hv.build_init` writes the weights,
+index and config in place; `k2hv.verify_init` checks the result. The
+[handoff](../handoff/01-init-checkpoint.md) has commands and implementation
+details, including streamed shards and freezing after `from_pretrained`.
+Processor files are planned for step 2.
 
 ## Why it exists
 
