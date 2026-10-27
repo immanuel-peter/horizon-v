@@ -201,6 +201,7 @@ def test_processor_save_load_is_self_contained_and_offline(processor, tmp_path):
     original_vocab = processor.tokenizer.get_vocab()
     processor.save_pretrained(saved)
     assert processor.tokenizer.get_vocab() == original_vocab
+    assert json.loads((saved / "processor_config.json").read_text())["image_backend"] == "pil"
     script = textwrap.dedent('''
         import sys
         sys.modules['k2hv'] = None

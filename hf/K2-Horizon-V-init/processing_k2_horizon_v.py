@@ -27,7 +27,7 @@ class K2HorizonVProcessor(ProcessorMixin):
     image_start_token = "<image>"
     image_end_token = "</image>"
 
-    def __init__(self, image_processor, tokenizer, chat_template=None):
+    def __init__(self, image_processor, tokenizer, chat_template=None, image_backend=None):
         super().__init__(image_processor, tokenizer, chat_template=chat_template or tokenizer.chat_template)
         self.image_backend = image_processor.backend
         for token in (self.image_token, self.image_start_token, self.image_end_token):
