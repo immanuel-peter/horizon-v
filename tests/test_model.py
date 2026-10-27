@@ -243,3 +243,99 @@ def test_from_pretrained_keeps_frozen_modules_frozen(tmp_path):
         assert info is None or not any(info.values())
     for name, tensor in source.state_dict().items():
         assert torch.equal(tensor, loaded.state_dict()[name]), name
+
+
+# --- generate() integration (review follow-ups) ---------------------------------------------------
+
+
+def test_generate_asks_the_language_model_for_only_the_last_logits(model):
+    """transformers sets logits_to_keep=1 only if forward() declares it; otherwise a long prompt computes full logits."""
+    assert model._supports_logits_to_keep()
+    seen = []
+    handle = model.language_model.register_forward_pre_hook(lambda m, args, kwargs: seen.append(kwargs.get("logits_to_keep")), with_kwargs=True)
+    try:
+        model.generate(**tiny.image_inputs(), max_new_tokens=2, do_sample=False, pad_token_id=1)
+    finally:
+        handle.remove()
+    assert seen and set(seen) == {1}
+
+
+def test_logits_to_keep_is_forwarded_to_the_language_model(model):
+    inputs = tiny.image_inputs()
+    with torch.no_grad():
+        full = model(**inputs).logits
+        last = model(**inputs, logits_to_keep=1).logits
+    assert last.shape[1] == 1
+    torch.testing.assert_close(last, full[:, -1:], rtol=1e-5, atol=1e-6)  # one row vs all rows: rounding-level differences
+
+
+def _mixed_batch():
+    """Three samples: one image, two images, no image. Patches are concatenated in sample order, as the processor does."""
+    gen = torch.Generator().manual_seed(3)
+    samples = [[(1, 4, 4)], [(1, 2, 6), (1, 4, 4)], []]
+    rows, per_sample_pixels, per_sample_grids = [], [], []
+    for images in samples:
+        row = [5]
+        for t, h, w in images:
+            row += [tiny.IMAGE_START] + [tiny.IMAGE_PAD] * (t * h * w // 4) + [tiny.IMAGE_END]
+        rows.append(row + [7])
+        per_sample_pixels.append(torch.randn(sum(t * h * w for t, h, w in images), tiny.PATCH_DIM, generator=gen))
+        per_sample_grids.append(torch.tensor(images, dtype=torch.long).reshape(-1, 3))
+    width = max(map(len, rows))
+    input_ids = torch.tensor([row + [1] * (width - len(row)) for row in rows])
+    return input_ids, per_sample_pixels, per_sample_grids
+
+
+def test_expansion_for_beams_repeats_each_samples_whole_images(model):
+    input_ids, pixels, grids = _mixed_batch()
+    expanded_ids, kwargs = model._expand_inputs_for_generation(
+        expand_size=2, input_ids=input_ids, attention_mask=torch.ones_like(input_ids),
+        pixel_values=torch.cat(pixels), image_grid_thw=torch.cat(grids),
+    )
+    assert torch.equal(expanded_ids, input_ids.repeat_interleave(2, dim=0))
+    assert kwargs["attention_mask"].shape[0] == 6
+    # [s0, s0, s1, s1, s2, s2]: each copy is a complete set of that sample's images, in order
+    assert torch.equal(kwargs["pixel_values"], torch.cat([pixels[0], pixels[0], pixels[1], pixels[1]]))
+    assert torch.equal(kwargs["image_grid_thw"], torch.cat([grids[0], grids[0], grids[1], grids[1]]))
+    # ... so the placeholder count still equals the feature count
+    n_features = int(kwargs["image_grid_thw"].prod(-1).sum() // 4)
+    assert int((expanded_ids == tiny.IMAGE_PAD).sum()) == n_features
+
+
+def test_expansion_is_a_no_op_for_a_single_sequence(model):
+    inputs = tiny.image_inputs()
+    ids, kwargs = model._expand_inputs_for_generation(
+        expand_size=1, input_ids=inputs["input_ids"], pixel_values=inputs["pixel_values"], image_grid_thw=inputs["image_grid_thw"]
+    )
+    assert ids is inputs["input_ids"] and kwargs["pixel_values"] is inputs["pixel_values"]
+
+
+def test_expansion_rejects_grids_that_do_not_match_the_placeholders(model):
+    input_ids, pixels, grids = _mixed_batch()
+    with pytest.raises(ValueError, match="placeholder"):
+        model._expand_inputs_for_generation(
+            expand_size=2, input_ids=input_ids[:, :3], pixel_values=torch.cat(pixels), image_grid_thw=torch.cat(grids)
+        )
+
+
+@pytest.mark.parametrize("kwargs", [{"num_beams": 2}, {"num_beams": 2, "num_return_sequences": 2}, {"do_sample": True, "num_return_sequences": 2}])
+def test_every_beam_and_returned_sequence_sees_the_original_image(model, kwargs):
+    inputs = tiny.image_inputs()
+    first_embeds = []
+
+    def capture(module, args, call_kwargs):
+        if call_kwargs.get("inputs_embeds") is not None and not first_embeds:
+            first_embeds.append(call_kwargs["inputs_embeds"].detach().clone())
+
+    handle = model.language_model.register_forward_pre_hook(capture, with_kwargs=True)
+    try:
+        model.generate(**inputs, max_new_tokens=2, pad_token_id=1, **{"do_sample": False, **kwargs})
+    finally:
+        handle.remove()
+    with torch.no_grad():
+        features = model.get_image_features(inputs["pixel_values"], inputs["image_grid_thw"])
+    embeds = first_embeds[0]
+    assert embeds.shape[0] == kwargs.get("num_beams", 1) * kwargs.get("num_return_sequences", 1) or embeds.shape[0] >= 2
+    is_pad = inputs["input_ids"][0] == tiny.IMAGE_PAD
+    for row in embeds:
+        assert torch.equal(row[is_pad], features)

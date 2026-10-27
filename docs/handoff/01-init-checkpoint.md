@@ -36,7 +36,7 @@ src/k2hv/    build_init.py  verify_init.py  checkpoint_io.py
 | Size | 18,894,989,405 bytes (18.89 GB, 17.60 GiB), 21 files: 4 shards of 4.94 / 4.98 / 5.00 / 3.95 GB (limit 5 GB) plus code and assets |
 | Contents | 672 tensors, 9,436,974,080 parameters, all BF16: 327 `language_model.*` + 339 `visual.*` + 6 `projector.*` |
 | Parameters | `language_model` 8,999,178,240, `visual` 404,231,168, `projector` 33,564,672 (only trainable part) |
-| Checksum manifest | `hf/K2-Horizon-V-init/SHA256SUMS` (`sha256sum -c` format; the manifest itself hashes to `e6dbb0fba5422fffa2fb419b5703a6da726c3375fc77358e79814dc4d71e7cc2`) |
+| Checksum manifest | `hf/K2-Horizon-V-init/SHA256SUMS` (`sha256sum -c` format; the manifest itself hashes to `fe20666feba260c3fb170fb46a94c7c543d63dacf241a235023fb16f3fc02a66`) |
 | Build record | `hf/K2-Horizon-V-init/build_info.json` (revisions, excluded GLM tensors, projector SHA-256s, versions) |
 | Logs | `outputs/init_checkpoint/{build.log,verify.log,verify_report.json}` (git-ignored) |
 
@@ -101,7 +101,7 @@ uv run pytest
 
 ## What was verified (all passing)
 
-`verify_init` (39 checks) and `pytest` (54 tests). Everything below ran on CPU.
+`verify_init` (39 checks) and `pytest` (62 tests). Everything below ran on CPU.
 
 - **Layout**: 18 required files; code equals what `k2hv.hf` imports; no staging leftovers; no `processing_*.py`, no `processor_config.json`; `auto_map` is exactly `AutoConfig` + `AutoModelForImageTextToText`, with no Hub prefix anywhere in `config.json`; token IDs 250031 / 250062 / 250032 (also confirmed against K2's `tokenizer.json`); untied embeddings; `text_config` / `vision_config` equal the sources' configs; mirrored upstream files (K2 code, tokenizer files, chat template, generation config, `preprocessor_config.json`, MIT license) are byte-identical to the sources; README and NOTICE name the build's source revisions.
 - **Shards**: every indexed shard exists, none extra, each ≤ 5 GB, index and shard headers agree in both directions, `total_size` matches.
@@ -111,10 +111,11 @@ uv run pytest
 - **Offline load, fresh process**: `HF_HUB_OFFLINE=1`, `local_files_only=True`, empty `HF_MODULES_CACHE`, `HF_HOME` and hub cache, `python -I`, and `import k2hv` blocked. `AutoConfig` and `AutoModelForImageTextToText` (`trust_remote_code=True`) load with no missing / unexpected / mismatched keys. All 672 loaded tensors equal their stored bytes. After the real `from_pretrained`, trainable params = the projector's 33,564,672 only.
 - **Stock-K2 parity**: text-only logits of the checkpoint vs stock `AutoModelForCausalLM` K2, same 13 input ids, bf16, sdpa, 4 threads: **max |diff| = 0, mean |diff| = 0, bitwise equal**; the pass tolerance was exact (`atol = 0`). Logits range [-10.00, 26.62]. The result is identical under the CPU wheel and the CUDA wheel.
 - **Model-level image smoke** (hand-built `<image>` + 256 × 250062 + `</image>`; pixels from upstream `Glm5NextImageProcessorPil.patchify`, no processor, no template): the truncated tower equals the native `Glm5NextVisionModel` through `post_layernorm` on the real weights; 448×448 → 1024 patches → 256 features of 4096-d; the 265-token forward is finite.
-- **Unit tests** (tiny configs): composition and key layout, projector 2×2 patch order against upstream `patchify`, shapes (33,564,672 params at 1024/4096), deterministic init, text-only path identical to K2, features land only on pad positions, placeholder-count errors in every direction, grid validation, gradients reach the projector and nothing else (also with gradient checkpointing, reentrant and not), two images per sequence, `generate` with an image, `from_pretrained` keeps frozen modules frozen, builder end-to-end (sharded and unsharded GLM, multi-shard splitting, byte preservation, determinism, refusal paths including a missing recipe file, drifted code and a pre-existing checkpoint), manifest ignores bytecode and hidden dirs.
+- **Unit tests** (tiny configs): composition and key layout, projector 2×2 patch order against upstream `patchify`, shapes (33,564,672 params at 1024/4096), deterministic init, text-only path identical to K2, features land only on pad positions, placeholder-count errors in every direction, grid validation, gradients reach the projector and nothing else (also with gradient checkpointing, reentrant and not), two images per sequence, `generate` with an image (including beams, `num_return_sequences` and mixed batches, where every beam must see the original image, and `logits_to_keep=1` on prefill), `from_pretrained` keeps frozen modules frozen, builder end-to-end (sharded and unsharded GLM, multi-shard splitting, byte preservation, determinism, refusal paths including a missing recipe file, drifted code and a pre-existing checkpoint), manifest ignores bytecode and hidden dirs.
 
 ## Not done (deferred; none of this was tested or is claimed)
 
+- When `k2hv/sft_rollout.py` lands (plan step 6), assert that image placeholder positions are never in the loss mask (the plan's answer-only mask already excludes them).
 - `AutoProcessor` / `K2HorizonVProcessor`: no processor code, no `processor_config.json`, no `AutoProcessor` in `auto_map`. `AutoProcessor.from_pretrained` on the checkpoint is unsupported and was not exercised.
 - Chat template: `chat_template.jinja` is K2's original, which rejects image parts. No image-template or prompt-expansion test exists.
 - SGLang model package, datasets, SFT/RL, GPU parity, flash-attention / flex-attention (see below).
@@ -128,6 +129,7 @@ uv run pytest
 5. **Patch order verified**, not assumed. The GLM image processor's `patchify` (permute to `(h/2, w/2, 2, 2, …)`), `get_vision_position_ids` ("block-major over merge windows") and GLM's own `view(-1, 2, 2, C)` + `Conv2d(k=2, s=2)` all agree: every 4 consecutive rows are one 2×2 window in `(0,0),(0,1),(1,0),(1,1)` order, so `reshape(-1, 4*C)` is correct.
 6. **Projector init** is defined as: float32 draws from `torch.Generator().manual_seed(0)` in the order `fc1.weight, fc1.bias, fc2.weight, fc2.bias` with `U(±1/√fan_in)` (torch's `nn.Linear` default), `LayerNorm` weight 1 / bias 0, then cast to BF16. It does not touch the global RNG.
 7. **Forward behavior choices**: input ids containing 250062 with no `pixel_values` raise at prefill (the likeliest symptom of a dropped multimodal kwarg); a lone `image_grid_thw` is ignored because `generate()` drops `pixel_values` after prefill but keeps the grid; `pixel_values` requires `input_ids`, not `inputs_embeds`.
+    - **`generate()` integration** (found in PR review): `logits_to_keep` is an explicit `forward` parameter, because `generate()` only requests last-position logits from models that declare it (otherwise an 8k-token prompt computes about 4 GB of BF16 logits). Beam search and `num_return_sequences` repeat each sample's whole images (`_expand_inputs_for_generation`); the stock expansion repeats `pixel_values` row by row, which is patches here, and silently corrupts the image. Image features and pixel values are moved to the devices of the modules that consume them. The multi-device part cannot be exercised on this box.
 8. **Attention backends**: only `eager`/`sdpa` are declared supported and tested. The GLM tower's flash path and K2's flash/flex support are unvalidated here; decide the flags in step 4 on a GPU.
 9. **Size**: the step doc's "~17 GB" is 17.6 GiB (18.9 GB).
 10. Importing K2's modeling file logs `[ERROR] cache_position is part of … not documented`. This is upstream `@auto_docstring` noise, harmless, and the file is kept unmodified.

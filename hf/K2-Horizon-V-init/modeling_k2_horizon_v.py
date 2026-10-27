@@ -219,7 +219,7 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
         The vision tower runs under ``torch.no_grad()``; the projector output carries gradients.
         """
         merge = self.config.vision_config.spatial_merge_size
-        grid = image_grid_thw.to(device=pixel_values.device, dtype=torch.long)
+        grid = image_grid_thw.to(device=self.visual.device, dtype=torch.long)
         if grid.ndim != 2 or grid.shape[1] != 3:
             raise ValueError(f"image_grid_thw must have shape (num_images, 3), got {tuple(grid.shape)}")
         t, h, w = grid.unbind(-1)
@@ -231,7 +231,7 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
                 f"pixel_values has {pixel_values.shape[0]} patches but image_grid_thw describes {num_patches}"
             )
 
-        pixel_values = pixel_values.to(dtype=self.visual.dtype)
+        pixel_values = pixel_values.to(device=self.visual.device, dtype=self.visual.dtype)
         with torch.no_grad():
             patch_features = self.visual(pixel_values, grid_thw=grid)
         return self.projector(patch_features)
@@ -247,6 +247,7 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
         use_cache: bool | None = None,
         pixel_values: torch.Tensor | None = None,
         image_grid_thw: torch.LongTensor | None = None,
+        logits_to_keep: int | torch.Tensor = 0,
         **kwargs,
     ):
         """
@@ -254,6 +255,10 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
             Flattened patches from the GLM image processor. Requires `input_ids` and `image_grid_thw`.
         image_grid_thw (`torch.LongTensor` of shape `(num_images, 3)`, *optional*):
             Patch grid of each image.
+
+        logits_to_keep (`int` or `torch.Tensor`, *optional*, defaults to 0):
+            As in K2. It must be an explicit parameter: `generate` only sets it to 1 (last position) when `forward`
+            declares it, which keeps long prompts from computing logits for every token.
 
         Without `pixel_values` this is exactly K2's forward. The number of `image_token_id` tokens in
         `input_ids` must equal the number of image features, i.e. ``sum(t*h*w) // merge**2``.
@@ -274,7 +279,7 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
                 raise ValueError("pixel_values requires input_ids (and not inputs_embeds) to locate image tokens")
             inputs_embeds = self.get_input_embeddings()(input_ids)
             image_features = self.get_image_features(pixel_values, image_grid_thw)
-            mask = input_ids == self.config.image_token_id
+            mask = (input_ids == self.config.image_token_id).to(inputs_embeds.device)
             num_placeholders = int(mask.sum())
             if num_placeholders != image_features.shape[0]:
                 raise ValueError(
@@ -282,7 +287,7 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
                     f"(id {self.config.image_token_id}) in input_ids, {image_features.shape[0]} features"
                 )
             inputs_embeds = inputs_embeds.masked_scatter(
-                mask.unsqueeze(-1).expand_as(inputs_embeds), image_features.to(inputs_embeds.dtype)
+                mask.unsqueeze(-1).expand_as(inputs_embeds), image_features.to(device=inputs_embeds.device, dtype=inputs_embeds.dtype)
             )
             input_ids = None
 
@@ -294,8 +299,55 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
             inputs_embeds=inputs_embeds,
             labels=labels,
             use_cache=use_cache,
+            logits_to_keep=logits_to_keep,
             **kwargs,
         )
+
+    def _expand_inputs_for_generation(self, expand_size: int = 1, is_encoder_decoder: bool = False, input_ids=None, **model_kwargs):
+        # `generate` repeats every tensor along dim 0 for beams / num_return_sequences. For `pixel_values` dim 0 is
+        # patches, not samples, so the stock expansion would give `[p0, p0, p1, p1, ...]` instead of whole copies of
+        # each image (with matching grids and counts, so nothing would raise). Repeat each sample's images instead.
+        if expand_size > 1 and model_kwargs.get("pixel_values") is not None:
+            model_kwargs["pixel_values"], model_kwargs["image_grid_thw"] = self._repeat_images_per_sample(
+                input_ids, model_kwargs["pixel_values"], model_kwargs.get("image_grid_thw"), expand_size
+            )
+            expanded = {key: model_kwargs.pop(key) for key in ("pixel_values", "image_grid_thw")}
+            input_ids, model_kwargs = super()._expand_inputs_for_generation(
+                expand_size=expand_size, is_encoder_decoder=is_encoder_decoder, input_ids=input_ids, **model_kwargs
+            )
+            return input_ids, {**model_kwargs, **expanded}
+        return super()._expand_inputs_for_generation(
+            expand_size=expand_size, is_encoder_decoder=is_encoder_decoder, input_ids=input_ids, **model_kwargs
+        )
+
+    def _repeat_images_per_sample(self, input_ids, pixel_values, image_grid_thw, expand_size):
+        """Repeat each sample's complete images `expand_size` times, keeping sample order: [s0, s0, s1, s1, ...]."""
+        if input_ids is None or image_grid_thw is None:
+            raise ValueError("expanding pixel_values for generation requires input_ids and image_grid_thw")
+        merge = self.config.vision_config.spatial_merge_size
+        grid = image_grid_thw.to(torch.long)
+        patches = grid.prod(-1).tolist()
+        if sum(patches) != pixel_values.shape[0]:
+            raise ValueError(f"pixel_values has {pixel_values.shape[0]} patches but image_grid_thw describes {sum(patches)}")
+        images = pixel_values.split(patches)  # one chunk per image, in input order
+        tokens = [n // merge**2 for n in patches]
+        placeholders = (input_ids == self.config.image_token_id).sum(-1).tolist()  # per sample
+
+        new_pixels, new_grids, first = [], [], 0
+        for count in placeholders:
+            last, used = first, 0
+            while used < count and last < len(tokens):
+                used += tokens[last]
+                last += 1
+            if used != count:
+                raise ValueError(f"a sample has {count} image placeholder tokens that no whole number of images in image_grid_thw accounts for")
+            if last > first:
+                new_pixels += [torch.cat(images[first:last])] * expand_size
+                new_grids += [grid[first:last]] * expand_size
+            first = last
+        if first != len(tokens):
+            raise ValueError("image_grid_thw describes more images than the image placeholder tokens in input_ids")
+        return torch.cat(new_pixels), torch.cat(new_grids)
 
     @staticmethod
     def _is_prefill(past_key_values) -> bool:
