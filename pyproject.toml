@@ -12,9 +12,28 @@ dependencies = [
     "transformers==5.19.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+# Linux dev boxes use CPU-only torch wheels (no CUDA/NVIDIA packages). macOS
+# wheels on PyPI are already CPU/MPS builds. GPU nodes do not use this lock:
+# they reuse the image's torch (see docs/steps/00-environment.md).
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/k2hv", "src/k2hv_sglang"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -38,6 +38,8 @@ Both frozen parts stay bit-identical, so text-only behavior is exactly K2's.
 | 8 | [Stage 2: projector-only GRPO](steps/08-rl.md) | 1 node |
 | 9 | [Release](steps/09-release.md) | No |
 
+Status notes: [step 1 handoff](handoff/01-init-checkpoint.md) (checkpoint built and verified on CPU; processor and template next).
+
 Do steps 0–4 before spending GPU hours. Projects like this usually break on token-count or packing mismatches, not on hyperparameters.
 
 ## Stack

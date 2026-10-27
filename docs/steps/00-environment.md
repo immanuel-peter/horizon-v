@@ -56,7 +56,9 @@ packages = ["src/k2hv", "src/k2hv_sglang"]
 uv sync
 ```
 
-Use this env for [step 1](01-init-checkpoint.md) (needs about 35 GB RAM) and template and processor tests ([step 2](02-processor-and-template.md)).
+Use this env for [step 1](01-init-checkpoint.md) (measured peak: about 18 GiB RSS) and template and processor tests ([step 2](02-processor-and-template.md)).
+
+On Linux, `pyproject.toml` routes `torch` to the PyTorch CPU wheel index (`[tool.uv.sources]`), so `uv.lock` contains no CUDA packages. macOS keeps the PyPI wheel. `pytest` is in the `dev` dependency group (`uv sync` installs it).
 
 ## GPU nodes
 

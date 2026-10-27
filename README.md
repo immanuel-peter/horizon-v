@@ -13,9 +13,12 @@ uv sync --locked
 uv run python -c "import k2hv, k2hv_sglang, torch, transformers; print(transformers.__version__)"
 ```
 
-The project uses Python 3.12. This installs the CPU development environment;
-no GPU or model downloads are needed for setup. The package directories are
-in place; the model, processor, and training code still need implementing.
+The project uses Python 3.12. This installs the CPU development environment
+(CPU-only PyTorch wheels on Linux); no GPU or model downloads are needed for
+setup. The init-checkpoint builder (`k2hv.build_init`), its verifier
+(`k2hv.verify_init`) and the composite model are implemented. The processor,
+chat template, SGLang model and training code still need implementing; see the
+[step 1 handoff](docs/handoff/01-init-checkpoint.md).
 
 Read the [post-training plan](docs/README.md) for implementation steps and
 the [environment guide](docs/steps/00-environment.md) for the GPU setup.
