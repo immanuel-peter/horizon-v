@@ -155,7 +155,9 @@ def write_source_checkpoints(root: Path, *, k2_shards: int = 2, glm_sharded: boo
     (k2_dir / "generation_config.json").write_text(json.dumps({"bos_token_id": 0, "eos_token_id": [1], "pad_token_id": 1}))
     (k2_dir / "special_tokens_map.json").write_text("{}")
     (k2_dir / "tokenizer_config.json").write_text(json.dumps({"tokenizer_class": "PreTrainedTokenizerFast"}))
-    (k2_dir / "chat_template.jinja").write_text("{{ messages }}")
+    from k2hv.processor_assets import IMAGE_TEMPLATE_BRANCH
+
+    (k2_dir / "chat_template.jinja").write_text((HF_DIR / "chat_template.jinja").read_text().replace(IMAGE_TEMPLATE_BRANCH, ""))
     (k2_dir / "tokenizer.json").write_text(
         json.dumps(
             {
@@ -199,17 +201,20 @@ def _write_sharded(directory: Path, state: dict, num_shards: int) -> None:
     )
 
 
-AUTHORED = ("configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", "configuration_k2_horizon.py", "modeling_k2_horizon.py",
+AUTHORED = ("configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", "processing_k2_horizon_v.py", "processor_config.json", "configuration_k2_horizon.py", "modeling_k2_horizon.py",
             "README.md", "NOTICE", "licenses/Apache-2.0.txt")
-FROM_K2 = ("tokenizer_config.json", "special_tokens_map.json", "generation_config.json", "chat_template.jinja")
+FROM_K2 = ("tokenizer_config.json", "special_tokens_map.json", "generation_config.json")
 
 
 def write_recipe(out: Path, k2_dir: Path, glm_dir: Path) -> Path:
+    from k2hv.processor_assets import patch_chat_template, processor_image_config
+
     for name in AUTHORED:
         (out / name).parent.mkdir(parents=True, exist_ok=True)
         (out / name).write_bytes((HF_DIR / name).read_bytes())
     for name in FROM_K2:
         (out / name).write_bytes((k2_dir / name).read_bytes())
-    (out / "preprocessor_config.json").write_bytes((glm_dir / "preprocessor_config.json").read_bytes())
+    (out / "chat_template.jinja").write_text(patch_chat_template((k2_dir / "chat_template.jinja").read_text()))
+    (out / "preprocessor_config.json").write_text(json.dumps(processor_image_config(json.loads((glm_dir / "preprocessor_config.json").read_text()))))
     (out / "licenses" / "MIT-GLM-5.3-Flash-Vision.txt").write_bytes((glm_dir / "LICENSE").read_bytes())
     return out

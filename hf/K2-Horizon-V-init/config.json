@@ -4,7 +4,8 @@
   ],
   "auto_map": {
     "AutoConfig": "configuration_k2_horizon_v.K2HorizonVConfig",
-    "AutoModelForImageTextToText": "modeling_k2_horizon_v.K2HorizonVForConditionalGeneration"
+    "AutoModelForImageTextToText": "modeling_k2_horizon_v.K2HorizonVForConditionalGeneration",
+    "AutoProcessor": "processing_k2_horizon_v.K2HorizonVProcessor"
   },
   "dtype": "bfloat16",
   "image_end_token_id": 250032,

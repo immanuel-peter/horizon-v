@@ -38,8 +38,10 @@ Both frozen parts stay bit-identical, so text-only behavior is exactly K2's.
 | 8 | [Stage 2: projector-only GRPO](steps/08-rl.md) | 1 node |
 | 9 | [Release](steps/09-release.md) | No |
 
-The checkpoint is built and verified on CPU. The processor and image template are next.
-See the [step 1 handoff](handoff/01-init-checkpoint.md).
+The checkpoint is built and verified on CPU. The processor and image template
+are tested on CPU. SGLang integration is next. See the
+[checkpoint handoff](handoff/01-init-checkpoint.md) and
+[processor handoff](handoff/02-processor-and-template.md).
 
 Do steps 0–4 before spending GPU hours. Projects like this usually break on token-count or packing mismatches, not on hyperparameters.
 

@@ -30,16 +30,17 @@ from .checkpoint_io import (
     split_glm_keys,
 )
 from .build_init import CODE_FILES, IMAGE_TOKENS, PACKAGE_HF_DIR, STAGING_DIR, tensor_sha256
+from .processor_assets import PROCESSOR_AUTO_MAP, patch_chat_template, processor_image_config
 
 MAX_SHARD_BYTES = 5_000_000_000
 EXPECTED_AUTO_MAP = {
     "AutoConfig": "configuration_k2_horizon_v.K2HorizonVConfig",
     "AutoModelForImageTextToText": "modeling_k2_horizon_v.K2HorizonVForConditionalGeneration",
+    **PROCESSOR_AUTO_MAP,
 }
 SHIPPED_CODE = CODE_FILES
 COPIED_FROM_K2 = ("configuration_k2_horizon.py", "modeling_k2_horizon.py", "tokenizer.json", "tokenizer_config.json",
-                  "special_tokens_map.json", "chat_template.jinja", "generation_config.json")
-COPIED_FROM_GLM = ("preprocessor_config.json",)
+                  "special_tokens_map.json", "generation_config.json")
 PARITY_PROMPT = "The capital of France is Paris. The capital of Japan is"
 
 
@@ -60,7 +61,7 @@ class Report:
 def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict[str, int] = IMAGE_TOKENS) -> dict:
     required = [*SHIPPED_CODE, "config.json", INDEX_NAME, "tokenizer.json", "tokenizer_config.json",
                 "special_tokens_map.json", "chat_template.jinja", "generation_config.json", "preprocessor_config.json",
-                "NOTICE", "README.md", "build_info.json", MANIFEST_NAME,
+                "processor_config.json", "NOTICE", "README.md", "build_info.json", MANIFEST_NAME,
                 "licenses/Apache-2.0.txt", "licenses/MIT-GLM-5.3-Flash-Vision.txt"]
     missing = [name for name in required if not (out / name).is_file()]
     report.add("layout: all required files present", not missing, f"missing: {missing}" if missing else f"{len(required)} files")
@@ -69,11 +70,12 @@ def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict
     report.add("layout: code equals the code k2hv.hf imports (the code the schema came from)", not stale, str(stale) if stale else f"{len(SHIPPED_CODE)} files")
     report.add("layout: no leftover staging directory", not (out / STAGING_DIR).exists())
 
-    processor_files = sorted(p.name for p in out.iterdir() if p.name.startswith("processing_") or p.name == "processor_config.json")
-    report.add("layout: no processor artifacts advertised", not processor_files, str(processor_files) if processor_files else "")
+    processor_config = json.loads((out / "processor_config.json").read_text())
+    report.add("processor: AutoProcessor points to the shipped processor with the PIL backend",
+               processor_config.get("auto_map") == PROCESSOR_AUTO_MAP and processor_config.get("image_backend") == "pil")
 
     config = json.loads((out / "config.json").read_text())
-    report.add("config: auto_map is exactly AutoConfig + AutoModelForImageTextToText", config.get("auto_map") == EXPECTED_AUTO_MAP,
+    report.add("config: auto_map includes config, model and processor", config.get("auto_map") == EXPECTED_AUTO_MAP,
                json.dumps(config.get("auto_map")))
     prefixed = [m.group(0) for m in re.finditer(r'"[^"]*--[^"]*\.[A-Za-z_]+"', (out / "config.json").read_text())]
     report.add("config: no Hub-prefixed remote-code references anywhere in config.json", not prefixed, str(prefixed[:3]))
@@ -102,12 +104,16 @@ def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict
     report.add("config: text_config equals K2's config.json", same(K2HorizonConfig, config["text_config"], json.loads((k2 / "config.json").read_text())))
     report.add("config: vision_config equals GLM's config.json", same(Glm5NextVisionConfig, config["vision_config"], json.loads((glm / "config.json").read_text())))
 
-    checked = [(n, k2) for n in COPIED_FROM_K2] + [(n, glm) for n in COPIED_FROM_GLM]
+    checked = [(n, k2) for n in COPIED_FROM_K2]
     bad = [n for n, source in checked if (out / n).read_bytes() != (source / n).read_bytes()]
     mit_ok = (out / "licenses/MIT-GLM-5.3-Flash-Vision.txt").read_bytes() == (glm / "LICENSE").read_bytes()
     bad += [] if mit_ok else ["licenses/MIT-GLM-5.3-Flash-Vision.txt"]
-    report.add("assets: mirrored upstream files (K2 code, tokenizer, chat template, generation config, preprocessor config, MIT license) "
+    report.add("assets: mirrored upstream files (K2 code, tokenizer, generation config, MIT license) "
                "are byte-identical to the sources", not bad, str(bad) if bad else f"{len(checked) + 1} files")
+    report.add("processor: chat template differs only by the user-image branch",
+               (out / "chat_template.jinja").read_text() == patch_chat_template((k2 / "chat_template.jinja").read_text()))
+    report.add("processor: GLM preprocessing is preserved with explicit backend, token cap and processor mapping",
+               json.loads((out / "preprocessor_config.json").read_text()) == processor_image_config(json.loads((glm / "preprocessor_config.json").read_text())))
 
     revisions = {name: build_info["sources"][name]["revision"] for name in ("k2", "glm")}
     docs = {n: (out / n).read_text() for n in ("README.md", "NOTICE")}
@@ -270,7 +276,7 @@ _LOAD_CHILD = textwrap.dedent(
     import numpy as np, torch
     torch.set_num_threads(int(threads))
     from safetensors import safe_open
-    from transformers import AutoConfig, AutoModelForImageTextToText, AutoTokenizer
+    from transformers import AutoConfig, AutoModelForImageTextToText, AutoProcessor, AutoTokenizer
     res = {}
 
     t = time.time()
@@ -323,15 +329,17 @@ _LOAD_CHILD = textwrap.dedent(
     except Exception as exc:
         res["tokenizer"] = {"error": f"{type(exc).__name__}: {exc}"[:300]}
 
-    from transformers.models.glm5_next.image_processing_pil_glm5_next import Glm5NextImageProcessorPil
+    from PIL import Image
     from transformers.models.glm5_next.modeling_glm5_next import Glm5NextVisionModel
-    pre = json.load(open(os.path.join(out, "preprocessor_config.json")))
+    processor = AutoProcessor.from_pretrained(out, trust_remote_code=True, local_files_only=True)
     rng = np.random.default_rng(0)
-    image = rng.integers(0, 256, (448, 448, 3), dtype=np.uint8).astype(np.float32) / 255.0
-    image = ((image - np.array(pre["image_mean"], dtype=np.float32)) / np.array(pre["image_std"], dtype=np.float32)).transpose(2, 0, 1)
-    flat, gh, gw = Glm5NextImageProcessorPil().patchify(image, patch_size=14, merge_size=2, temporal_patch_size=2)
-    pixels = torch.from_numpy(np.ascontiguousarray(flat))
-    grid = torch.tensor([[1, gh, gw]])
+    image = Image.fromarray(rng.integers(0, 256, (448, 448, 3), dtype=np.uint8))
+    messages = [{"role": "user", "content": [{"type": "image", "image": image}, {"type": "text", "text": "Describe this image."}]}]
+    prepared = processor.apply_chat_template(messages, tokenize=True, return_dict=True, return_tensors="pt", add_generation_prompt=True)
+    pixels, grid = prepared["pixel_values"], prepared["image_grid_thw"]
+    res["processor"] = {"class": type(processor).__name__, "image_backend": processor.image_processor.backend,
+                        "image_tokens": int((prepared["input_ids"] == cfg.image_token_id).sum()),
+                        "tensors_only": all(isinstance(v, torch.Tensor) for v in prepared.values())}
     res["image"] = {"pixel_values": list(pixels.shape), "grid": grid.tolist()}
 
     native = Glm5NextVisionModel.from_pretrained(glm, dtype=torch.bfloat16, attn_implementation="sdpa").eval()
@@ -349,14 +357,11 @@ _LOAD_CHILD = textwrap.dedent(
     res["image"]["features_finite"] = bool(torch.isfinite(feats).all())
     del native
 
-    n_tokens = int(grid.prod() // 4)
-    text_ids = ids[0, :6].tolist()
-    seq = torch.tensor([[0, 250031] + [250062] * n_tokens + [250032] + text_ids])
     with torch.inference_mode():
         t = time.time()
-        out_logits = model(input_ids=seq, attention_mask=torch.ones_like(seq), pixel_values=pixels, image_grid_thw=grid, logits_to_keep=1).logits
+        out_logits = model(**prepared, logits_to_keep=1).logits
         res["image"]["forward_seconds"] = round(time.time() - t, 1)
-    res["image"]["tokens"] = int(seq.shape[1])
+    res["image"]["tokens"] = int(prepared["input_ids"].shape[1])
     res["image"]["logits_shape"] = list(out_logits.shape)
     res["image"]["logits_finite"] = bool(torch.isfinite(out_logits).all())
 
@@ -422,7 +427,7 @@ def check_fresh_process(out: Path, k2: Path, glm: Path, report: Report, *, threa
         elapsed = time.perf_counter() - started
 
         cached = sorted(p.relative_to(scratch / "hf_modules").as_posix() for p in (scratch / "hf_modules").rglob("*.py"))
-        report.add("load: remote code came from the fresh module cache and covers all four shipped modules",
+        report.add("load: remote code came from the fresh module cache and covers every shipped module",
                    all(any(c.endswith(name) for c in cached) for name in SHIPPED_CODE), f"{len(cached)} cached modules")
         report.add("load: AutoConfig(trust_remote_code, local_files_only) in a fresh HF_HUB_OFFLINE=1 process", res["config_ok"],
                    f"{res['config_class']} in {res['config_seconds']}s")
@@ -430,6 +435,10 @@ def check_fresh_process(out: Path, k2: Path, glm: Path, report: Report, *, threa
                    res["model_class"].endswith("K2HorizonVForConditionalGeneration") and not res["k2hv_imported"],
                    f"{res['model_class']} in {res['load_seconds']}s; project package not imported")
         report.add("load: no missing / unexpected / mismatched keys", res["loading_info_clean"], json.dumps(res["loading_info"]))
+        processor = res["processor"]
+        report.add("processor: fresh offline AutoProcessor produces matching image tokens and tensor-only inputs",
+                   processor["class"] == "K2HorizonVProcessor" and processor["image_backend"] == "pil"
+                   and processor["image_tokens"] == 256 and processor["tensors_only"], json.dumps(processor))
         comps = res["components"]
         report.add("model: only the projector is trainable (6 tensors, 33,564,672 params)",
                    res["trainable_names"] == sorted(f"projector.{n}" for n in ("norm.weight", "norm.bias", "fc1.weight", "fc1.bias", "fc2.weight", "fc2.bias"))

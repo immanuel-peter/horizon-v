@@ -899,6 +899,8 @@ false
     {%- for part in raw_content -%}
         {%- if part is mapping and part.type == 'text' and part.text is string -%}
 {{- part.text -}}
+        {%- elif part is mapping and part.type in ['image', 'image_url'] and role == 'user' -%}
+{{- '<image>reserved_special_token_12</image>' -}}
         {%- else -%}
             {{- raise_exception("Unsupported " ~ role ~ " content part at index " ~ loop.index0 ~ ". Expected type='text' with a string text field; extract file contents to text before templating.") -}}
         {%- endif -%}

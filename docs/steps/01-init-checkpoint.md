@@ -5,7 +5,7 @@ small assets in `hf/K2-Horizon-V-init/`. `k2hv.build_init` writes the weights,
 index and config in place; `k2hv.verify_init` checks the result. The
 [handoff](../handoff/01-init-checkpoint.md) has commands and implementation
 details, including streamed shards and freezing after `from_pretrained`.
-Processor files are planned for step 2.
+Processor files are implemented in [step 2](02-processor-and-template.md).
 
 ## Why it exists
 

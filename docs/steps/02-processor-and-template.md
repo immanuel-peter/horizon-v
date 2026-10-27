@@ -1,12 +1,14 @@
 # Step 2: Processor and chat template
 
-K2 ships no processor (`processor_class` is `None`), and its chat template rejects images. Both need a small addition. Nothing else about K2's prompt format changes.
+Implemented in `hf/K2-Horizon-V-init/processing_k2_horizon_v.py`, with the user-image
+branch in `chat_template.jinja`. See the [handoff](../handoff/02-processor-and-template.md)
+for local use, CPU validation and attaching the processor to existing weights.
 
 ## Processor
 
 `K2HorizonVProcessor(ProcessorMixin)` combines:
 
-- GLM's image processor, unchanged: patch 14, merge 2, temporal patch 2, same normalization;
+- GLM's PIL image processor: patch 14, merge 2, temporal patch 2, same normalization;
 - K2's tokenizer, unchanged;
 - the patched chat template.
 
@@ -21,10 +23,15 @@ Miles passes every returned key except `input_ids`, `attention_mask` and `mm_tok
 
 Token budget:
 
-- Cap tokens per image with `max_pixels` (for example 1024 merged tokens ≈ 1024 · 28² px) and `min_pixels`.
-- Miles's `process_vision_info` falls back to `qwen_vl_utils`, whose resize factor (28) equals 14 × 2. The fallback works as-is.
+- Use GLM's `min_image_tokens` / `max_image_tokens`, measured in merged
+  image tokens. Defaults here are 16 and 1024. Pass per-call overrides in
+  `images_kwargs`; patch and merge dimensions must remain unchanged.
+- Miles's `process_vision_info` falls back to `qwen_vl_utils`, which also uses a
+  resize factor of 28. Matching that factor alone does not establish identical
+  resizing; check the full Miles/SGLang image path during integration.
 
-Register `AutoProcessor` in `processor_config.json` / `preprocessor_config.json` `auto_map`.
+`AutoProcessor` is registered in `processor_config.json`, `preprocessor_config.json`
+and the composite model config. Saving the processor also writes a processor config, tokenizer and chat template that load without the `k2hv` package.
 
 ## Template patch
 
