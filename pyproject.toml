@@ -12,9 +12,20 @@ dependencies = [
     "transformers==5.19.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+exclude = ["*.safetensors", "tokenizer.json", "model.safetensors.index.json", "build_info.json", "SHA256SUMS", ".cache", ".building"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/k2hv", "src/k2hv_sglang"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -18,3 +18,11 @@ dist/
 /outputs/
 /runs/
 /third_party/
+
+/hf/*/*.safetensors
+/hf/*/model.safetensors.index.json
+/hf/*/tokenizer.json
+/hf/*/build_info.json
+/hf/*/SHA256SUMS
+/hf/*/.building/
+/hf/*/.cache/
