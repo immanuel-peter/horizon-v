@@ -2,8 +2,8 @@
 
 The project uses uv for its code, its dependencies and every command. There are two environments:
 
-The CPU environment, composite model and checkpoint tools are implemented.
-The processor and training modules shown below are planned. Add the Miles
+The CPU environment, composite model, checkpoint tools and processor are
+implemented. The training modules shown below are planned. Add the Miles
 checkout when setting up a GPU node.
 
 | Where | CUDA stack (torch, SGLang, flash-attn) | Project code and light deps |
@@ -45,8 +45,13 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+exclude = ["*.safetensors", "tokenizer.json", "model.safetensors.index.json", "build_info.json", "SHA256SUMS", ".cache", ".building"]
+
 [tool.hatch.build.targets.wheel]
-packages = ["src/k2hv", "src/k2hv_sglang"]
+only-include = ["src/k2hv", "src/k2hv_sglang", "hf/K2-Horizon-V-init"]
+sources = {"src" = "", "hf/K2-Horizon-V-init" = "k2hv/hf"}
+dev-mode-dirs = ["src"]
 ```
 
 - `transformers==5.19.0` matches Miles's pin.

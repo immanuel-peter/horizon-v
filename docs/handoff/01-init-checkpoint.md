@@ -2,7 +2,9 @@
 
 `K2-Horizon-V-init` is built and verified on a Linux CPU machine with 8 vCPUs
 and 62 GiB RAM. The processor, image chat template, SGLang model and training
-code are planned. GPU execution is untested.
+code were planned at this checkpoint snapshot. The processor and image template
+are now implemented; see the [processor handoff](02-processor-and-template.md).
+GPU execution is untested.
 
 ## Files and builds
 
@@ -12,9 +14,10 @@ assets. Weights, the index, `tokenizer.json`, `build_info.json` and `SHA256SUMS`
 are git-ignored. The `src/k2hv/hf` symlink imports the same code as `k2hv.hf.*`.
 The builder checks that the output code matches the code it imports.
 
-Hatch follows the symlink, so `pyproject.toml` excludes weight files and build
-outputs by filename. The root `.gitignore` paths alone do not exclude files
-reached through `src/k2hv/hf`.
+The wheel explicitly maps the canonical HF directory to `k2hv/hf`; editable
+imports use the symlink. `pyproject.toml` excludes weight files and generated
+outputs by filename. Root `.gitignore` paths alone do not exclude files after
+they are mapped into a package.
 
 To fetch the tokenizer without downloading weights:
 
@@ -200,30 +203,12 @@ devices remain untested. Only eager and SDPA attention are declared supported.
 K2's upstream `@auto_docstring` reports an undocumented `cache_position`
 parameter during import. The vendored code remains unchanged.
 
-## Next steps
+## Processor follow-up
 
-1. Add `processing_k2_horizon_v.py` with `K2HorizonVProcessor`, combining the
-   GLM image processor, K2 tokenizer and template. Expand each image placeholder
-   to `prod(grid) // 4` tokens. Return `input_ids`, `attention_mask`,
-   `pixel_values` and `image_grid_thw`.
-2. Add `processor_config.json` and its `AutoProcessor` mapping. Update the
-   builder's `CODE_FILES` and `RECIPE_FILES`. Replace the verifier's checks for
-   absent processor files with processor checks. When changing mirrored
-   assets, replace their byte comparisons with checks of the intended edits.
-   Refresh the manifest and run the verifier.
-3. Add image parts to `render_text_content` in `chat_template.jinja` at
-   lines 893 to 909. Keep thinking tags, the generation prompt and the
-   `{% generation %}` span. The original template rejects image parts.
-4. Choose the image token cap. GLM uses `min_image_tokens: 16` and
-   `max_image_tokens: 8000`, with `factor=28` and `temporal_factor=2`. Confirm
-   the budget units before adopting the plan's example cap of 1024.
-5. Compare PIL and torchvision image processing before training. Without
-   torchvision, `AutoImageProcessor` selects `Glm5NextImageProcessorPil` here.
-   Compare bicubic resize outputs between backends before choosing one.
-6. Test expansion counts, multiple images, text-only prompts, agreement
-   between template and processor, literal `<image>` handling and offline
-   `AutoProcessor.from_pretrained` loading. When SFT lands in step 6, assert
-   that image placeholders never enter the loss mask.
+The [processor handoff](02-processor-and-template.md) covers the implemented
+processor, image template, backend comparison and attaching the new small
+files to these existing weights. The pinned HF revision above remains the
+original step 1 archive and does not contain the processor additions.
 
 Datasets, SFT/RL, SGLang integration, GPU parity and flash/flex attention
 checks remain in later plan steps.

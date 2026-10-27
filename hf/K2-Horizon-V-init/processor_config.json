@@ -1,0 +1,7 @@
+{
+  "processor_class": "K2HorizonVProcessor",
+  "image_backend": "pil",
+  "auto_map": {
+    "AutoProcessor": "processing_k2_horizon_v.K2HorizonVProcessor"
+  }
+}

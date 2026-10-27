@@ -35,6 +35,7 @@ from .checkpoint_io import (
 from .hf.configuration_k2_horizon import K2HorizonConfig
 from .hf.configuration_k2_horizon_v import K2HorizonVConfig
 from .hf.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration, build_projector
+from .processor_assets import PROCESSOR_AUTO_MAP
 
 PACKAGE_HF_DIR = (Path(__file__).resolve().parent / "hf").resolve()
 
@@ -44,7 +45,7 @@ GLM_REPO = "immanuelpeter/GLM-5.3-Flash-Vision"
 IMAGE_TOKENS = {"<image>": 250031, "</image>": 250032, "reserved_special_token_12": 250062}
 
 K2_CODE_FILES = ("configuration_k2_horizon.py", "modeling_k2_horizon.py")
-CODE_FILES = ("configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", *K2_CODE_FILES)
+CODE_FILES = ("configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", "processing_k2_horizon_v.py", *K2_CODE_FILES)
 RECIPE_FILES = (
     *CODE_FILES,
     "README.md",
@@ -56,6 +57,7 @@ RECIPE_FILES = (
     "generation_config.json",
     "chat_template.jinja",
     "preprocessor_config.json",
+    "processor_config.json",
 )
 TOKENIZER_FILE = "tokenizer.json"
 BUILD_INFO_NAME = "build_info.json"
@@ -63,6 +65,7 @@ STAGING_DIR = ".building"
 AUTO_MAP = {
     "AutoConfig": "configuration_k2_horizon_v.K2HorizonVConfig",
     "AutoModelForImageTextToText": "modeling_k2_horizon_v.K2HorizonVForConditionalGeneration",
+    **PROCESSOR_AUTO_MAP,
 }
 
 SAFETENSORS_DTYPE = {torch.bfloat16: "BF16", torch.float16: "F16", torch.float32: "F32"}

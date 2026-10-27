@@ -12,8 +12,9 @@ from seed 0. The model needs training to interpret images.
 Load from a local directory:
 
 ```python
-from transformers import AutoModelForImageTextToText
+from transformers import AutoModelForImageTextToText, AutoProcessor
 
+processor = AutoProcessor.from_pretrained(path, trust_remote_code=True, local_files_only=True)
 model = AutoModelForImageTextToText.from_pretrained(
     path, trust_remote_code=True, local_files_only=True, dtype="bfloat16"
 )
@@ -21,9 +22,15 @@ model = AutoModelForImageTextToText.from_pretrained(
 
 ## Current limits
 
-`AutoProcessor.from_pretrained` is unsupported. `chat_template.jinja` is K2's
-original template and rejects image content. `preprocessor_config.json` is
-GLM's original config for the planned processor. Multimodal prompt formatting,
-GPU execution and SGLang integration are untested. Validation has run on CPU.
+The processor accepts user images and text, with native GLM PIL preprocessing
+and a default cap of 1,024 merged image tokens. Each image has one unexpanded
+`<image>reserved_special_token_12</image>` marker before processing. The processor
+expands it to match the image features. It rejects missing images, mismatched
+markers and truncation that removes image tokens. Text-only K2 formatting is
+preserved. Batch requests should use `processor_kwargs={"padding": True}` in
+`apply_chat_template`. The normal output contains only model-input tensors.
+
+GPU execution and SGLang integration remain untested. Validation has run on CPU.
+The projector is untrained, so model outputs do not yet demonstrate image understanding.
 
 See `NOTICE` and `licenses/` for upstream licenses and attribution.

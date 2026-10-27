@@ -18,9 +18,10 @@ and the CPU/MPS build on macOS. The Linux build also runs on CPU machines;
 the venv uses about 5 GB. GPU nodes reuse the Miles image's torch. Follow the
 [environment guide](docs/steps/00-environment.md) for that setup.
 
-Setup needs no GPU or model downloads. The composite model, checkpoint builder
-and verifier are implemented. The processor, image chat template, SGLang model
-and training code are planned. See the [step 1 handoff](docs/handoff/01-init-checkpoint.md).
+Setup needs no GPU or model downloads. The composite model, checkpoint builder,
+verifier, processor and image chat template are implemented. SGLang integration
+and training remain planned. See the [checkpoint handoff](docs/handoff/01-init-checkpoint.md)
+and [processor handoff](docs/handoff/02-processor-and-template.md).
 
 ## Layout
 
@@ -44,6 +45,29 @@ To fetch the tokenizer without the weights:
 uv run hf download IFM/K2-Horizon-7B --revision 4622f94a6632384784471fd674d5b78f8d527798 \
   --include tokenizer.json --local-dir hf/K2-Horizon-V-init
 ```
+
+Then prepare an image conversation on CPU:
+
+```python
+from PIL import Image
+from transformers import AutoProcessor
+
+processor = AutoProcessor.from_pretrained(
+    "hf/K2-Horizon-V-init", trust_remote_code=True, local_files_only=True
+)
+messages = [{"role": "user", "content": [
+    {"type": "image", "image": Image.new("RGB", (448, 448))},
+    {"type": "text", "text": "Describe this image."},
+]}]
+inputs = processor.apply_chat_template(
+    messages, tokenize=True, return_dict=True, return_tensors="pt",
+    add_generation_prompt=True,
+)
+```
+
+This requires the tokenizer, not the model weights. Image processing defaults
+to the native GLM PIL backend with a cap of 1,024 image tokens. Run `uv run pytest`
+for CPU tests with a small synthetic tokenizer and model.
 
 Read the [post-training plan](docs/README.md) for implementation steps and
 the [environment guide](docs/steps/00-environment.md) for the GPU setup.
