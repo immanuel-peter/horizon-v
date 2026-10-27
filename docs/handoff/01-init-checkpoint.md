@@ -37,9 +37,17 @@ skips them.
 
 ## Checkpoint contents
 
-The checkpoint is local at `/home/ubuntu/horizon-v/hf/K2-Horizon-V-init` and
-has not been published. It contains about 18.89 GB of files and 672 BF16
-tensors, totaling 9,436,974,080 parameters.
+The checkpoint is archived in the private
+[immanuelpeter/K2-Horizon-V-init](https://huggingface.co/immanuelpeter/K2-Horizon-V-init/tree/fc1f1c887facf728e2e02a13f9bf9a920af44552)
+model repository at revision `fc1f1c887facf728e2e02a13f9bf9a920af44552`,
+from source commit `edb83ce4d3ee993070d1b5cfd55dbbc0101e616e`. It was built at
+`/home/ubuntu/horizon-v/hf/K2-Horizon-V-init` and contains about 18.89 GB of
+files and 672 BF16 tensors, totaling 9,436,974,080 parameters.
+
+The archive includes the build and verification evidence under `validation/`.
+Its final report, `cleanup_verify_report.json`, passes all 39 checks. All 27
+manifest entries were verified after upload; the four shard hashes below
+are unchanged.
 
 | Module | Tensors | Parameters | Trainable |
 |---|---|---|---|

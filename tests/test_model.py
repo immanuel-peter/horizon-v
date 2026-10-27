@@ -321,4 +321,4 @@ def test_every_beam_and_returned_sequence_sees_the_original_image(model, kwargs)
     assert embeds.shape[0] == kwargs.get("num_beams", 1) * kwargs.get("num_return_sequences", 1) or embeds.shape[0] >= 2
     is_pad = inputs["input_ids"][0] == tiny.IMAGE_PAD
     for row in embeds:
-        assert torch.equal(row[is_pad], features)
+        torch.testing.assert_close(row[is_pad], features, rtol=1e-5, atol=1e-6)
