@@ -17,20 +17,14 @@ dev = [
     "pytest",
 ]
 
-# Linux dev boxes use CPU-only torch wheels (no CUDA/NVIDIA packages). macOS
-# wheels on PyPI are already CPU/MPS builds. GPU nodes do not use this lock:
-# they reuse the image's torch (see docs/steps/00-environment.md).
-[tool.uv.sources]
-torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# src/k2hv/hf is a symlink to hf/K2-Horizon-V-init, whose weights are git-ignored by path but would be
+# reached through the symlink. Keep them out of every build.
+[tool.hatch.build]
+exclude = ["*.safetensors", "tokenizer.json", "model.safetensors.index.json", "build_info.json", "SHA256SUMS", ".cache", ".building"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/k2hv", "src/k2hv_sglang"]

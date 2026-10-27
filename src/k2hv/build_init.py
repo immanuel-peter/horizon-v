@@ -1,15 +1,19 @@
-"""Build the K2-Horizon-V-init checkpoint.
+"""Build the K2-Horizon-V-init checkpoint in place.
 
     uv run python -m k2hv.build_init \\
         --k2 models/K2-Horizon-7B \\
         --glm models/GLM-5.3-Flash-Vision \\
-        --out models/K2-Horizon-V-init
+        --out hf/K2-Horizon-V-init
 
-The result is K2-Horizon-7B's weights (``language_model.*``), the GLM vision tower through
-``post_layernorm`` (``visual.*``) and a deterministically initialized projector (``projector.*``) in one
-self-contained, offline-loadable Hugging Face checkpoint. Source tensors are copied byte-for-byte; the
-large modules are never instantiated (the expected key schema comes from a meta-device model) and
-weights stream shard by shard, so memory stays near one output shard.
+``hf/K2-Horizon-V-init`` is the Hugging Face repo working tree. Everything we author (model and config code,
+README, NOTICE, licenses, mirrored upstream assets) is tracked in git and must already be there. This tool adds
+only what git does not hold: the weights, their index, ``config.json``, the 20 MB ``tokenizer.json``,
+``build_info.json`` and ``SHA256SUMS``.
+
+The weights are K2-Horizon-7B's (``language_model.*``), the GLM vision tower through ``post_layernorm``
+(``visual.*``) and a deterministically initialized projector (``projector.*``). Source tensors are copied
+byte-for-byte; the large modules are never instantiated (the expected key schema comes from a meta-device model)
+and weights stream shard by shard, so memory stays near one output shard.
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import platform
 import resource
 import shutil
@@ -29,12 +34,12 @@ import torch
 import transformers
 from safetensors import safe_open
 from safetensors.torch import save_file
-from transformers.dynamic_module_utils import custom_object_save
 from transformers.models.glm5_next.configuration_glm5_next import Glm5NextVisionConfig
 
 from .checkpoint_io import (
     INDEX_NAME,
     LM_PREFIX,
+    MANIFEST_NAME,
     PROJECTOR_PREFIX,
     VISUAL_PREFIX,
     CheckpointError,
@@ -45,11 +50,12 @@ from .checkpoint_io import (
     split_glm_keys,
     write_manifest,
 )
-from .configuration_k2_horizon import K2HorizonConfig
-from .configuration_k2_horizon_v import K2HorizonVConfig
-from .modeling_k2_horizon_v import K2HorizonVForConditionalGeneration, build_projector
+from .hf.configuration_k2_horizon import K2HorizonConfig
+from .hf.configuration_k2_horizon_v import K2HorizonVConfig
+from .hf.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration, build_projector
 
-PACKAGE_DIR = Path(__file__).resolve().parent
+# The importable model code: k2hv/hf is a symlink to hf/K2-Horizon-V-init.
+PACKAGE_HF_DIR = (Path(__file__).resolve().parent / "hf").resolve()
 
 K2_REPO = "IFM/K2-Horizon-7B"
 GLM_REPO = "immanuelpeter/GLM-5.3-Flash-Vision"
@@ -57,10 +63,30 @@ GLM_REPO = "immanuelpeter/GLM-5.3-Flash-Vision"
 # Plan token ids, verified against the tokenizer that ships with the K2 weights.
 IMAGE_TOKENS = {"<image>": 250031, "</image>": 250032, "reserved_special_token_12": 250062}
 
-# K2's remote-code files are vendored byte-for-byte in this package and must match the source.
+# K2's remote-code files are tracked byte-for-byte in hf/K2-Horizon-V-init and must match the source.
 K2_CODE_FILES = ("configuration_k2_horizon.py", "modeling_k2_horizon.py")
-K2_ASSET_FILES = ("tokenizer.json", "tokenizer_config.json", "special_tokens_map.json", "chat_template.jinja", "generation_config.json")
-GLM_ASSET_FILES = ("preprocessor_config.json",)
+CODE_FILES = ("configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", *K2_CODE_FILES)
+# Tracked files the HF repo needs. Mirrored upstream assets are checked against their sources by verify_init.
+RECIPE_FILES = (
+    *CODE_FILES,
+    "README.md",
+    "NOTICE",
+    "licenses/Apache-2.0.txt",
+    "licenses/MIT-GLM-5.3-Flash-Vision.txt",
+    "tokenizer_config.json",
+    "special_tokens_map.json",
+    "generation_config.json",
+    "chat_template.jinja",
+    "preprocessor_config.json",
+)
+# Git-ignored: copied from the K2 source if absent (too large to track).
+TOKENIZER_FILE = "tokenizer.json"
+BUILD_INFO_NAME = "build_info.json"
+STAGING_DIR = ".building"
+AUTO_MAP = {
+    "AutoConfig": "configuration_k2_horizon_v.K2HorizonVConfig",
+    "AutoModelForImageTextToText": "modeling_k2_horizon_v.K2HorizonVForConditionalGeneration",
+}
 
 SAFETENSORS_DTYPE = {torch.bfloat16: "BF16", torch.float16: "F16", torch.float32: "F32"}
 
@@ -78,17 +104,33 @@ def log(message: str) -> None:
 # ---------------------------------------------------------------------------------------------
 
 
-def check_vendored_k2_code(k2_dir: Path) -> None:
-    """The package's copy of K2's modeling/config code must be byte-identical to the source checkpoint's."""
+def check_recipe(out_dir: Path, k2_dir: Path) -> None:
+    """The output dir must hold the tracked recipe, and its code must be the code this tool imports and K2's."""
+    missing = [name for name in RECIPE_FILES if not (out_dir / name).is_file()]
+    if missing:
+        raise BuildError(f"{out_dir} is missing tracked recipe files: {missing}. Restore them from git.")
+    for name in CODE_FILES:
+        if (out_dir / name).read_bytes() != (PACKAGE_HF_DIR / name).read_bytes():
+            raise BuildError(
+                f"{out_dir / name} differs from the code this tool imports ({PACKAGE_HF_DIR / name}). The weights' key "
+                "schema is derived from that code, so build in hf/K2-Horizon-V-init, which k2hv/hf points to."
+            )
     for name in K2_CODE_FILES:
         source = k2_dir / name
         if not source.is_file():
             raise BuildError(f"{source} not found")
-        if source.read_bytes() != (PACKAGE_DIR / name).read_bytes():
+        if source.read_bytes() != (out_dir / name).read_bytes():
             raise BuildError(
-                f"{source} differs from the copy vendored in src/k2hv/{name}. The vendored files are pinned to a "
-                "specific K2 revision; update them deliberately (and rerun the tests) before building from another."
+                f"{source} differs from the tracked copy {out_dir / name}. The tracked files are pinned to a specific "
+                "K2 revision; update them deliberately (and rerun the tests) before building from another."
             )
+
+
+def existing_outputs(out_dir: Path) -> list[str]:
+    """Generated artifacts already present in `out_dir` (a build never overwrites these)."""
+    found = sorted(p.name for p in out_dir.glob("*.safetensors"))
+    found += [name for name in (INDEX_NAME, BUILD_INFO_NAME, MANIFEST_NAME) if (out_dir / name).exists()]
+    return found
 
 
 def verify_token_ids(tokenizer_json: Path, expected: dict[str, int], vocab_size: int) -> None:
@@ -129,8 +171,7 @@ def expected_schema(config: K2HorizonVConfig, dtype: torch.dtype):
     """Model on the meta device: the authoritative key/shape/dtype schema, without allocating any weights."""
     with torch.device("meta"):
         model = K2HorizonVForConditionalGeneration._from_config(copy.deepcopy(config), dtype=dtype)
-    schema = {k: (tuple(v.shape), SAFETENSORS_DTYPE[v.dtype]) for k, v in model.state_dict().items()}
-    return model, schema
+    return {k: (tuple(v.shape), SAFETENSORS_DTYPE[v.dtype]) for k, v in model.state_dict().items()}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -166,64 +207,6 @@ def tensor_sha256(tensor: torch.Tensor) -> str:
     return hashlib.sha256(tensor.contiguous().view(torch.uint8).numpy().tobytes()).hexdigest()
 
 
-def render_notice(info: dict) -> str:
-    k2, glm = info["sources"]["k2"], info["sources"]["glm"]
-    return f"""K2-Horizon-V-init: third-party components and attribution
-
-This checkpoint combines the following works. Each keeps its own license; no overall license is asserted.
-
-1. K2-Horizon-7B (IFM)  --  Apache License 2.0
-   Source:   https://huggingface.co/{k2['repo']} @ {k2['revision']}
-   Used for: all language_model.* weights (unmodified), tokenizer files, chat_template.jinja,
-             generation_config.json, configuration_k2_horizon.py, modeling_k2_horizon.py.
-   The two Python files are copied unchanged; their headers credit "The Qwen team, Alibaba Group and the
-   HuggingFace Inc. team" (Apache-2.0). Full license text: licenses/Apache-2.0.txt
-   Citation: IFM Team, "Introducing K2 Horizon: Frontier Performance, Radically Open", 2026, https://ifm.ai/blog/k2/
-
-2. GLM-5.3-Flash vision tower  --  MIT License, Copyright (c) 2026 Z.AI Co., Ltd
-   Source:   https://huggingface.co/{glm['repo']} @ {glm['revision']}
-             (vision tensors extracted from https://huggingface.co/zai-org/GLM-5.3-Flash)
-   Used for: all visual.* weights (unmodified; GLM's downsample and merger modules are not included)
-             and preprocessor_config.json. Full license text: licenses/MIT-GLM-5.3-Flash-Vision.txt
-
-3. projector.* weights are new: randomly initialized from seed {info['projector']['seed']}, not trained.
-
-The GLM vision model code is not copied; it is imported from the installed `transformers` package
-(Apache-2.0, Copyright The HuggingFace Inc. team).
-"""
-
-
-def render_readme(info: dict) -> str:
-    k2, glm = info["sources"]["k2"], info["sources"]["glm"]
-    return f"""# K2-Horizon-V-init
-
-Initialization checkpoint for K2-Horizon-V. **It is not a trained model**: the projector is random
-(seed {info['projector']['seed']}) and the model cannot interpret images until it is trained.
-
-| Module | Weights | Trainable |
-|---|---|---|
-| `language_model` | {k2['repo']} @ `{k2['revision']}`, unmodified | no |
-| `visual` | GLM vision tower through `post_layernorm`, from {glm['repo']} @ `{glm['revision']}`, unmodified | no |
-| `projector` | `LayerNorm(1024)`, 2x2 merge, `Linear(4096,4096)`, GELU, `Linear(4096,4096)`; new | yes |
-
-Load (offline, model code ships in this directory):
-
-```python
-from transformers import AutoModelForImageTextToText
-model = AutoModelForImageTextToText.from_pretrained(path, trust_remote_code=True, dtype="bfloat16")
-```
-
-## Not done yet
-
-- No `AutoProcessor` / `K2HorizonVProcessor`: `AutoProcessor.from_pretrained` is not supported and untested.
-- `chat_template.jinja` is K2's original template, which rejects image content. The image-part patch is pending.
-- `preprocessor_config.json` is GLM's, kept for the processor work. Multimodal prompt formatting is untested.
-- Only CPU validation has been done (see the repository handoff notes); no GPU or SGLang checks.
-
-See `NOTICE` and `licenses/` for upstream licenses and attribution.
-"""
-
-
 # ---------------------------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------------------------
@@ -243,26 +226,31 @@ def build(
     started = time.perf_counter()
     token_ids = token_ids or IMAGE_TOKENS
     k2_dir, glm_dir, out_dir = Path(k2_dir), Path(glm_dir), Path(out_dir)
-    tmp_dir = out_dir.with_name(out_dir.name + ".building")
+    tmp_dir = out_dir / STAGING_DIR
 
-    if out_dir.exists():
-        raise BuildError(f"{out_dir} already exists; refusing to overwrite it. Move or delete it first.")
-    if tmp_dir.exists():
-        raise BuildError(f"{tmp_dir} exists from an earlier failed build; delete it first.")
-    for directory in (k2_dir, glm_dir):
+    for directory in (k2_dir, glm_dir, out_dir):
         if not directory.is_dir():
             raise BuildError(f"{directory} is not a directory")
+    if present := existing_outputs(out_dir):
+        raise BuildError(
+            f"{out_dir} already holds a checkpoint ({', '.join(present[:6])}{', ...' if len(present) > 6 else ''}); "
+            "refusing to overwrite it. Move or delete those files first."
+        )
+    if tmp_dir.exists():
+        raise BuildError(f"{tmp_dir} exists from an earlier failed build; delete it first.")
 
     # -- inputs and schema ------------------------------------------------------------------
-    check_vendored_k2_code(k2_dir)
+    check_recipe(out_dir, k2_dir)
     k2_config_dict = json.loads((k2_dir / "config.json").read_text())
     glm_config_dict = json.loads((glm_dir / "config.json").read_text())
     dtype_name = k2_config_dict.get("dtype")
     if dtype_name != glm_config_dict.get("dtype") or not hasattr(torch, str(dtype_name)):
         raise BuildError(f"K2 dtype {dtype_name!r} and GLM dtype {glm_config_dict.get('dtype')!r} must match and be valid")
     dtype = getattr(torch, dtype_name)
-    verify_token_ids(k2_dir / "tokenizer.json", token_ids, k2_config_dict["vocab_size"])
-    log(f"token ids verified against tokenizer.json: {token_ids}")
+    verify_token_ids(k2_dir / TOKENIZER_FILE, token_ids, k2_config_dict["vocab_size"])
+    log(f"token ids verified against {TOKENIZER_FILE}: {token_ids}")
+    if (out_dir / TOKENIZER_FILE).exists() and (out_dir / TOKENIZER_FILE).read_bytes() != (k2_dir / TOKENIZER_FILE).read_bytes():
+        raise BuildError(f"{out_dir / TOKENIZER_FILE} exists but differs from {k2_dir / TOKENIZER_FILE}")
 
     config = K2HorizonVConfig(
         text_config=K2HorizonConfig.from_dict(k2_config_dict),
@@ -273,7 +261,7 @@ def build(
         tie_word_embeddings=False,
         dtype=dtype,
     )
-    meta_model, schema = expected_schema(config, dtype)
+    schema = expected_schema(config, dtype)
     unknown = {k for k in schema if not k.startswith((LM_PREFIX, VISUAL_PREFIX, PROJECTOR_PREFIX))}
     if unknown:
         raise BuildError(f"model has unexpected top-level modules: {sorted(unknown)[:5]}")
@@ -317,13 +305,13 @@ def build(
             sizes[key] = (t.numel() * t.element_size(), len(shape))
     shards = plan_shards([(key, nbytes, ndim) for key, (nbytes, ndim) in sizes.items()], max_shard_size)
     total_size = sum(nbytes for nbytes, _ in sizes.values())
-    free = shutil.disk_usage(out_dir.parent).free
+    free = shutil.disk_usage(out_dir).free
     if free < total_size * 1.02 + (1 << 30):
-        raise BuildError(f"need ~{total_size / 1e9:.1f} GB in {out_dir.parent}, only {free / 1e9:.1f} GB free")
+        raise BuildError(f"need ~{total_size / 1e9:.1f} GB in {out_dir}, only {free / 1e9:.1f} GB free")
     log(f"{len(schema)} tensors, {total_size / 1e9:.2f} GB -> {len(shards)} shards (max {max_shard_size / 1e9:.1f} GB each)")
 
     # -- write ------------------------------------------------------------------------------
-    tmp_dir.mkdir(parents=True)
+    tmp_dir.mkdir()
     try:
         handles: dict[Path, object] = {}
 
@@ -358,23 +346,14 @@ def build(
             )
         )
 
-        # Remote code + config. The classes come from the installed package, so auto_map has no Hub prefix.
-        K2HorizonVConfig.register_for_auto_class()
-        K2HorizonVForConditionalGeneration.register_for_auto_class("AutoModelForImageTextToText")
+        # config.json is tracked; regenerating it is deterministic, so any difference shows up in `git diff`.
         config.architectures = [K2HorizonVForConditionalGeneration.__name__]
-        custom_object_save(meta_model, tmp_dir, config=config)
+        config.auto_map = dict(AUTO_MAP)
         config.save_pretrained(tmp_dir)
-
-        for name in K2_CODE_FILES:  # shipped copies must equal the source files exactly
-            if (tmp_dir / name).read_bytes() != (k2_dir / name).read_bytes():
-                raise BuildError(f"{name} in the output differs from the K2 source")
-        for name in K2_ASSET_FILES:
-            shutil.copyfile(k2_dir / name, tmp_dir / name)
-        for name in GLM_ASSET_FILES:
-            shutil.copyfile(glm_dir / name, tmp_dir / name)
-        (tmp_dir / "licenses").mkdir()
-        shutil.copyfile(PACKAGE_DIR / "licenses" / "Apache-2.0.txt", tmp_dir / "licenses" / "Apache-2.0.txt")
-        shutil.copyfile(glm_dir / "LICENSE", tmp_dir / "licenses" / "MIT-GLM-5.3-Flash-Vision.txt")
+        if (out_dir / "config.json").exists() and (out_dir / "config.json").read_bytes() != (tmp_dir / "config.json").read_bytes():
+            log("note: config.json differs from the tracked copy; review it with `git diff`")
+        if not (out_dir / TOKENIZER_FILE).exists():
+            shutil.copyfile(k2_dir / TOKENIZER_FILE, tmp_dir / TOKENIZER_FILE)
 
         info = {
             "format_version": 1,
@@ -409,14 +388,14 @@ def build(
             "build_seconds_before_manifest": round(time.perf_counter() - started, 1),
             "peak_rss_bytes_before_manifest": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024,
         }
-        (tmp_dir / "NOTICE").write_text(render_notice(info))
-        (tmp_dir / "README.md").write_text(render_readme(info))
-        (tmp_dir / "build_info.json").write_text(json.dumps(info, indent=2) + "\n")
+        (tmp_dir / BUILD_INFO_NAME).write_text(json.dumps(info, indent=2) + "\n")
 
         check_written(tmp_dir, schema, max_shard_size)
+        for staged in sorted(tmp_dir.iterdir()):  # atomic per file: same filesystem
+            os.replace(staged, out_dir / staged.name)
+        tmp_dir.rmdir()
         log("hashing output files")
-        write_manifest(tmp_dir)
-        tmp_dir.rename(out_dir)
+        write_manifest(out_dir)
     except BaseException:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
@@ -437,20 +416,15 @@ def check_written(directory: Path, schema: dict, max_shard_size: int) -> None:
         if shard.stat().st_size > max_shard_size:
             raise BuildError(f"{shard.name} exceeds the shard size limit")
     config = json.loads((directory / "config.json").read_text())
-    auto_map = config.get("auto_map", {})
-    expected = {
-        "AutoConfig": "configuration_k2_horizon_v.K2HorizonVConfig",
-        "AutoModelForImageTextToText": "modeling_k2_horizon_v.K2HorizonVForConditionalGeneration",
-    }
-    if auto_map != expected:
-        raise BuildError(f"unexpected auto_map: {auto_map}")
+    if config.get("auto_map") != AUTO_MAP:
+        raise BuildError(f"unexpected auto_map: {config.get('auto_map')}")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the K2-Horizon-V-init checkpoint.")
     parser.add_argument("--k2", required=True, type=Path, help="K2-Horizon-7B checkpoint directory")
     parser.add_argument("--glm", required=True, type=Path, help="GLM-5.3-Flash-Vision checkpoint directory")
-    parser.add_argument("--out", required=True, type=Path, help="output directory (must not exist)")
+    parser.add_argument("--out", required=True, type=Path, help="HF repo working tree holding the tracked recipe, e.g. hf/K2-Horizon-V-init")
     parser.add_argument("--seed", type=int, default=0, help="projector init seed (default: 0)")
     parser.add_argument("--max-shard-size", default="5GB", help="maximum shard file size (default: 5GB)")
     args = parser.parse_args(argv)

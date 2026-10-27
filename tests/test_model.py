@@ -4,8 +4,8 @@ from transformers.models.glm5_next.configuration_glm5_next import Glm5NextVision
 from transformers.models.glm5_next.modeling_glm5_next import Glm5NextVisionModel
 
 import tiny
-from k2hv.configuration_k2_horizon import K2HorizonConfig
-from k2hv.modeling_k2_horizon import K2HorizonForCausalLM
+from k2hv.hf.configuration_k2_horizon import K2HorizonConfig
+from k2hv.hf.modeling_k2_horizon import K2HorizonForCausalLM
 
 
 @pytest.fixture(scope="module")
@@ -231,7 +231,7 @@ def test_generate_with_an_image_uses_pixels_only_for_prefill(model):
 
 def test_from_pretrained_keeps_frozen_modules_frozen(tmp_path):
     """transformers' loader resets requires_grad to True on every loaded parameter; the model must undo that."""
-    from k2hv.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration
+    from k2hv.hf.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration
 
     source = tiny.tiny_model()
     source.save_pretrained(tmp_path)

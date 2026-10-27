@@ -1,11 +1,14 @@
 """Framework-free helpers for reading safetensors checkpoints and hashing files.
 
+    uv run python -m k2hv.checkpoint_io manifest hf/K2-Horizon-V-init   # rewrite SHA256SUMS after editing tracked files
+
 Shared by the init-checkpoint builder and its independent verifier. Headers are parsed directly from
 the file bytes, so sizes and offsets do not depend on any tensor library.
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import struct
@@ -117,8 +120,18 @@ def sha256_file(path: Path, chunk: int = 8 << 20) -> str:
 
 
 def hash_tree(directory: Path, *, exclude: tuple[str, ...] = (MANIFEST_NAME,), workers: int = 4) -> dict[str, str]:
-    """SHA-256 of every regular file under ``directory`` (relative POSIX paths, sorted)."""
-    files = sorted(p for p in directory.rglob("*") if p.is_file() and p.relative_to(directory).as_posix() not in exclude)
+    """SHA-256 of every regular file under ``directory`` (relative POSIX paths, sorted).
+
+    Hidden entries (``.cache/`` from `hf download`, ``.building/``) and ``__pycache__`` (bytecode Python writes next
+    to the sources it imports) are not part of the checkpoint and are skipped.
+    """
+    files = sorted(
+        p
+        for p in directory.rglob("*")
+        if p.is_file()
+        and p.relative_to(directory).as_posix() not in exclude
+        and not any(part.startswith(".") or part == "__pycache__" for part in p.relative_to(directory).parts)
+    )
     with ThreadPoolExecutor(max_workers=workers) as pool:
         digests = list(pool.map(sha256_file, files))
     return {p.relative_to(directory).as_posix(): d for p, d in zip(files, digests, strict=True)}
@@ -156,3 +169,21 @@ def local_dir_revision(directory: Path) -> str | None:
     meta_dir = directory / ".cache" / "huggingface" / "download"
     revisions = {p.read_text().splitlines()[0] for p in meta_dir.rglob("*.metadata") if p.stat().st_size}
     return revisions.pop() if len(revisions) == 1 else None
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Checkpoint file helpers.")
+    sub = parser.add_subparsers(dest="command", required=True)
+    manifest = sub.add_parser("manifest", help="rewrite SHA256SUMS for an existing checkpoint directory")
+    manifest.add_argument("directory", type=Path)
+    args = parser.parse_args(argv)
+    if not any(args.directory.glob("*.safetensors")):
+        print(f"error: {args.directory} holds no .safetensors files; build the checkpoint first", flush=True)
+        return 1
+    path = write_manifest(args.directory)
+    print(f"wrote {path} ({len(read_manifest(path))} files)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

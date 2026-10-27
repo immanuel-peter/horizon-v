@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from k2hv.modeling_k2_horizon_v import Projector, build_projector
+from k2hv.hf.modeling_k2_horizon_v import Projector, build_projector
 
 
 def _window_ids(grid_h: int, grid_w: int, merge: int = 2):

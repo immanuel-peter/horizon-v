@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 import textwrap
-from pathlib import Path
 
 import pytest
 import torch
@@ -17,12 +16,18 @@ from k2hv.checkpoint_io import hash_tree, read_tensor_infos, split_glm_keys
 
 TOKENS = {"<image>": tiny.IMAGE_START, "</image>": tiny.IMAGE_END, "reserved_special_token_12": tiny.IMAGE_PAD}
 SHARD_LIMIT = 100_000  # bytes; the tiny model is ~330 KB, so this forces several shards
-SRC = Path(__file__).resolve().parents[1] / "src" / "k2hv"
+
+
+def prepared_out(tmp_path, k2, glm, name="out"):
+    """An HF repo tree holding only the tracked recipe, as it is in git before a build."""
+    out = tmp_path / name
+    out.mkdir()
+    return tiny.write_recipe(out, k2, glm)
 
 
 def build_tiny(tmp_path, *, glm_sharded=False, name="out", sources=None, **kwargs):
     k2, glm = sources or tiny.write_source_checkpoints(tmp_path / "src", glm_sharded=glm_sharded)
-    out = tmp_path / name
+    out = prepared_out(tmp_path, k2, glm, name)
     info = build_init.build(k2, glm, out, max_shard_size=SHARD_LIMIT, token_ids=TOKENS, **kwargs)
     return k2, glm, out, info
 
@@ -38,7 +43,7 @@ def test_vendored_k2_code_is_unmodified():
         "configuration_k2_horizon.py": "5c2f993c1053d9462ebea6dea416c897fddfbb4a5edd904e486936b20d4badc5",
         "modeling_k2_horizon.py": "fb09e010956bd51cfa7d4055b4381cff34c9e06164066b49e3546f38b2e6242f",
     }
-    assert {n: hashlib.sha256((SRC / n).read_bytes()).hexdigest() for n in expected} == expected
+    assert {n: hashlib.sha256((tiny.HF_DIR / n).read_bytes()).hexdigest() for n in expected} == expected
 
 
 # --- successful builds ---------------------------------------------------------------------------
@@ -66,7 +71,8 @@ def test_build_covers_every_key_and_preserves_frozen_bytes(tmp_path, glm_sharded
     assert {i.dtype for i in out_infos.values()} == {"BF16"}
     for key, src in [("language_model." + k, k2_infos[k]) for k in k2_infos] + [("visual." + k, glm_infos[k]) for k in kept]:
         assert verify_init._compare_ranges(out_infos[key], src), key  # raw bytes identical, not just numerically equal
-    assert not (tmp_path / "out.building").exists()
+    assert not (out / ".building").exists()
+    assert (out / "tokenizer.json").read_bytes() == (k2 / "tokenizer.json").read_bytes()  # ignored upstream file is copied in
 
 
 def test_static_verifier_passes_on_a_good_build(built):
@@ -107,8 +113,33 @@ def test_verifier_catches_corruption(built, tmp_path):
     (copy / "modeling_k2_horizon_v.py").write_text((copy / "modeling_k2_horizon_v.py").read_text() + "\n# drift\n")
     report = verify_init.Report()
     verify_init.check_layout(copy, k2, glm, report, token_ids=TOKENS)
-    stale = [c for c in report.checks if c["name"].startswith("layout: shipped code")]
+    stale = [c for c in report.checks if c["name"].startswith("layout: code equals")]
     assert stale and not stale[0]["ok"] and "modeling_k2_horizon_v.py" in stale[0]["detail"]
+
+
+def test_verifier_flags_docs_that_name_other_source_revisions(built, tmp_path):
+    k2, glm, out, _ = built
+    copy = tmp_path / "copy"
+    copy.mkdir()
+    for p in out.rglob("*"):
+        if p.is_file():
+            (copy / p.relative_to(out)).parent.mkdir(parents=True, exist_ok=True)
+            (copy / p.relative_to(out)).write_bytes(p.read_bytes())
+    info = json.loads((copy / "build_info.json").read_text())
+    info["sources"]["k2"]["revision"] = "f" * 40
+    info["sources"]["glm"]["revision"] = "e" * 40
+    (copy / "build_info.json").write_text(json.dumps(info))
+
+    def docs_check():
+        report = verify_init.Report()
+        verify_init.check_layout(copy, k2, glm, report, token_ids=TOKENS)
+        return next(c for c in report.checks if c["name"].startswith("docs:"))
+
+    stale = docs_check()
+    assert not stale["ok"] and "README.md lacks k2 ffffffff" in stale["detail"] and "NOTICE lacks glm eeeeeeee" in stale["detail"]
+    for name in ("README.md", "NOTICE"):
+        (copy / name).write_text((copy / name).read_text() + f"\n{'f' * 40} {'e' * 40}\n")
+    assert docs_check()["ok"]
 
 
 def test_build_is_deterministic_across_runs(tmp_path):
@@ -172,22 +203,54 @@ def test_offline_load_in_a_fresh_process_matches_stock_k2(built, tmp_path):
 # --- refusals and failures -----------------------------------------------------------------------
 
 
-def test_refuses_to_overwrite_an_existing_output(tmp_path):
+def test_refuses_to_overwrite_an_existing_checkpoint(tmp_path):
+    k2, glm, out, _ = build_tiny(tmp_path)
+    before = hash_tree(out)
+    with pytest.raises(build_init.BuildError, match="refusing to overwrite"):
+        build_init.build(k2, glm, out, token_ids=TOKENS, max_shard_size=SHARD_LIMIT)
+    assert hash_tree(out) == before  # nothing was touched, including the tracked recipe files
+    assert not (out / ".building").exists()
+
+
+def test_a_partial_checkpoint_also_blocks_a_build(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
-    out = tmp_path / "out"
-    out.mkdir()
-    (out / "precious.txt").write_text("keep me")
+    out = prepared_out(tmp_path, k2, glm)
+    (out / "model-00001-of-00009.safetensors").write_bytes(b"x")
     with pytest.raises(build_init.BuildError, match="refusing to overwrite"):
         build_init.build(k2, glm, out, token_ids=TOKENS)
-    assert (out / "precious.txt").read_text() == "keep me"
-    assert not (tmp_path / "out.building").exists()
+    assert (out / "model-00001-of-00009.safetensors").read_bytes() == b"x"
 
 
 def test_refuses_when_a_previous_partial_build_is_present(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
-    (tmp_path / "out.building").mkdir()
+    out = prepared_out(tmp_path, k2, glm)
+    (out / ".building").mkdir()
     with pytest.raises(build_init.BuildError, match="earlier failed build"):
-        build_init.build(k2, glm, tmp_path / "out", token_ids=TOKENS)
+        build_init.build(k2, glm, out, token_ids=TOKENS)
+
+
+def test_missing_recipe_file_is_an_error(tmp_path):
+    k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
+    out = prepared_out(tmp_path, k2, glm)
+    (out / "README.md").unlink()
+    with pytest.raises(build_init.BuildError, match=r"missing tracked recipe files: \['README.md'\]"):
+        build_init.build(k2, glm, out, token_ids=TOKENS)
+
+
+def test_output_code_must_be_the_code_the_schema_came_from(tmp_path):
+    k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
+    out = prepared_out(tmp_path, k2, glm)
+    (out / "modeling_k2_horizon_v.py").write_text((out / "modeling_k2_horizon_v.py").read_text() + "\n# edited\n")
+    with pytest.raises(build_init.BuildError, match="differs from the code this tool imports"):
+        build_init.build(k2, glm, out, token_ids=TOKENS)
+
+
+def test_a_different_tokenizer_json_already_in_place_is_an_error(tmp_path):
+    k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
+    out = prepared_out(tmp_path, k2, glm)
+    (out / "tokenizer.json").write_text("{}")
+    with pytest.raises(build_init.BuildError, match="exists but differs"):
+        build_init.build(k2, glm, out, token_ids=TOKENS)
 
 
 def _rewrite_shard(directory, transform):
@@ -201,21 +264,22 @@ def test_dtype_mismatch_is_an_error_not_a_silent_cast(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
     key = "model.layers.1.input_layernorm.weight"
     _rewrite_shard(k2, lambda t: {k: v.float() if k == key else v for k, v in t.items()})
+    out = prepared_out(tmp_path, k2, glm)
     with pytest.raises(build_init.BuildError, match=rf"{key}: source dtype F32, checkpoint dtype BF16"):
-        build_init.build(k2, glm, tmp_path / "out", token_ids=TOKENS)
-    assert not (tmp_path / "out").exists() and not (tmp_path / "out.building").exists()
+        build_init.build(k2, glm, out, token_ids=TOKENS)
+    assert not list(out.glob("*.safetensors")) and not (out / ".building").exists()
 
 
 def test_missing_and_unexpected_tensors_are_errors(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src", glm_sharded=False)
     save_file({k: v for k, v in _read_all(glm).items() if k != "blocks.1.attn.qkv.bias"}, glm / "model.safetensors", metadata={"format": "pt"})
     with pytest.raises(build_init.BuildError, match="expected tensors missing from source"):
-        build_init.build(k2, glm, tmp_path / "out", token_ids=TOKENS)
+        build_init.build(k2, glm, prepared_out(tmp_path, k2, glm), token_ids=TOKENS)
 
     k2b, glmb = tiny.write_source_checkpoints(tmp_path / "src2")
     save_file({**_read_all(glmb), "blocks.0.stray.weight": torch.zeros(2, dtype=torch.bfloat16)}, glmb / "model.safetensors", metadata={"format": "pt"})
     with pytest.raises(build_init.BuildError, match="source tensors the model does not use"):
-        build_init.build(k2b, glmb, tmp_path / "out2", token_ids=TOKENS)
+        build_init.build(k2b, glmb, prepared_out(tmp_path, k2b, glmb, "out2"), token_ids=TOKENS)
 
 
 def _read_all(directory):
@@ -227,28 +291,59 @@ def test_wrong_token_id_is_an_error(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
     wrong = {**TOKENS, "<image>": tiny.IMAGE_START + 1}
     with pytest.raises(build_init.BuildError, match=r"maps '<image>' to 300, the plan expects 301"):
-        build_init.build(k2, glm, tmp_path / "out", token_ids=wrong)
+        build_init.build(k2, glm, prepared_out(tmp_path, k2, glm), token_ids=wrong)
 
 
 def test_modified_k2_code_is_an_error(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
+    out = prepared_out(tmp_path, k2, glm)
     (k2 / "modeling_k2_horizon.py").write_text((k2 / "modeling_k2_horizon.py").read_text() + "\n# local edit\n")
-    with pytest.raises(build_init.BuildError, match="differs from the copy vendored"):
-        build_init.build(k2, glm, tmp_path / "out", token_ids=TOKENS)
+    with pytest.raises(build_init.BuildError, match="differs from the tracked copy"):
+        build_init.build(k2, glm, out, token_ids=TOKENS)
 
 
 def test_unsharded_source_without_weights_is_an_error(tmp_path):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
     (glm / "model.safetensors").unlink()
     with pytest.raises(Exception, match="neither"):
-        build_init.build(k2, glm, tmp_path / "out", token_ids=TOKENS)
+        build_init.build(k2, glm, prepared_out(tmp_path, k2, glm), token_ids=TOKENS)
 
 
 def test_cli_reports_errors_with_a_nonzero_exit(tmp_path, capsys):
     k2, glm = tiny.write_source_checkpoints(tmp_path / "src")
-    (tmp_path / "out").mkdir()
-    assert build_init.main(["--k2", str(k2), "--glm", str(glm), "--out", str(tmp_path / "out")]) == 1
+    out = prepared_out(tmp_path, k2, glm)
+    (out / "model.safetensors.index.json").write_text("{}")
+    assert build_init.main(["--k2", str(k2), "--glm", str(glm), "--out", str(out)]) == 1
     assert "refusing to overwrite" in capsys.readouterr().err
+
+
+def test_manifest_ignores_bytecode_and_hidden_directories(tmp_path):
+    (tmp_path / "a.txt").write_text("a")
+    for junk in ("__pycache__/m.cpython-312.pyc", ".cache/huggingface/x.metadata", ".building/model.safetensors"):
+        (tmp_path / junk).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / junk).write_text("junk")
+    assert list(hash_tree(tmp_path)) == ["a.txt"]
+
+
+def test_manifest_cli_refreshes_after_a_tracked_file_changes(built, tmp_path):
+    from k2hv import checkpoint_io
+
+    _, _, out, _ = built
+    copy = tmp_path / "copy"
+    copy.mkdir()
+    for p in out.rglob("*"):
+        if p.is_file():
+            (copy / p.relative_to(out)).parent.mkdir(parents=True, exist_ok=True)
+            (copy / p.relative_to(out)).write_bytes(p.read_bytes())
+    (copy / "README.md").write_text("edited")
+    report = verify_init.Report()
+    verify_init.check_manifest(copy, report)
+    assert not report.ok  # the old manifest no longer matches
+    assert checkpoint_io.main(["manifest", str(copy)]) == 0
+    report = verify_init.Report()
+    verify_init.check_manifest(copy, report)
+    assert report.ok
+    assert checkpoint_io.main(["manifest", str(tmp_path)]) == 1  # no weights there: refuses
 
 
 # --- shard planner -------------------------------------------------------------------------------

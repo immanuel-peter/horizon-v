@@ -40,22 +40,20 @@ from .checkpoint_io import (
     sha256_file,
     split_glm_keys,
 )
-from .build_init import IMAGE_TOKENS, tensor_sha256
+from .build_init import CODE_FILES, IMAGE_TOKENS, PACKAGE_HF_DIR, STAGING_DIR, tensor_sha256
 
 MAX_SHARD_BYTES = 5_000_000_000
 EXPECTED_AUTO_MAP = {
     "AutoConfig": "configuration_k2_horizon_v.K2HorizonVConfig",
     "AutoModelForImageTextToText": "modeling_k2_horizon_v.K2HorizonVForConditionalGeneration",
 }
-SHIPPED_CODE = (
-    "configuration_k2_horizon_v.py",
-    "modeling_k2_horizon_v.py",
-    "configuration_k2_horizon.py",
-    "modeling_k2_horizon.py",
-)
+SHIPPED_CODE = CODE_FILES
 COPIED_FROM_K2 = ("configuration_k2_horizon.py", "modeling_k2_horizon.py", "tokenizer.json", "tokenizer_config.json",
                   "special_tokens_map.json", "chat_template.jinja", "generation_config.json")
 COPIED_FROM_GLM = ("preprocessor_config.json",)
+# Mirrored upstream files that we changed on purpose (step 2: chat_template.jinja, preprocessor_config.json).
+# They are checked against their intended patch there, not for equality with the source.
+PATCHED_FILES: tuple[str, ...] = ()
 PARITY_PROMPT = "The capital of France is Paris. The capital of Japan is"
 
 
@@ -86,9 +84,9 @@ def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict
     missing = [name for name in required if not (out / name).is_file()]
     report.add("layout: all required files present", not missing, f"missing: {missing}" if missing else f"{len(required)} files")
 
-    package = Path(__file__).resolve().parent
-    stale = [n for n in SHIPPED_CODE if (out / n).read_bytes() != (package / n).read_bytes()]
-    report.add("layout: shipped code equals the code currently in src/k2hv (rebuild if not)", not stale, str(stale) if stale else f"{len(SHIPPED_CODE)} files")
+    stale = [n for n in SHIPPED_CODE if (out / n).read_bytes() != (PACKAGE_HF_DIR / n).read_bytes()]
+    report.add("layout: code equals the code k2hv.hf imports (the code the schema came from)", not stale, str(stale) if stale else f"{len(SHIPPED_CODE)} files")
+    report.add("layout: no leftover staging directory", not (out / STAGING_DIR).exists())
 
     processor_files = sorted(p.name for p in out.iterdir() if p.name.startswith("processing_") or p.name == "processor_config.json")
     report.add("layout: no processor artifacts advertised", not processor_files, str(processor_files) if processor_files else "")
@@ -113,7 +111,7 @@ def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict
     # sub-configs must round-trip to the sources' configs (semantic equality, not text equality)
     from transformers.models.glm5_next.configuration_glm5_next import Glm5NextVisionConfig
 
-    from .configuration_k2_horizon import K2HorizonConfig
+    from .hf.configuration_k2_horizon import K2HorizonConfig
 
     def same(cls, ours: dict, theirs: dict) -> bool:
         a, b = cls.from_dict(dict(ours)).to_dict(), cls.from_dict(dict(theirs)).to_dict()
@@ -124,11 +122,19 @@ def check_layout(out: Path, k2: Path, glm: Path, report: Report, token_ids: dict
     report.add("config: text_config equals K2's config.json", same(K2HorizonConfig, config["text_config"], json.loads((k2 / "config.json").read_text())))
     report.add("config: vision_config equals GLM's config.json", same(Glm5NextVisionConfig, config["vision_config"], json.loads((glm / "config.json").read_text())))
 
-    bad = [n for n in COPIED_FROM_K2 if (out / n).read_bytes() != (k2 / n).read_bytes()]
-    bad += [n for n in COPIED_FROM_GLM if (out / n).read_bytes() != (glm / n).read_bytes()]
-    bad += [] if (out / "licenses/MIT-GLM-5.3-Flash-Vision.txt").read_bytes() == (glm / "LICENSE").read_bytes() else ["MIT license"]
-    report.add("assets: tokenizer, chat template, generation config, K2 code, preprocessor config and MIT license are byte-identical to the sources",
-               not bad, str(bad) if bad else f"{len(COPIED_FROM_K2) + len(COPIED_FROM_GLM) + 1} files")
+    checked = [(n, k2) for n in COPIED_FROM_K2 if n not in PATCHED_FILES] + [(n, glm) for n in COPIED_FROM_GLM if n not in PATCHED_FILES]
+    bad = [n for n, source in checked if (out / n).read_bytes() != (source / n).read_bytes()]
+    mit_ok = (out / "licenses/MIT-GLM-5.3-Flash-Vision.txt").read_bytes() == (glm / "LICENSE").read_bytes()
+    bad += [] if mit_ok else ["licenses/MIT-GLM-5.3-Flash-Vision.txt"]
+    report.add("assets: mirrored upstream files (K2 code, tokenizer, chat template, generation config, preprocessor config, MIT license) "
+               "are byte-identical to the sources", not bad, str(bad) if bad else f"{len(checked) + 1} files; patched on purpose: {list(PATCHED_FILES)}")
+
+    revisions = {name: build_info["sources"][name]["revision"] for name in ("k2", "glm")}
+    docs = {n: (out / n).read_text() for n in ("README.md", "NOTICE")}
+    stale_docs = [f"{n} lacks {name} {rev[:8]}" for n, text in docs.items() for name, rev in revisions.items()
+                  if rev != "unknown" and rev not in text]
+    report.add("docs: README.md and NOTICE name the source revisions this build used", not stale_docs,
+               "; ".join(stale_docs) if stale_docs else ", ".join(f"{k}={v[:8]}" for k, v in revisions.items()))
     return config
 
 
@@ -221,7 +227,7 @@ def check_frozen_bytes(out_infos, k2_infos, glm_infos, report: Report, workers: 
 def check_projector(out: Path, out_infos, config: dict, report: Report) -> None:
     from safetensors import safe_open
 
-    from .modeling_k2_horizon_v import build_projector
+    from .hf.modeling_k2_horizon_v import build_projector
 
     build_info = json.loads((out / "build_info.json").read_text())
     seed = build_info["projector"]["seed"]

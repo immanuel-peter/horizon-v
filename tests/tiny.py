@@ -15,6 +15,7 @@ VOCAB = 320
 IMAGE_START, IMAGE_END, IMAGE_PAD = 300, 301, 302
 PATCH = 4
 PATCH_DIM = 3 * 2 * PATCH * PATCH  # channels * temporal_patch_size * patch^2
+HF_DIR = Path(__file__).resolve().parents[1] / "hf" / "K2-Horizon-V-init"  # the tracked HF repo tree
 
 
 def k2_config_dict(dtype: str = "float32", **overrides) -> dict:
@@ -99,7 +100,7 @@ def glm_vision_config_dict(dtype: str = "float32", **overrides) -> dict:
 
 
 def composite_config(dtype: str = "float32"):
-    from k2hv.configuration_k2_horizon_v import K2HorizonVConfig
+    from k2hv.hf.configuration_k2_horizon_v import K2HorizonVConfig
 
     return K2HorizonVConfig(
         text_config=k2_config_dict(dtype),
@@ -113,7 +114,7 @@ def composite_config(dtype: str = "float32"):
 
 def tiny_model(dtype: str = "float32", seed: int = 0):
     """Randomly initialized tiny composite model (projector has non-trivial values)."""
-    from k2hv.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration
+    from k2hv.hf.modeling_k2_horizon_v import K2HorizonVForConditionalGeneration
 
     torch.manual_seed(seed)
     model = K2HorizonVForConditionalGeneration(composite_config(dtype))
@@ -148,15 +149,14 @@ def write_source_checkpoints(root: Path, *, k2_shards: int = 2, glm_sharded: boo
     from transformers.models.glm5_next.configuration_glm5_next import Glm5NextVisionConfig
     from transformers.models.glm5_next.modeling_glm5_next import Glm5NextVisionModel
 
-    repo_src = Path(__file__).resolve().parents[1] / "src" / "k2hv"
     torch_dtype = getattr(torch, dtype)
     k2_dir, glm_dir = root / "K2-Horizon-7B", root / "GLM-5.3-Flash-Vision"
     k2_dir.mkdir(parents=True)
     glm_dir.mkdir(parents=True)
 
     # K2 weights: the stock K2 model's own state dict.
-    from k2hv.configuration_k2_horizon import K2HorizonConfig
-    from k2hv.modeling_k2_horizon import K2HorizonForCausalLM
+    from k2hv.hf.configuration_k2_horizon import K2HorizonConfig
+    from k2hv.hf.modeling_k2_horizon import K2HorizonForCausalLM
 
     torch.manual_seed(100)
     k2_cfg = k2_config_dict(dtype)
@@ -167,7 +167,7 @@ def write_source_checkpoints(root: Path, *, k2_shards: int = 2, glm_sharded: boo
     _write_sharded(k2_dir, k2_state, k2_shards)
     (k2_dir / "config.json").write_text(json.dumps(k2_cfg, indent=2))
     for name in ("configuration_k2_horizon.py", "modeling_k2_horizon.py"):
-        (k2_dir / name).write_bytes((repo_src / name).read_bytes())
+        (k2_dir / name).write_bytes((HF_DIR / name).read_bytes())
     (k2_dir / "generation_config.json").write_text(json.dumps({"bos_token_id": 0, "eos_token_id": [1], "pad_token_id": 1}))
     (k2_dir / "special_tokens_map.json").write_text("{}")
     (k2_dir / "tokenizer_config.json").write_text(json.dumps({"tokenizer_class": "PreTrainedTokenizerFast"}))
@@ -214,3 +214,22 @@ def _write_sharded(directory: Path, state: dict, num_shards: int) -> None:
     (directory / "model.safetensors.index.json").write_text(
         json.dumps({"metadata": {"total_size": total}, "weight_map": weight_map}, indent=2)
     )
+
+
+# Files build_init expects to find in the output directory, split by where they come from.
+AUTHORED = ("configuration_k2_horizon_v.py", "modeling_k2_horizon_v.py", "configuration_k2_horizon.py", "modeling_k2_horizon.py",
+            "README.md", "NOTICE", "licenses/Apache-2.0.txt")
+FROM_K2 = ("tokenizer_config.json", "special_tokens_map.json", "generation_config.json", "chat_template.jinja")
+
+
+def write_recipe(out: Path, k2_dir: Path, glm_dir: Path) -> Path:
+    """The tracked part of an HF repo tree, as build_init expects it: our files from hf/K2-Horizon-V-init,
+    mirrored upstream files from the (tiny) sources."""
+    for name in AUTHORED:
+        (out / name).parent.mkdir(parents=True, exist_ok=True)
+        (out / name).write_bytes((HF_DIR / name).read_bytes())
+    for name in FROM_K2:
+        (out / name).write_bytes((k2_dir / name).read_bytes())
+    (out / "preprocessor_config.json").write_bytes((glm_dir / "preprocessor_config.json").read_bytes())
+    (out / "licenses" / "MIT-GLM-5.3-Flash-Vision.txt").write_bytes((glm_dir / "LICENSE").read_bytes())
+    return out

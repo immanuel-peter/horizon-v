@@ -19,7 +19,9 @@ horizon-v/
 ├── uv.lock
 ├── .python-version          3.12
 ├── third_party/miles/       radixark/miles @ 5078ff7, editable (patched in step 8)
-├── src/k2hv/                build_init.py, sft_rollout.py, reward.py, rl360_reward/
+├── hf/K2-Horizon-V-init/    the HF repo tree: tracked code, docs, configs; weights are git-ignored
+├── src/k2hv/                build_init.py, verify_init.py, sft_rollout.py, reward.py, rl360_reward/
+│   └── hf -> ../../hf/K2-Horizon-V-init     symlink: imports as k2hv.hf.*
 ├── src/k2hv_sglang/         SGLang model package (step 3)
 └── docs/                    this plan
 ```
@@ -58,7 +60,7 @@ uv sync
 
 Use this env for [step 1](01-init-checkpoint.md) (measured peak: about 18 GiB RSS) and template and processor tests ([step 2](02-processor-and-template.md)).
 
-On Linux, `pyproject.toml` routes `torch` to the PyTorch CPU wheel index (`[tool.uv.sources]`), so `uv.lock` contains no CUDA packages. macOS keeps the PyPI wheel. `pytest` is in the `dev` dependency group (`uv sync` installs it).
+`torch` is not pinned to a build: PyPI gives the CUDA build on Linux, which runs fine on CPU-only boxes (the venv is about 5 GB), and the CPU/MPS build on macOS. `pytest` is in the `dev` dependency group (`uv sync` installs it).
 
 ## GPU nodes
 
