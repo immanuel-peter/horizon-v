@@ -17,8 +17,12 @@ Publish `k2hv_sglang` ([step 3](03-sglang-model.md)) with install and launch ins
 
 ```bash
 uv pip install k2hv-sglang
-SGLANG_EXTERNAL_MODEL_PACKAGE=k2hv_sglang python -m sglang.launch_server \
-  --model-path <you>/K2-Horizon-V --trust-remote-code --reasoning-parser k2_v3
+export SGLANG_EXTERNAL_MODEL_PACKAGE=k2hv_sglang
+export SGLANG_EXTERNAL_MM_MODEL_ARCH=K2HorizonVForConditionalGeneration
+export SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE=k2hv_sglang
+python -m sglang.launch_server \
+  --model-path <you>/K2-Horizon-V --trust-remote-code \
+  --enable-multimodal --image-processor-backend pil --reasoning-parser k2_horizon
 ```
 
 ## Model card
