@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-from .runtime import MODEL_ARCHITECTURE, REASONING_PARSER, SGLANG_REVISION, SOURCE_SHA256, registration_environment
+from .runtime import MODEL_ARCHITECTURE, PACKAGE, REASONING_PARSER, REGISTRATION_ENVIRONMENT, SGLANG_REVISION, SOURCE_SHA256
 
 
 def check_source(directory):
@@ -30,22 +30,24 @@ def main():
     if spec is None:
         parser.error("SGLang is not installed; run this in the pinned Miles GPU environment")
     verified = check_source(Path(next(iter(spec.submodule_search_locations))) / "srt")
-    if importlib.metadata.version("transformers") != "5.19.0":
-        parser.error("This integration requires transformers==5.19.0")
-    for name, value in registration_environment().items():
-        os.environ[name] = value
+    pinned = next(req for req in importlib.metadata.requires("k2-horizon-v") if req.startswith("transformers==")).removeprefix("transformers==")
+    if importlib.metadata.version("transformers") != pinned:
+        parser.error(f"This integration requires transformers=={pinned}")
+    os.environ.update(REGISTRATION_ENVIRONMENT)
 
     from sglang.srt.models.registry import ModelRegistry
     from sglang.srt.managers.multimodal_processor import PROCESSOR_MAPPING, import_processors
     from sglang.srt.parser.reasoning_parser import ReasoningParser
 
-    import_processors("k2hv_sglang", overwrite=True)
+    import_processors(PACKAGE, overwrite=True)
     model_class = ModelRegistry.models[MODEL_ARCHITECTURE]
     processor_class = PROCESSOR_MAPPING[model_class]
-    assert model_class.__module__ == "k2hv_sglang.k2_horizon_v"
-    assert processor_class.__module__ == "k2hv_sglang.processor"
-    assert processor_class.__name__ == "K2HorizonVImageProcessor"
-    assert REASONING_PARSER in ReasoningParser.DetectorMap
+    if model_class.__module__ != f"{PACKAGE}.k2_horizon_v":
+        raise RuntimeError(f"Architecture {MODEL_ARCHITECTURE} resolved to {model_class.__module__}")
+    if processor_class.__module__ != f"{PACKAGE}.processor" or processor_class.__name__ != "K2HorizonVImageProcessor":
+        raise RuntimeError(f"Processor resolved to {processor_class.__module__}.{processor_class.__name__}")
+    if REASONING_PARSER not in ReasoningParser.DetectorMap:
+        raise RuntimeError(f"SGLang has no reasoning parser named {REASONING_PARSER}")
     print(json.dumps({"sglang_version": importlib.metadata.version("sglang"), "reference_revision": SGLANG_REVISION, "verified_source_files": verified,
                       "architecture": MODEL_ARCHITECTURE, "processor": processor_class.__name__, "reasoning_parser": REASONING_PARSER}, indent=2))
 

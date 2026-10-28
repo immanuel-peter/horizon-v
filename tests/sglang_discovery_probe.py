@@ -1,5 +1,3 @@
-"""Run pinned SGLang discovery in a fresh interpreter with CPU runtime doubles."""
-
 import ast
 import __future__
 import importlib
@@ -17,7 +15,7 @@ def main():
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import sglang_double
     from k2hv_sglang.check_runtime import check_source
-    from k2hv_sglang.runtime import MODEL_ARCHITECTURE, registration_environment
+    from k2hv_sglang.runtime import MODEL_ARCHITECTURE, REGISTRATION_ENVIRONMENT
 
     source = Path(sys.argv[1])
     check_source(source)
@@ -25,7 +23,7 @@ def main():
     sglang_double.install(patch, load_adapters=False)
     assert 'k2hv_sglang.k2_horizon_v' not in sys.modules
     assert 'k2hv_sglang.processor' not in sys.modules
-    assert all(os.environ[name] == value for name, value in registration_environment().items())
+    assert all(os.environ[name] == value for name, value in REGISTRATION_ENVIRONMENT.items())
     environ = ModuleType('sglang.srt.environ')
     environ.envs = SimpleNamespace(
         SGLANG_EXTERNAL_MODEL_PACKAGE=SimpleNamespace(get=lambda: os.environ['SGLANG_EXTERNAL_MODEL_PACKAGE']),

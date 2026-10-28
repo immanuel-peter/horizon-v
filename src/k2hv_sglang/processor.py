@@ -53,10 +53,11 @@ class K2HorizonVImageProcessor(BaseMultimodalProcessor):
             ids, grids, image_start_id=self.hf_config.image_start_token_id, image_token_id=self.hf_config.image_token_id,
             image_end_id=self.hf_config.image_end_token_id, merge_size=self._processor.image_processor.merge_size,
         )
-        items = [MultimodalDataItem(modality=Modality.IMAGE, feature=pixels, offsets=[offset], model_specific_data={"image_grid_thw": grid})
-                 for (pixels, grid), offset in zip(features, offsets)]
-        for item in items:
-            item.set_hash(image_hash(item.feature, item.image_grid_thw))
+        items = []
+        for (pixels, grid), offset in zip(features, offsets):
+            item = MultimodalDataItem(modality=Modality.IMAGE, feature=pixels, offsets=[offset], model_specific_data={"image_grid_thw": grid})
+            item.set_hash(image_hash(pixels, grid))
+            items.append(item)
         items = self._finalize_mm_items(items, images=loaded.images)
         return MultimodalProcessorOutput(mm_items=items, input_ids=ids, im_token_id=self.hf_config.image_token_id,
                                          im_start_id=self.hf_config.image_start_token_id, im_end_id=self.hf_config.image_end_token_id)

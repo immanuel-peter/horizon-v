@@ -38,7 +38,7 @@ Both frozen parts stay bit-identical, so text-only behavior is exactly K2's.
 | 8 | [Stage 2: projector-only GRPO](steps/08-rl.md) | 1 node |
 | 9 | [Release](steps/09-release.md) | No |
 
-The checkpoint, processor and image template are verified on CPU. The SGLang adapter is implemented and has CPU boundary tests; native GPU execution and the gate checks are next. See the [checkpoint handoff](handoff/01-init-checkpoint.md), [processor handoff](handoff/02-processor-and-template.md) and [SGLang handoff](handoff/03-sglang-model.md).
+The checkpoint, processor and image template are verified on CPU. The SGLang adapter is implemented. GPU execution and the gate checks are next. See the [checkpoint handoff](handoff/01-init-checkpoint.md), [processor handoff](handoff/02-processor-and-template.md) and [SGLang handoff](handoff/03-sglang-model.md).
 
 Do steps 0–4 before spending GPU hours. Projects like this usually break on token-count or packing mismatches, not on hyperparameters.
 

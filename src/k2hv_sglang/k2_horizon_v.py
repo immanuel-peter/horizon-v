@@ -18,7 +18,7 @@ from sglang.srt.runtime_context import get_mm
 from sglang.srt.utils.common import add_prefix
 
 from k2hv.hf.modeling_k2_horizon_v import Projector
-from .input_layout import map_vision_weight, split_image_features
+from .input_layout import map_vision_weight, validate_image_grids
 
 
 class TruncatedGlm5NextVision(Glm5NextVisionModel):
@@ -28,7 +28,7 @@ class TruncatedGlm5NextVision(Glm5NextVisionModel):
         del self.merger
 
     def forward(self, pixel_values, grid_thw):
-        split_image_features(pixel_values, grid_thw, merge_size=self.spatial_merge_size)
+        validate_image_grids(pixel_values, grid_thw, merge_size=self.spatial_merge_size)
         x = self.patch_embed(pixel_values.to(device=self.device, dtype=self.dtype))
         cos, sin, _ = self.rot_pos_emb(grid_thw)
         cu_seqlens = torch.repeat_interleave(grid_thw[:, 1] * grid_thw[:, 2], grid_thw[:, 0]).cumsum(dim=0, dtype=torch.int32)
@@ -42,8 +42,6 @@ class TruncatedGlm5NextVision(Glm5NextVisionModel):
 
 
 class K2HorizonVForConditionalGeneration(nn.Module):
-    """Native SGLang K2 decoder with a truncated GLM encoder and the HF projector."""
-
     fall_back_to_pt_during_load = False
 
     def __init__(self, config, quant_config=None, prefix=""):
@@ -96,10 +94,8 @@ class K2HorizonVForConditionalGeneration(nn.Module):
 
     def load_weights(self, weights):
         params = dict(self.named_parameters())
-        updated = False
 
         for component, group in groupby(weights, key=lambda entry: entry[0].split(".", 1)[0]):
-            updated = True
             if component == "language_model":
                 language_weights = ((name.removeprefix("language_model."), weight) for name, weight in group)
                 self.language_model.load_weights(language_weights)
@@ -121,7 +117,7 @@ class K2HorizonVForConditionalGeneration(nn.Module):
             else:
                 name, _ = next(group)
                 raise ValueError(f"Unknown checkpoint weight: {name}")
-        if updated and mm_schedule.embedding_cache is not None:
+        if mm_schedule.embedding_cache is not None:
             mm_schedule.embedding_cache.clear()
 
 

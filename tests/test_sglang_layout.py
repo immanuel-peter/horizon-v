@@ -3,8 +3,8 @@ from array import array
 import pytest
 import torch
 
-from k2hv_sglang.input_layout import expand_image_tokens, map_vision_weight, split_image_features
-from k2hv_sglang.runtime import MODEL_ARCHITECTURE, REASONING_PARSER, registration_environment
+from k2hv_sglang.input_layout import expand_image_tokens, image_hash, map_vision_weight, split_image_features
+from k2hv_sglang.runtime import MODEL_ARCHITECTURE, REASONING_PARSER, REGISTRATION_ENVIRONMENT
 from k2hv_sglang.check_runtime import check_source
 
 
@@ -81,7 +81,7 @@ def test_native_vision_weight_names(name, mapped, shard):
 
 
 def test_all_external_multimodal_registrations_are_declared():
-    assert registration_environment() == {
+    assert REGISTRATION_ENVIRONMENT == {
         "SGLANG_EXTERNAL_MODEL_PACKAGE": "k2hv_sglang",
         "SGLANG_EXTERNAL_MM_MODEL_ARCH": MODEL_ARCHITECTURE,
         "SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE": "k2hv_sglang",
@@ -102,3 +102,9 @@ def test_runtime_source_audit_rejects_missing_or_changed_code(tmp_path, monkeypa
     (tmp_path / "model.py").write_bytes(b"drifted source\n")
     with pytest.raises(RuntimeError, match="model.py"):
         check_source(tmp_path)
+
+
+@pytest.mark.parametrize("pixels", [torch.zeros(4, 8, dtype=torch.float16), torch.zeros(4, 8, device="meta")])
+def test_image_hash_rejects_non_cpu_float32_pixels(pixels):
+    with pytest.raises(ValueError, match="CPU float32"):
+        image_hash(pixels, torch.tensor([[1, 2, 2]]))

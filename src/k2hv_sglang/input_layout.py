@@ -1,8 +1,11 @@
 import hashlib
 
+import torch
+
 
 def image_hash(pixel_values, image_grid_thw):
-    """Hash CPU PIL float32 patches and their integer grid geometry."""
+    if pixel_values.device.type != "cpu" or pixel_values.dtype != torch.float32:
+        raise ValueError("image_hash expects CPU float32 pixel_values")
     digest = hashlib.sha256()
     for tensor in (image_grid_thw, pixel_values):
         digest.update(memoryview(tensor.detach().contiguous().numpy()))
@@ -10,7 +13,6 @@ def image_hash(pixel_values, image_grid_thw):
 
 
 def expand_image_tokens(input_ids, image_grid_thw, *, image_start_id, image_token_id, image_end_id, merge_size=2):
-    """Expand single-pad markers or validate expanded markers without changing text IDs."""
     counts = [int(grid.prod()) // merge_size**2 for grid in image_grid_thw]
     result, offsets, image_index = [], [], 0
     index = 0
@@ -44,7 +46,7 @@ def expand_image_tokens(input_ids, image_grid_thw, *, image_start_id, image_toke
     return result, offsets
 
 
-def split_image_features(pixel_values, image_grid_thw, *, merge_size=2):
+def validate_image_grids(pixel_values, image_grid_thw, *, merge_size=2):
     if image_grid_thw.ndim != 2 or image_grid_thw.shape[1] != 3:
         raise ValueError("image_grid_thw must have shape (num_images, 3)")
     if image_grid_thw.numel() and (bool((image_grid_thw <= 0).any()) or bool((image_grid_thw[:, 1:] % merge_size).any())):
@@ -52,6 +54,11 @@ def split_image_features(pixel_values, image_grid_thw, *, merge_size=2):
     lengths = image_grid_thw.prod(-1).tolist()
     if pixel_values.ndim != 2 or sum(lengths) != pixel_values.shape[0]:
         raise ValueError("Image grid patch counts do not match pixel_values")
+    return lengths
+
+
+def split_image_features(pixel_values, image_grid_thw, *, merge_size=2):
+    lengths = validate_image_grids(pixel_values, image_grid_thw, merge_size=merge_size)
     return list(zip(pixel_values.split(lengths), image_grid_thw.split(1)))
 
 

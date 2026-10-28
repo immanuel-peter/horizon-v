@@ -1,5 +1,3 @@
-"""Strict runtime boundary doubles for CPU adapter tests, not SGLang kernel emulation."""
-
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import importlib

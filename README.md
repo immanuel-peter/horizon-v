@@ -18,7 +18,7 @@ and the CPU/MPS build on macOS. The Linux build also runs on CPU machines;
 the venv uses about 5 GB. GPU nodes reuse the Miles image's torch. Follow the
 [environment guide](docs/steps/00-environment.md) for that setup.
 
-Setup needs no GPU or model downloads. The composite model, checkpoint tools, processor, image template and SGLang adapter are implemented. The adapter has CPU boundary tests; actual SGLang GPU execution remains unvalidated and training code is still planned. See the [checkpoint handoff](docs/handoff/01-init-checkpoint.md), [processor handoff](docs/handoff/02-processor-and-template.md) and [SGLang handoff](docs/handoff/03-sglang-model.md).
+Setup needs no GPU or model downloads. The composite model, checkpoint tools, processor, image template and SGLang adapter are implemented. Training code is still planned. See the [checkpoint handoff](docs/handoff/01-init-checkpoint.md), [processor handoff](docs/handoff/02-processor-and-template.md) and [SGLang handoff](docs/handoff/03-sglang-model.md).
 
 ## Layout
 

@@ -73,7 +73,7 @@ The Linux build runs on CPU machines and uses about 5 GB for the venv.
 
 ## GPU nodes
 
-Miles uses the `sglang-miles` branch and prebuilt flash-attn / FA3 wheels from its Dockerfile. That branch moves unless the build supplies `SGLANG_COMMIT`. The external adapter targets the exact revision in the [SGLang handoff](../handoff/03-sglang-model.md); audit or pin the installed source before serving. A PyPI SGLang package resolved by uv does not establish compatibility with that runtime. Start from the Miles image and add the project on top:
+Miles uses the `sglang-miles` branch and prebuilt flash-attn / FA3 wheels from its Dockerfile. That branch moves unless the build sets `SGLANG_COMMIT`. The adapter targets the revision in the [SGLang handoff](../handoff/03-sglang-model.md), so pin or audit the installed source before serving. A PyPI SGLang resolved by uv may not match that runtime. Start from the Miles image and add the project on top:
 
 ```bash
 git clone https://github.com/radixark/miles third_party/miles

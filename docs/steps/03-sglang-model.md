@@ -1,8 +1,8 @@
 # Step 3: SGLang model
 
-Implemented in `src/k2hv_sglang/` against `sgl-project/sglang` revision `b8d46f2f309fdada4bbb05ef4e90ac4adf7a3bcf`, resolved from the `sglang-miles` branch. Miles's Dockerfile at `5078ff7` follows that branch unless `SGLANG_COMMIT` is supplied. See the [handoff](../handoff/03-sglang-model.md) for the pinned environment, launch commands, validation and remaining GPU checks.
+Implemented in `src/k2hv_sglang/` against `sgl-project/sglang` revision `b8d46f2f309fdada4bbb05ef4e90ac4adf7a3bcf`. The [handoff](../handoff/03-sglang-model.md) has the pinned environment, launch commands, validation and remaining GPU checks.
 
-The adapter composes SGLang's native K2 decoder (`models/xllm.py`) and GLM vision blocks (`models/glm5_next.py`) with the existing HF projector. It is needed for RL rollouts ([step 8](08-rl.md)) and eval serving ([step 7](07-eval.md)). CPU boundary tests pass; the actual GPU engine has not been run here.
+The adapter combines SGLang's K2 decoder (`models/xllm.py`) and GLM vision blocks (`models/glm5_next.py`) with the HF projector. RL rollouts ([step 8](08-rl.md)) and eval serving ([step 7](07-eval.md)) need it.
 
 ## Package
 
@@ -17,17 +17,11 @@ k2hv_sglang/
 └── smoke.py              client for an already-running GPU server
 ```
 
-It ships inside the project, so the `uv pip install -e .` in [step 0](00-environment.md) installs it. Load it with:
-
-```bash
-export SGLANG_EXTERNAL_MODEL_PACKAGE=k2hv_sglang
-export SGLANG_EXTERNAL_MM_MODEL_ARCH=K2HorizonVForConditionalGeneration
-export SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE=k2hv_sglang
-```
+The `uv pip install -e .` in [step 0](00-environment.md) installs it. The three environment variables that load it are in the [handoff](../handoff/03-sglang-model.md#checkpoint-and-launch).
 
 ## Model class
 
-The original sketch below describes the composition. The implementation uses the pinned `prepare_mm_inputs` helper to prepare embeddings and then calls the native K2 decoder. The wrapper supplies `get_input_embeddings`, which the current K2 decoder's internal model does not expose.
+The class below shows the composition. `forward` calls SGLang's `prepare_mm_inputs` to build embeddings, then runs the K2 decoder. The wrapper defines `get_input_embeddings` because the K2 decoder's inner model does not expose it.
 
 ```python
 class K2HorizonVForConditionalGeneration(nn.Module):
@@ -58,7 +52,7 @@ class K2HorizonVForConditionalGeneration(nn.Module):
 EntryClass = K2HorizonVForConditionalGeneration
 ```
 
-- `TruncatedGlm5NextVision`: native `Glm5NextVisionModel` with `downsample` and `merger` removed, returning after `post_layernorm`.
+- `TruncatedGlm5NextVision`: `Glm5NextVisionModel` with `downsample` and `merger` removed, returning after `post_layernorm`.
 - `pad_input_ids` keys on token 250062, matching the processor and template ([step 2](02-processor-and-template.md)).
 - No M-RoPE: K2 uses 1D RoPE, so the positions SGLang computes for text also apply to image tokens.
 
@@ -67,19 +61,19 @@ EntryClass = K2HorizonVForConditionalGeneration
 A `BaseMultimodalProcessor` subclass that wraps the HF processor and lists the model class in `models`.
 
 - It must accept the pre-expanded `input_ids` plus `image_data` that Miles sends (`miles/rollout/sglang_rollout.py:167-216`).
-- The processor consumes token IDs directly. It expands single-pad image blocks and keeps correctly pre-expanded Miles blocks unchanged; it never decodes and re-tokenizes input IDs.
+- It takes token IDs directly. It expands single-pad image blocks, keeps pre-expanded Miles blocks unchanged, and never decodes and re-tokenizes input IDs.
 - It must produce the same `pixel_values` and `image_grid_thw` as the HF processor for the same image.
-- CPU PIL decoding and the same HF image processor are used. Each image has its own patch tensor, grid and inclusive token offsets. Hashes include both pixels and grid geometry so different aspect ratios cannot reuse the same cached embedding merely because flat pixels match.
+- It decodes on CPU with PIL and uses the HF image processor. Each image gets its own patch tensor, grid and inclusive token offsets. Hashes cover pixels and grid, so two aspect ratios with identical flat pixels do not share a cached embedding.
 
 ## `load_weights`
 
 - Map `language_model.*`, `visual.*` and `projector.*` from the HF checkpoint.
 - Accept a projector-only update. In RL, Miles is patched to send only trainable weights ([step 8](08-rl.md)).
-- Language weights stream through the native K2 loader. Vision QKV and gate/up projections map to SGLang's fused parameters. Unknown or dropped head weights are rejected. Any weight update clears the projected-image embedding cache; the caller must still use the scheduler's normal KV-cache flush and synchronize updates with requests.
+- Language weights stream through the K2 loader. Vision QKV and gate/up projections map to SGLang's fused parameters. Unknown weights and dropped head weights raise errors. Every weight update clears the projected-image embedding cache. The caller must still flush the KV cache and synchronize updates with requests.
 
 ## Reasoning parser
 
-The pinned upstream revision already includes `K2V3Detector`, registered as **`k2_horizon`**, covering high, medium and low IFM think tags. Launch with `--reasoning-parser k2_horizon`; no parser port or alias is needed. This supersedes the older RL360 selector name `k2_v3` in the original plan.
+The pinned revision includes `K2V3Detector`, registered as `k2_horizon`, which covers the high, medium and low IFM think tags. Launch with `--reasoning-parser k2_horizon`. No port is needed, and the RL360 name `k2_v3` does not exist here.
 
 - RL rollouts do not need it: Miles calls `/generate` on raw tokens.
 - Eval does: chat completions must separate the reasoning from the answer.
