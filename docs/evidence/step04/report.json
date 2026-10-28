@@ -1,0 +1,482 @@
+{
+  "schema": 1,
+  "step04_complete": false,
+  "starting_sha": "2b00cf5f32e66741dbe36316c5e785e66ac99ab2",
+  "execution_checkout_head": "2b00cf5f32e66741dbe36316c5e785e66ac99ab2",
+  "code_sha256_at_hf_run": {
+    "src/k2hv/verify_init.py": "00b25ee598a963043c75acd219546d88d2a512113fa43284d1b8e85f51997c79",
+    "src/k2hv/build_init.py": "b7e6907b78c4741cdc2fa1e511eb41f1a97c11f100e35745653392a4fc2a0ff1",
+    "src/k2hv/__init__.py": "bc5bbc28eac038ad3aadf074db69d6ff085dfa6c61bcd6f8d3e58f78e0bdbc27",
+    "src/k2hv/processor_assets.py": "51f96f9a642e4e7252db6ca0ba71c6d8b98e50b44838327de0abed913e280a6e",
+    "src/k2hv/gate_training.py": "3f7871d654ff0a1a12126b9f0b314b79c012c110315ae086f68d34b747cf3a66",
+    "src/k2hv/sft_rollout.py": "0966d7858d9613e10633edcd3e1ccc1bb804f21f9b62427bbe4cc17f812da677",
+    "src/k2hv/checkpoint_io.py": "6c5a60e00c9f2b4bc5169be9f984ce9a81b7b5879b50eae9e1b63e9c9563d5d9",
+    "src/k2hv/gpu_gates.py": "a15a96c2186d883e6d8d908f2e27d23f26e449510f9fefa2c655d44c915e0080",
+    "src/k2hv_sglang/check_runtime.py": "2ad2f642cd35df923b0873a5c9e362793e106e29ed6c65a09e5376a3ca1d2417",
+    "src/k2hv_sglang/input_layout.py": "7b45c47973b4059431f42f6ddf3e7451c7d438f5a1e6c805a2a39fbeee31d9b1",
+    "src/k2hv_sglang/__init__.py": "1b40f191ac05b61f868913986e98f7d5281ebfac43bc928e8d9762131e95fcff",
+    "src/k2hv_sglang/processor.py": "df1ccc03d64a0c7ef37de1370fa8ae0fa13c3d7907f391ebe286aa1d3bbb3c08",
+    "src/k2hv_sglang/runtime.py": "52bdbad08ec1fa5e3f5549e8a40b72038363d42e51d18f3e80e033a5e978e381",
+    "src/k2hv_sglang/logprob_gate.py": "eaf081e536eb1d4c1427a4521c4221c695df9834a7b2502d7c7d8f1c328ff886",
+    "src/k2hv_sglang/smoke.py": "e21cb58ae2d19eb8a02b226816a71c71c4892396719986c8419ecaf3b244aa05",
+    "src/k2hv_sglang/k2_horizon_v.py": "8964b535b84780c32dd27e183da483dd2645d64e064b89946943b8a48e13e4a4",
+    "hf/K2-Horizon-V-init/configuration_k2_horizon_v.py": "35e7f41051315f43fa4b31aafe6fae7e1ff6bc67266d044f9e6744718ced35a7",
+    "hf/K2-Horizon-V-init/configuration_k2_horizon.py": "5c2f993c1053d9462ebea6dea416c897fddfbb4a5edd904e486936b20d4badc5",
+    "hf/K2-Horizon-V-init/modeling_k2_horizon.py": "fb09e010956bd51cfa7d4055b4381cff34c9e06164066b49e3546f38b2e6242f",
+    "hf/K2-Horizon-V-init/modeling_k2_horizon_v.py": "432411429bb261c84c60df6168d552139264e60e6d8f69cd2b04de7eb776a808",
+    "hf/K2-Horizon-V-init/processing_k2_horizon_v.py": "463a5269b426979fe0b31fcee45dbf2a20ee93353fc3920839d5fb34079c5c50",
+    "tools/step04/verify_archive.py": "8e134213539c518f6ca136ae9fd974ac85b86c52f2ca0a5defe7917c186ebd48",
+    "tools/step04/probe.py": "103aa01023d08ae08dcfdfac97532e55d2766b55b7b917c6220521a04c14c825"
+  },
+  "runtime": {
+    "miles": "5078ff7cd6387f553db010bb38148a59e9e12cb0",
+    "sglang": "b8d46f2f309fdada4bbb05ef4e90ac4adf7a3bcf",
+    "image": "lmsysorg/sglang@sha256:e3a4f06001a29542fc4a8638536d9ffc5eb9c9942b08603c09b19a56eae4a1ae",
+    "hf": "cuda-probe.json",
+    "native": "container-cuda-probe.json",
+    "native_text_backend": "triton",
+    "native_vision_backend": "sdpa"
+  },
+  "regression": {
+    "passed": 155,
+    "log": "outputs/step04/pytest-final.log"
+  },
+  "results": [
+    {
+      "gate": "cuda",
+      "status": "passed",
+      "metrics": {
+        "sdpa_forward_backward": true,
+        "dtype": "bfloat16",
+        "shape": [
+          1,
+          4,
+          128,
+          64
+        ]
+      },
+      "seconds": 0.39932043099997827,
+      "peak_allocated_bytes": 790528
+    },
+    {
+      "gate": "load_hf",
+      "status": "passed",
+      "metrics": {
+        "trainable": [
+          "projector.norm.weight",
+          "projector.norm.bias",
+          "projector.fc1.weight",
+          "projector.fc1.bias",
+          "projector.fc2.weight",
+          "projector.fc2.bias"
+        ],
+        "parameters": 9436974080
+      },
+      "seconds": 4.217797161999897,
+      "peak_allocated_bytes": 18873968640
+    },
+    {
+      "gate": "text_hf",
+      "status": "passed",
+      "metrics": {
+        "prompts": [
+          {
+            "length": 12,
+            "shape": [
+              1,
+              12,
+              250624
+            ],
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "atol": 0,
+            "rtol": 0
+          },
+          {
+            "length": 769,
+            "shape": [
+              1,
+              769,
+              250624
+            ],
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "atol": 0,
+            "rtol": 0
+          }
+        ]
+      },
+      "seconds": 3.6065426879999904,
+      "peak_allocated_bytes": 40185835520
+    },
+    {
+      "gate": "vision_hf",
+      "status": "passed",
+      "metrics": {
+        "images": [
+          {
+            "size": [
+              448,
+              448
+            ],
+            "grid": [
+              [
+                1,
+                32,
+                32
+              ]
+            ],
+            "shape": [
+              1024,
+              1024
+            ],
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "atol": 0,
+            "rtol": 0
+          },
+          {
+            "size": [
+              560,
+              112
+            ],
+            "grid": [
+              [
+                1,
+                8,
+                40
+              ]
+            ],
+            "shape": [
+              320,
+              1024
+            ],
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "atol": 0,
+            "rtol": 0
+          },
+          {
+            "size": [
+              112,
+              560
+            ],
+            "grid": [
+              [
+                1,
+                40,
+                8
+              ]
+            ],
+            "shape": [
+              320,
+              1024
+            ],
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "atol": 0,
+            "rtol": 0
+          },
+          {
+            "size": [
+              1,
+              1
+            ],
+            "grid": [
+              [
+                1,
+                8,
+                8
+              ]
+            ],
+            "shape": [
+              64,
+              1024
+            ],
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "atol": 0,
+            "rtol": 0
+          },
+          {
+            "size": [
+              1400,
+              1200
+            ],
+            "grid": [
+              [
+                1,
+                60,
+                68
+              ]
+            ],
+            "shape": [
+              4080,
+              1024
+            ],
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "atol": 0,
+            "rtol": 0
+          }
+        ]
+      },
+      "seconds": 0.6011242959998526,
+      "peak_allocated_bytes": 20214320640
+    },
+    {
+      "gate": "load_sglang",
+      "status": "passed",
+      "evidence": "strict source audit, full load and three-request smoke; source revision retained"
+    },
+    {
+      "gate": "text_sglang",
+      "status": "failed",
+      "evidence": "logprob.json: short passes, 769-token prompt max error exceeds 0.2"
+    },
+    {
+      "gate": "vision_sglang",
+      "status": "blocked",
+      "reason": "direct tower and projected-feature comparison runner not implemented"
+    },
+    {
+      "gate": "preprocessing",
+      "status": "blocked",
+      "reason": "real server pixel/grid/offset/insertion instrumentation not implemented"
+    },
+    {
+      "gate": "logprob",
+      "status": "failed",
+      "metrics": {
+        "max_error_tolerance": 0.2,
+        "mean_error_tolerance": 0.03,
+        "results": [
+          {
+            "name": "short",
+            "input_length": 14,
+            "compared_positions": 13,
+            "max_error": 0.0556795597076416,
+            "mean_error": 0.01681830999083244,
+            "status": "passed"
+          },
+          {
+            "name": "long",
+            "input_length": 769,
+            "compared_positions": 768,
+            "max_error": 0.3124542236328125,
+            "mean_error": 0.0013883082394083128,
+            "status": "failed"
+          },
+          {
+            "name": "image-448x448",
+            "input_length": 278,
+            "compared_positions": 21,
+            "max_error": 0.4949960708618164,
+            "mean_error": 0.13475310829038617,
+            "status": "failed"
+          },
+          {
+            "name": "image-560x112",
+            "input_length": 102,
+            "compared_positions": 21,
+            "max_error": 1.4413471221923828,
+            "mean_error": 0.14833225969622227,
+            "status": "failed"
+          },
+          {
+            "name": "image-112x560",
+            "input_length": 102,
+            "compared_positions": 21,
+            "max_error": 1.4413471221923828,
+            "mean_error": 0.14833225969622227,
+            "status": "failed"
+          },
+          {
+            "name": "image-1x1",
+            "input_length": 38,
+            "compared_positions": 21,
+            "max_error": 0.2870655059814453,
+            "mean_error": 0.07696421722149742,
+            "status": "failed"
+          }
+        ]
+      }
+    },
+    {
+      "gate": "cache_update",
+      "status": "blocked",
+      "reason": "real worker/scheduler update and fresh-engine comparison not implemented"
+    },
+    {
+      "gate": "packing",
+      "status": "failed",
+      "reason": "unpadded separate BF16 loss mismatch remains; controlled same-shape isolation alone does not complete this gate",
+      "unpadded": {
+        "gate": "packing",
+        "status": "failed",
+        "error": "AssertionError: {'separate_loss': 5.727688789367676, 'packed_loss': 5.698720932006836, 'supervised_tokens': 6, 'gradient_tolerance': {'atol': 0.005, 'rtol': 0.03}, 'loss_atol': 0.02}",
+        "seconds": 3.9489267330000075,
+        "peak_allocated_bytes": 19763086848
+      },
+      "controlled_isolation": {
+        "gate": "packing",
+        "status": "passed",
+        "metrics": {
+          "separate_loss": 5.698720773061117,
+          "packed_loss": 5.698720932006836,
+          "supervised_tokens": 6,
+          "comparison": "two packed image documents versus individual documents padded to the same tensor shape and offsets; other document tokens replaced by zero",
+          "gradient_tolerance": {
+            "atol": 0.005,
+            "rtol": 0.03
+          },
+          "loss_atol": 0.02,
+          "gradients": {
+            "norm.weight": {
+              "shape": [
+                1024
+              ],
+              "max_abs": 0.0,
+              "mean_abs": 0.0,
+              "atol": 0.005,
+              "rtol": 0.03
+            },
+            "norm.bias": {
+              "shape": [
+                1024
+              ],
+              "max_abs": 0.0,
+              "mean_abs": 0.0,
+              "atol": 0.005,
+              "rtol": 0.03
+            },
+            "fc1.weight": {
+              "shape": [
+                4096,
+                4096
+              ],
+              "max_abs": 0.0,
+              "mean_abs": 0.0,
+              "atol": 0.005,
+              "rtol": 0.03
+            },
+            "fc1.bias": {
+              "shape": [
+                4096
+              ],
+              "max_abs": 0.0,
+              "mean_abs": 0.0,
+              "atol": 0.005,
+              "rtol": 0.03
+            },
+            "fc2.weight": {
+              "shape": [
+                4096,
+                4096
+              ],
+              "max_abs": 0.0,
+              "mean_abs": 0.0,
+              "atol": 0.005,
+              "rtol": 0.03
+            },
+            "fc2.bias": {
+              "shape": [
+                4096
+              ],
+              "max_abs": 0.0,
+              "mean_abs": 0.0,
+              "atol": 0.005,
+              "rtol": 0.03
+            }
+          }
+        },
+        "seconds": 2.8243018699999993,
+        "peak_allocated_bytes": 19782227968
+      }
+    },
+    {
+      "gate": "overfit",
+      "status": "blocked",
+      "reason": "full Miles SFT loop not implemented; diagnostic also missed every-example loss criterion",
+      "diagnostic_summary": "overfit-diagnostic-summary.json"
+    }
+  ],
+  "commands": [
+    "source .venv-gpu/bin/activate; export UV_NO_SYNC=1",
+    "python tools/step04/verify_archive.py --report outputs/step04/archive-verification.json",
+    "env -u LD_LIBRARY_PATH python -m k2hv.gpu_gates --only cuda load_hf text_hf vision_hf packing --report outputs/step04/final-hf-gates.json",
+    "env -u LD_LIBRARY_PATH python -m k2hv_sglang.logprob_gate capture --reference outputs/step04/hf-reference.json",
+    "docker exec k2hv-step04 bash tools/step04/serve.sh",
+    "docker exec k2hv-step04 bash -c 'source .venv-container/bin/activate; python -m k2hv_sglang.logprob_gate evaluate --reference outputs/step04/hf-reference.json --report outputs/step04/logprob.json'",
+    "env -u LD_LIBRARY_PATH python -m k2hv.gate_training --report outputs/step04/overfit-diagnostic.json",
+    "python -m pytest -q"
+  ],
+  "machine_only_evidence_sha256": {
+    "final-hf-gates.log": "100be80d7d2829858e8ac2db9991b119480b6354d1020a664383feb6c9fb6c50",
+    "k2-download.log": "cb86facad55c48874c88731bacc9390fa53fd5917c6b43ae9b3c8a63a337d943",
+    "sglang-dependencies.log": "64c82fc6225464891c9e380f2d25906bddb22c6adfe81fdd19a94ea65ade46dd",
+    "hardware.csv": "403f40a9ff5d64b1a56ca16f39846e0150d586610445340c24567a0bd8b17f15",
+    "hf-reference.json": "d224e4b773870cde8f74fccf96a4cc4bb2bc717fb40ffd548c2c836fd7e25549",
+    "server-retry.log": "ee81de4dc84674ebaa3c70f17ae9adbc9b7923e36424ef8c4170cf183cf4312c",
+    "image-pull.log": "ae175c78f25d9f4187560514a0984890fc4eec3cc4461b15d99f504854bf1ba7",
+    "archive-http-download.log": "91804c9ae035a097e3c77017b3adfb7217cc610e187b4a69d0cb7fdfef9696fc",
+    "router-install.log": "9309b7e9dae79d697844f778ffabc5912fbfb31ba7deb0682cab75d8ecfe61e9",
+    "packing-per-image.log": "9d2cbf42d1a844fb0934c8570d5e4996407bc1302972229bdefdfeeaa84a2203",
+    "sglang-install.log": "5d7be913000cfffb59612663a6b3293198664769f95038651f415c8039bc316d",
+    "gates.log": "c86e5b6b90ced5ea0cf5b568b64339318f893bd469192c2d4744aca2bde0cd0f",
+    "packing.json": "f93250139acb5d2cd9495d43d6661e932c74648fcf5d8e42773a3a1960dd4202",
+    "gates.json": "43a818b47492a709f7a11625e2fb320554655c886653694af726f9d58b4bac97",
+    "miles-dependencies.log": "762edb5455646ba86e5875ae30de17586bad89f254ef77c58453cb7484c41e53",
+    "smoke-final.log": "4583988a2190452a8f92e67f7d1ed605aeab13a69a2a4fb93e7dbd1f77d0e31b",
+    "host-runtime-install.log": "e1e81498ef33622e826699b9e648dd0d55520efbe20e030e093252038f6cf105",
+    "packing.log": "c174792340e59dce7caf5367e48cc7f53d64f7684a4ce77a6f47745be2cbfcdf",
+    "packing-aligned.log": "b196105e8fb761b743645e2285fb1e815fa28794c684b6a1f0fc6d0f32597027",
+    "vision-batching-diagnostic.log": "fe80d3200d3242ca80b8937485d7acf8e05971468140fdb68f563d88f4e69c7c",
+    "miles_adapter_attempt.py": "60e3d3ffd9cd2d6836e9f25363046ffe66b9feb7469de14b16d6d7139f28a0a1",
+    "archive-verification.json": "dd3bf282736ce78e7dd9e957a2b8c80e7a53794aeb09b1bf72abb2461f62abe1",
+    "vision-retry.log": "5f9f5be9deafab890364c6744d2c2275f24d90aa16f10e90fb8259060ddd9e5a",
+    "final-hf-gates.json": "a768f4e7ddc384bcd2516b6d5c667c19818308f0917ef24b26bcce09b5a3fe56",
+    "packing-diagnostic.log": "0eeeb07f4c2a3596fbf26bebc15b66fc60fe0d9460575a9c7cc9143b89a0501b",
+    "server.log": "d244e0c0bc52e0808f0a75af1bdadcfd063c6e63531bcb94809c084e111d3fb4",
+    "starting-sha.txt": "32c8502e142d4fea99e9ea1246853431a1fc00d0be26c97d938663f246758154",
+    "packing-math.json": "bf20339ab73205bd0797132a5acffeb019959d02643a65be8bc386203e06d418",
+    "runtime-check.log": "ff1524fbdea0f257bed2f181e9cd84ddf330a51e2ea50dbdeab9b1e9229fde31",
+    "container-runtime-check.log": "e51bdc0d9b5bbd93785d3596e58954c996e2fe13e666516c10a8b4816f9e877d",
+    "rust-build.log": "391ef0cb428c07e531db7e0a1cb8b757baf222aec2264856559701b75af8c250",
+    "smoke.log": "5176a8942219d92f840fa14e3d8e81532bf7e2cf1ddb05400cfc60dce4544ae3",
+    "logprob.log": "4ad0c0365ab8ac93882e93a949f53a7b0a6c8520fa8b8bca3224624777845e08",
+    "server-processor-fix.log": "7938ddcbeae6d7c3c067d18e13848d049b298c315d39041aac96ab204816160b",
+    "hf-reference.log": "6fca0acb5278f1f6e8c90f4d517df7aebdf4b74c073da0270aa59133fc938ee3",
+    "pytest-after-fix.log": "ab6efe4b2fd57f034e20f168c2a78865a114be629f19a838599f751568288b26",
+    "packing-math.log": "9412b839e657887e08362af9a7af4e00a5d76e6087eacf8ccf0dafe4be99f0d8",
+    "overfit-diagnostic.json": "0199920faaecea6318bced623ca5e0f7e0d6a06a79f6d818bbf34f97820718f7",
+    "pytest-final.log": "a252ce79458304ea2d2e35502d1b7f7871b5ec2d13cd887dfe1fdcc5511f2109",
+    "pytest.log": "d38107e25fbdaf4114ed9fc51e9fc2f93b51da5880e6f0d8f57c2afeabc4627a",
+    "source-audit-final.json": "4d07601f6adf03150c71cadcc5f21fb94ed82ad2836741a31dcb80d99f511dc4",
+    "miles-packing-attempt.patch": "d99e42b07b14f28b091f3ecc5bd9cf845d41185a3b23119e3d948851ef3c7788",
+    "miles-dependencies-2.log": "f6053387a63ec4930358fb5bd7b4b6156aa26c18f65a3345c6835dd742571fc6",
+    "smoke-final.json": "4583988a2190452a8f92e67f7d1ed605aeab13a69a2a4fb93e7dbd1f77d0e31b",
+    "container-cuda-probe.json": "9e461b0d2f48bfe98fc6ffad796ff978ef3dfc41754f19cd26eca499c5179ede",
+    "manifest-download.log": "66045b58ab70a56ccbdcd1d7601c1ed278e02f1bbf929f8b1396ed26d9dc26f5",
+    "archive-download.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sglang-dependencies-2.log": "40aa565f5edcd1d72512f60fb5f40df71d2597fce29808ade27919b4be050859",
+    "packing-fixed.log": "96cf334c7d73e21cf93c16d061ca3df4175dffb9ac4b74b02ccf84aa99c7c484",
+    "vision-retry.json": "f8a3213925726fc505e5cd2dc92ae52171a0b97d99f0d4e6e557b57f57aa225c",
+    "smoke-retry.log": "5176a8942219d92f840fa14e3d8e81532bf7e2cf1ddb05400cfc60dce4544ae3",
+    "vision-download.log": "f34deae64058dca9c6a5787b09974799f593b6f4fdd85d0c8d183b70234701cb",
+    "pytest-current.log": "f335e55ba8aaeae6797648673c034bd0e1abf28b99997345738f3c951a8669d4",
+    "miles-import.log": "072243ca30373c3d5e67d2c0676db23b34cba619c5eec5c71ffa65ac8711f5b3",
+    "miles-dependencies-3.log": "367b92a209c242d98488532f0fcacc5d7c1ee0682c59958dc03fa7811d73da50",
+    "smoke-processor-fix.log": "5176a8942219d92f840fa14e3d8e81532bf7e2cf1ddb05400cfc60dce4544ae3",
+    "cuda-probe.json": "54e9eefb15474e57004f1c897f86bf743034e3afa1a853060e730cdc753e5ae1",
+    "packing-per-image.json": "129d8934d983eda01a8fb6a0ed63883d0a7f9ec6bd0f622e2ffcb3724cb27d47",
+    "overfit-diagnostic.log": "b6e86b28faa8143c5fc54312352b375189ec5c69610793a6f7e7e9502da13b77",
+    "host-freeze.txt": "1ca37408da2d7ded4c5a25986f12a7a063c964977e4b4ce608768554e6567699",
+    "logprob.json": "4ad0c0365ab8ac93882e93a949f53a7b0a6c8520fa8b8bca3224624777845e08",
+    "packing-fixed.json": "260316f4dbf790211c5861a67a5f5e3a33750b9840ee7a3fd958337251c5b7fc",
+    "source-audit.json": "4d07601f6adf03150c71cadcc5f21fb94ed82ad2836741a31dcb80d99f511dc4",
+    "server-parity.log": "517e508d032a7a49f5ee80cb6499c8b5e9d78f6d7399e182ba6104a383a72426",
+    "packing-aligned.json": "af306412216e9646a895115904c04a86c5e368b41a50b1f70eed785c405f196c"
+  },
+  "large_artifacts": "outputs/step04/, models/, archived assets in hf/K2-Horizon-V-init/, third_party/, GPU venvs, stopped k2hv-step04 container and image; none uploaded"
+}

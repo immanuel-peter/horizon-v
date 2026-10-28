@@ -1,0 +1,29 @@
+{
+  "python": "3.12.16",
+  "torch": "2.14.1+cu130",
+  "cuda": "13.0",
+  "device": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "capability": [
+    12,
+    0
+  ],
+  "arch_list": [
+    "sm_75",
+    "sm_80",
+    "sm_86",
+    "sm_90",
+    "sm_100",
+    "sm_120"
+  ],
+  "packages": {
+    "transformers": "5.19.0",
+    "sglang": null,
+    "flashinfer-python": null,
+    "flash-attn": null,
+    "flash-attn-3": null,
+    "flash-attn-4": null,
+    "triton": "3.8.0"
+  },
+  "bf16_matmul_sdpa_backward": "passed",
+  "peak_allocated_bytes": 34209792
+}

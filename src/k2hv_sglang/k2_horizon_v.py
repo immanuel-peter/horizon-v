@@ -81,10 +81,12 @@ class K2HorizonVForConditionalGeneration(nn.Module):
         return MultiModalityDataPaddingPatternMultimodalTokens().pad_input_tokens(input_ids, mm_inputs)
 
     def get_image_feature(self, items):
-        pixels = torch.cat([item.feature for item in items])
-        grids = torch.cat([item.image_grid_thw for item in items]).to(device="cpu", dtype=torch.long)
-        features = self.visual(pixels, grid_thw=grids)
-        return self.projector(features.to(self.projector.fc1.weight))
+        features = []
+        for item in items:
+            grid = item.image_grid_thw.to(device="cpu", dtype=torch.long)
+            patches = self.visual(item.feature, grid_thw=grid)
+            features.append(self.projector(patches.to(self.projector.fc1.weight)))
+        return torch.cat(features)
 
     @torch.no_grad()
     def forward(self, input_ids, positions, forward_batch, input_embeds=None, pp_proxy_tensors=None):

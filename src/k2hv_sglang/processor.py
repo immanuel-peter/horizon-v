@@ -4,7 +4,7 @@ from functools import partial
 import torch
 
 from sglang.srt.managers.schedule_batch import Modality, MultimodalDataItem, MultimodalProcessorOutput
-from sglang.srt.multimodal.processors.base_processor import BaseMultimodalProcessor
+from sglang.srt.multimodal.processors.base_processor import BaseMultimodalProcessor, MultimodalSpecialTokens
 
 from .input_layout import expand_image_tokens, image_hash, split_image_features
 from .k2_horizon_v import K2HorizonVForConditionalGeneration
@@ -39,7 +39,7 @@ class K2HorizonVImageProcessor(BaseMultimodalProcessor):
         else:
             ids = list(input_text)
 
-        loaded = await self.fast_load_mm_data(prompt="", image_data=image_data or [])
+        loaded = await self.fast_load_mm_data(prompt="", multimodal_tokens=MultimodalSpecialTokens(image_token_id=self.hf_config.image_token_id), image_data=image_data or [])
         if any(isinstance(image, (dict, list)) for image in loaded.images):
             raise ValueError("Precomputed embeddings, processor-output dictionaries and image frame lists are not supported")
         if loaded.images:

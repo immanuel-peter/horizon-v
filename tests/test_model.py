@@ -322,3 +322,19 @@ def test_every_beam_and_returned_sequence_sees_the_original_image(model, kwargs)
     is_pad = inputs["input_ids"][0] == tiny.IMAGE_PAD
     for row in embeds:
         torch.testing.assert_close(row[is_pad], features, rtol=1e-5, atol=1e-6)
+
+
+def test_projected_images_and_gradients_do_not_depend_on_other_images(model):
+    inputs = tiny.image_inputs(grids=((1, 4, 4), (1, 2, 6)))
+    pixels = inputs["pixel_values"].split([16, 12])
+    grids = inputs["image_grid_thw"]
+    model.zero_grad(set_to_none=True)
+    together = model.get_image_features(inputs["pixel_values"], grids)
+    together.square().sum().backward()
+    grads = {n: p.grad.clone() for n, p in model.projector.named_parameters()}
+    model.zero_grad(set_to_none=True)
+    separate = torch.cat([model.get_image_features(p, g[None]) for p, g in zip(pixels, grids)])
+    separate.square().sum().backward()
+    torch.testing.assert_close(together, separate, atol=0, rtol=0)
+    for name, param in model.projector.named_parameters():
+        torch.testing.assert_close(param.grad, grads[name], atol=0, rtol=0)
