@@ -8,14 +8,16 @@ On a GPU node with the project venv active ([step 0](00-environment.md)):
 
 ```bash
 export SGLANG_EXTERNAL_MODEL_PACKAGE=k2hv_sglang
+export SGLANG_EXTERNAL_MM_MODEL_ARCH=K2HorizonVForConditionalGeneration
+export SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE=k2hv_sglang
 export HF_HUB_OFFLINE=1
 python -m sglang.launch_server \
   --model-path /models/K2-Horizon-V-sft \
-  --trust-remote-code \
-  --reasoning-parser k2_v3
+  --trust-remote-code --enable-multimodal --image-processor-backend pil \
+  --reasoning-parser k2_horizon
 ```
 
-`--reasoning-parser k2_v3` separates the reasoning from the answer in chat completions ([step 3](03-sglang-model.md)).
+`--reasoning-parser k2_horizon` separates the reasoning from the answer in chat completions. Use the pinned runtime from [step 3](03-sglang-model.md).
 
 ## Benchmarks
 

@@ -3,6 +3,8 @@
 # Vision forward adapted from sgl-project/sglang at b8d46f2f309fdada4bbb05ef4e90ac4adf7a3bcf,
 # python/sglang/srt/models/glm_ocr.py. See https://www.apache.org/licenses/LICENSE-2.0.
 
+from itertools import groupby
+
 import torch
 from torch import nn
 
@@ -96,28 +98,29 @@ class K2HorizonVForConditionalGeneration(nn.Module):
         params = dict(self.named_parameters())
         updated = False
 
-        def language_weights():
-            nonlocal updated
-            for name, weight in weights:
-                updated = True
-                if name.startswith("language_model."):
-                    yield name.removeprefix("language_model."), weight
-                    continue
-                shard = None
-                if name.startswith("visual."):
-                    name, shard = map_vision_weight(name)
-                elif not name.startswith("projector."):
-                    raise ValueError(f"Unknown checkpoint weight: {name}")
-                if name not in params:
-                    raise ValueError(f"Checkpoint weight does not map to a model parameter: {name}")
-                param = params[name]
-                loader = getattr(param, "weight_loader", default_weight_loader)
-                if shard is None:
-                    loader(param, weight)
-                else:
-                    loader(param, weight, shard)
-
-        self.language_model.load_weights(language_weights())
+        for component, group in groupby(weights, key=lambda entry: entry[0].split(".", 1)[0]):
+            updated = True
+            if component == "language_model":
+                language_weights = ((name.removeprefix("language_model."), weight) for name, weight in group)
+                self.language_model.load_weights(language_weights)
+                if next(language_weights, None) is not None:
+                    raise RuntimeError("The native K2 loader did not consume every language weight")
+            elif component in ("visual", "projector"):
+                for name, weight in group:
+                    shard = None
+                    if component == "visual":
+                        name, shard = map_vision_weight(name)
+                    if name not in params:
+                        raise ValueError(f"Checkpoint weight does not map to a model parameter: {name}")
+                    param = params[name]
+                    loader = getattr(param, "weight_loader", default_weight_loader)
+                    if shard is None:
+                        loader(param, weight)
+                    else:
+                        loader(param, weight, shard)
+            else:
+                name, _ = next(group)
+                raise ValueError(f"Unknown checkpoint weight: {name}")
         if updated and mm_schedule.embedding_cache is not None:
             mm_schedule.embedding_cache.clear()
 

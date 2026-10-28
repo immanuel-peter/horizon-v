@@ -2,6 +2,7 @@ import hashlib
 
 
 def image_hash(pixel_values, image_grid_thw):
+    """Hash CPU PIL float32 patches and their integer grid geometry."""
     digest = hashlib.sha256()
     for tensor in (image_grid_thw, pixel_values):
         digest.update(memoryview(tensor.detach().contiguous().numpy()))

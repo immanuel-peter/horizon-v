@@ -38,15 +38,16 @@ def main():
     from sglang.srt.models.registry import ModelRegistry
     from sglang.srt.managers.multimodal_processor import PROCESSOR_MAPPING, import_processors
     from sglang.srt.parser.reasoning_parser import ReasoningParser
-    from .k2_horizon_v import K2HorizonVForConditionalGeneration
-    from .processor import K2HorizonVImageProcessor
 
     import_processors("k2hv_sglang", overwrite=True)
-    assert ModelRegistry.models[MODEL_ARCHITECTURE] is K2HorizonVForConditionalGeneration
-    assert PROCESSOR_MAPPING[K2HorizonVForConditionalGeneration] is K2HorizonVImageProcessor
+    model_class = ModelRegistry.models[MODEL_ARCHITECTURE]
+    processor_class = PROCESSOR_MAPPING[model_class]
+    assert model_class.__module__ == "k2hv_sglang.k2_horizon_v"
+    assert processor_class.__module__ == "k2hv_sglang.processor"
+    assert processor_class.__name__ == "K2HorizonVImageProcessor"
     assert REASONING_PARSER in ReasoningParser.DetectorMap
     print(json.dumps({"sglang_version": importlib.metadata.version("sglang"), "reference_revision": SGLANG_REVISION, "verified_source_files": verified,
-                      "architecture": MODEL_ARCHITECTURE, "processor": K2HorizonVImageProcessor.__name__, "reasoning_parser": REASONING_PARSER}, indent=2))
+                      "architecture": MODEL_ARCHITECTURE, "processor": processor_class.__name__, "reasoning_parser": REASONING_PARSER}, indent=2))
 
 
 if __name__ == "__main__":

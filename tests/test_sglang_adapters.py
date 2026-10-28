@@ -50,6 +50,7 @@ def test_raw_and_miles_token_ids_match_hf_without_retokenization(adapters, proce
         assert result.input_ids == ids
     assert result.mrope_positions is None
     assert torch.equal(torch.cat([item.feature for item in result.mm_items]), reference["pixel_values"])
+    assert all(item.feature.device.type == "cpu" and item.feature.dtype == torch.float32 for item in result.mm_items)
     assert torch.equal(torch.cat([item.image_grid_thw for item in result.mm_items]), reference["image_grid_thw"])
     for item, grid in zip(result.mm_items, reference["image_grid_thw"]):
         first, last = item.offsets[0]
@@ -136,7 +137,7 @@ def test_wrapper_preserves_explicit_text_embeddings(adapters):
     assert output.shape == (2, tiny.VOCAB)
 
 
-def test_weight_loading_streams_language_and_maps_native_vision_fusions(adapters):
+def test_weight_loading_streams_language_and_maps_native_vision_fusions(adapters, monkeypatch):
     module, _ = adapters
     model = module.K2HorizonVForConditionalGeneration(tiny.composite_config())
     qkv = torch.randn_like(model.visual.blocks[0].attn.qkv_proj.weight)
@@ -145,25 +146,45 @@ def test_weight_loading_streams_language_and_maps_native_vision_fusions(adapters
     norm = torch.randn_like(model.projector.norm.weight)
     entries = [("language_model.model.layers.0.attn.q_proj.weight", torch.ones(2, 2)),
                ("visual.blocks.0.attn.qkv.weight", qkv), ("visual.blocks.0.mlp.gate_proj.weight", gate),
-               ("projector.norm.weight", norm), ("visual.blocks.0.mlp.up_proj.weight", up)]
+               ("projector.norm.weight", norm), ("language_model.model.norm.weight", torch.ones(64)),
+               ("visual.blocks.0.mlp.up_proj.weight", up)]
+    calls = []
+    native_loader = model.language_model.load_weights
+    def capture(weights):
+        values = list(weights)
+        calls.append([name for name, _ in values])
+        native_loader(values)
+    monkeypatch.setattr(model.language_model, "load_weights", capture)
     model.load_weights(iter(entries))
+    assert calls == [["model.layers.0.attn.q_proj.weight"], ["model.norm.weight"]]
     assert "model.layers.0.attn.q_proj.weight" in model.language_model.loaded
     assert torch.equal(model.visual.blocks[0].attn.qkv_proj.weight, qkv)
     assert torch.equal(gates, torch.cat([gate, up]))
     assert torch.equal(model.projector.norm.weight, norm)
 
 
-def test_projector_only_updates_preserve_both_frozen_components(adapters):
+def test_projector_only_updates_preserve_both_frozen_components(adapters, monkeypatch):
     module, _ = adapters
     model = module.K2HorizonVForConditionalGeneration(tiny.composite_config())
     before = {name: tensor.clone() for name, tensor in model.state_dict().items() if not name.startswith("projector.")}
     updates = {name: torch.randn_like(tensor) for name, tensor in model.state_dict().items() if name.startswith("projector.")}
+    def no_language_load(weights):
+        raise AssertionError("Projector-only updates must not depend on the language loader")
+    monkeypatch.setattr(model.language_model, "load_weights", no_language_load)
     model.load_weights(iter(updates.items()))
     assert all(torch.equal(model.state_dict()[name], value) for name, value in before.items())
     assert all(torch.equal(model.state_dict()[name], value) for name, value in updates.items())
     assert model.language_model.loaded == {}
     assert module.mm_schedule.embedding_cache.entries == {}
     assert module.mm_schedule.embedding_cache.clears == 1
+
+
+def test_language_loader_cannot_silently_skip_weights(adapters, monkeypatch):
+    module, _ = adapters
+    model = module.K2HorizonVForConditionalGeneration(tiny.composite_config())
+    monkeypatch.setattr(model.language_model, "load_weights", lambda weights: next(iter(weights)))
+    with pytest.raises(RuntimeError, match="did not consume every language weight"):
+        model.load_weights(iter([("language_model.first", torch.ones(1)), ("language_model.second", torch.ones(1))]))
 
 
 @pytest.mark.parametrize("name", ["unexpected.weight", "visual.downsample.weight", "projector.nonexistent.weight"])

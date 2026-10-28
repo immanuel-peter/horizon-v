@@ -43,7 +43,7 @@ uv run python -m sglang.launch_server \
 
 Start with one GPU, tensor parallel size 1 and the unquantized checkpoint. Quantization and the data-parallel vision-encoder path are explicitly rejected. Tensor/pipeline parallel execution, speculative decoding, encoder disaggregation and precomputed-embedding inputs are outside this step's validated scope.
 
-The native K2 decoder handles text attention, grouped RMSNorm, 1D positions and logits. The wrapper supplies the embedding interface expected by `prepare_mm_inputs`. The native GLM vision tower stops after `post_layernorm`; its original downsample and merger parameters are absent. The projector is the same `Projector` class used by HF. Native checkpoint loading maps GLM QKV and gate/up parameters to SGLang's fused names and delegates language tensors to the K2 loader without accumulating the full checkpoint in a list.
+The native K2 decoder handles text attention, grouped RMSNorm, 1D positions and logits. The wrapper supplies the embedding interface expected by `prepare_mm_inputs`. The native GLM vision tower stops after `post_layernorm`; its original downsample and merger parameters are absent. The projector is the same `Projector` class used by HF. Checkpoint loading routes contiguous component groups explicitly: language tensors go to the native K2 loader, while vision/projector tensors load directly. This preserves streaming for interleaved inputs without accumulating the checkpoint in a list or relying on non-language side effects inside the language iterator.
 
 The pinned SGLang parser is named `k2_horizon`, not the older RL360 selector `k2_v3`. It already supports all three IFM think-tag variants. No parser is needed on the raw `/generate` path used by Miles.
 
@@ -61,7 +61,9 @@ Raw image inputs are supported. Video, audio, processor-output dictionaries, ima
 
 ## Validation
 
-All 148 CPU tests pass, including the existing model/processor suite and the new token-layout and runtime-boundary tests. The SGLang runtime classes are replaced with explicit doubles in those adapter tests; this does not prove that native CUDA execution works.
+All 150 CPU tests pass locally with the pinned source files present, including the existing model/processor suite and the token-layout and runtime-boundary tests. The SGLang runtime classes are replaced with explicit doubles in those adapter tests; this does not prove that native CUDA execution works.
+
+The fresh-process discovery regression executes the pinned upstream registry and processor-discovery code without explicitly importing the adapter modules. The pinned runtime scans package submodules, so the package root need not re-export `EntryClass` or import GPU-dependent code. Set `K2HV_SGLANG_SOURCE` to an `sglang/srt` source directory to run this regression elsewhere; it defaults to the ignored `third_party/sglang-source` audit directory and skips when no source tree is available. The GPU-side runtime probe also avoids explicit adapter imports before checking registration.
 
 The tests cover unexpanded and Miles-expanded prompts, preservation of input IDs, exact HF pixel/grid parity, per-image offsets, mixed image sizes, geometry-aware hashes, truncated-tower output layout, 1D decoder positions, native weight-name mapping, projector-only updates, image-cache invalidation and errors for invalid inputs or unsupported configuration.
 

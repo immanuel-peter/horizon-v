@@ -167,7 +167,7 @@ class EmbeddingCache:
         self.clears += 1
 
 
-def install(monkeypatch):
+def install(monkeypatch, *, load_adapters=True):
     names = {
         "sglang.srt.layers.attention.vision": {"prepare_vision_attention_metadata": lambda x, device: x},
         "sglang.srt.managers.mm_utils": {"MultiModalityDataPaddingPatternMultimodalTokens": PaddingPattern, "prepare_mm_inputs": prepare_mm_inputs},
@@ -192,4 +192,5 @@ def install(monkeypatch):
             monkeypatch.setattr(sys.modules[name], key, value, raising=False)
     for module in ("k2hv_sglang.k2_horizon_v", "k2hv_sglang.processor"):
         monkeypatch.delitem(sys.modules, module, raising=False)
-    return importlib.import_module("k2hv_sglang.k2_horizon_v"), importlib.import_module("k2hv_sglang.processor")
+    if load_adapters:
+        return importlib.import_module("k2hv_sglang.k2_horizon_v"), importlib.import_module("k2hv_sglang.processor")
