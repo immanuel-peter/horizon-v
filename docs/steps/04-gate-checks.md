@@ -1,78 +1,117 @@
-# Step 4: Gate checks
+# Step 4: GPU gates
 
-Pass all of these before any real training run. Each one catches a failure that would otherwise show up as a mysteriously bad loss curve.
+Complete these checks before full SFT or RL. The authorized 64-example projector overfit is part of this step. CPU regressions alone cannot certify it. Results and machine-only artifact locations are in [the handoff](../handoff/04-gate-checks.md) and [the structured report](../evidence/step04/report.json).
 
-| # | Check | Pass criterion |
-|---|---|---|
-| 0 | Load K2 in the GPU env ([step 0](00-environment.md)) | K2's config and tokenizer load under `transformers==5.19.0` |
-| 1 | Text parity | No images: logits match stock K2, in both HF and SGLang |
-| 2 | ViT parity | Truncated tower output equals a forward hook on GLM-5.3-Flash-Vision's `post_layernorm` |
-| 3 | Token-count parity | `(ids == 250062).sum()` = `pixel_values.shape[0] // 4` = SGLang feature rows |
-| 4 | Packing | Loss of a packed batch equals the mean of per-sample losses |
-| 5 | Overfit | SFT on 64 samples drives loss to ≈ 0 |
-| 6 | Logprob parity | HF vs SGLang logprobs on image prompts (random projector) are close |
+| Gate | Required measurement |
+|---|---|
+| CUDA/load | Real SM120 BF16 matmul and attention backward; HF composite; audited native SGLang; text, Miles input IDs plus image data, and chat image URLs |
+| Text | Stock K2 versus image-free composite logits; aligned HF/native token logprobs at short and 769-token lengths; chunked and unchunked prefill |
+| Vision | Independent pinned source `post_layernorm` versus HF truncation; actual native truncation and projected features versus HF |
+| Preprocessing/insertion | Exact pixels, grids, patch order, original text IDs, expansion counts, per-image hash-padding offsets and decoder embedding insertion; malformed requests rejected |
+| Packing | Actual Miles `get_batch`, FSDP2 actor inputs and SFT loss; concatenated documents with position resets versus unpadded separate forwards; projector gradients and document isolation |
+| Cache/update | Repeated/multiple images, equal patch tensors with different grids; supported scheduler/worker projector update; feature invalidation; fresh updated engine equivalence and init reload |
+| Overfit | Real Miles FSDP SFT on 64 deterministic image-QA examples; every per-example loss <0.05; teacher forcing and free generation measured separately; frozen tensors unchanged |
 
-## Notes
+## Runtime and numerical policy
 
-**0. Load check.** The public checkpoint uses the newer config format (`rope_parameters`) and tokenizer class `TokenizersBackend`. transformers 5.19 reads both natively. If loading fails anyway, apply the compatibility fix from RL360's `recipes/prepare_k2_horizon.py`.
+Use the exact image, source revisions and patch recipes in the handoff. Preserve the image's CUDA torch stack. Activate the child GPU venv, use editable `--no-deps` installs and `UV_NO_SYNC=1`; do not sync the development lock. TP=1, BF16, one GPU, context 2048, max running requests 1 and KV capacity 4096 bound the native runs. Heavy HF, Miles and SGLang stages run sequentially.
 
-**1. Text parity.** Run a few long text prompts. K2 uses grouped RMSNorm with 4 groups and RoPE base 1e7, so check that SGLang's `xllm.py` and K2's HF code agree, not only your wrapper.
+The supported SM120 profile selects native SGLang `torch_native` text attention and `sdpa` vision attention. HF uses SDPA math. Both use the pinned SGLang batch-invariant matrix kernels with BMM override disabled. `TORCH_COMPILE_DISABLE=1` preserves the archived vision RoPE's eager rounding. This is the native scheduler/KV/model path, including external model and processor registration and `k2_horizon` reasoning parsing. It does not dispatch requests to an HF inference engine.
 
-**3. Token counts.** Check several image sizes, including non-square ones and sizes at the `min_pixels` / `max_pixels` limits.
+The native adapter preserves the source Conv3d patch embedding, vision Q/K normalization epsilon and BF16 rounding boundaries. The K2 decoder preserves HF RoPE and materialized SiLU rounding. Source audits retain the original audited interfaces and include the newly used attention/update interfaces. A small pinned tokenizer-manager patch invokes the optional adapter validator before the image-free fast path; image markers without media must fail there as well.
 
-**4. Packing.** Miles packs several samples into one sequence. Its stock arch adapter passes no `cu_seqlens` (`miles/backends/fsdp_utils/adaptations/arch_adapter.py:40`); it relies on HF flash-attention detecting sample boundaries from `position_ids` resets.
+For Miles, the narrow `k2_horizon_v` adapter passes explicit document boundaries into document-sized SDPA calls within a truly concatenated decoder row. Linear layers remain packed. This avoids shape-dependent BF16 attention backward reductions. FP32 projector master leaves accumulate gradients from separate images before any BF16 rounding; forward weights and activations remain BF16. The pinned Miles patch registers this adapter and lets `apply_fsdp2` honor its per-module precision policy. The generic adapter's controlled same-shape isolation result remains a separate diagnostic.
 
-- If the losses differ, K2's remote-code attention bypasses HF's attention interface.
-- Fix: write a small arch adapter modeled on `adaptations/specs/qwen3_5.py`, keyed on `model_type: k2_horizon_v`.
+Tolerances are fixed: stock/HF logits and source/HF vision outputs exact; pixels, grids, IDs, counts, offsets, native embedding insertion exact; HF/native tower, projector and HF embedding insertion `atol=0.05, rtol=0.03`; token logprobs max error 0.2 and mean error 0.03 natural-log units; packed loss absolute error 0.02 and projector gradient `atol=0.005, rtol=0.03`. Image-pad prediction targets are excluded from logprob comparisons because their IDs become hashes. Every retained target ID and causal prediction position is checked. Thresholds are never adjusted in response to results.
 
-**5. Overfit.** Proves gradients reach the projector and the loss mask covers the right tokens. Print the masked tokens for one sample and read them.
+## Rerun commands
 
-**6. Logprob parity.** Mismatched train and rollout logprobs make GRPO's importance ratios meaningless. `--use-tis` in [step 8](08-rl.md) corrects small residual gaps, not large ones.
-
-## Explicit GPU runners
-
-The first SM120 run is recorded in [the step 04 handoff](../handoff/04-gate-checks.md).
-Step 04 is **not complete**. A native smoke request passes, but numerical parity
-fails and several required engine/training checks remain unimplemented.
-
-Run the CUDA checks separately from pytest in an activated GPU venv with
-`UV_NO_SYNC=1`. Do not sync `uv.lock` into that environment.
+Use the retained container, or recreate it from the exact digest and bind mount in the handoff. The following helper runs commands in its activated venv without synchronizing dependencies:
 
 ```bash
-env -u LD_LIBRARY_PATH python -m k2hv.gpu_gates \
-  --only cuda load_hf text_hf vision_hf packing --report outputs/step04/gates.json
+export UV_NO_SYNC=1
+mkdir -p outputs/step04/final
+gpu() {
+  docker exec k2hv-step04 bash -c \
+    'source .venv-container/bin/activate; export UV_NO_SYNC=1; exec "$@"' bash "$@"
+}
 ```
 
-This runner writes each result immediately and returns nonzero whenever any
-required gate fails, is unselected, or has no implementation. Its packing probe
-uses the actual pinned Miles actor input method and a truly concatenated row
-with position resets. Single-document controls retain the packed tensor shape
-and offsets to test isolation without changing BF16 matrix-kernel shapes.
-Unpadded separate forwards have also been measured and do not pass the original
-loss tolerance. The controlled isolation result alone does not close packing.
-
-Teacher-forced comparisons run in two sequential stages. Stop the SGLang engine
-before capture; release the HF model before starting the native engine.
+First verify the archive and source patches. Download only the assets allowed in the processor handoff; retain current tracked HF code/configs and the original projector. Bootstrap once with `tools/step04/activate.sh`, not during a running training/serving stage.
 
 ```bash
-env -u LD_LIBRARY_PATH python -m k2hv_sglang.logprob_gate capture \
-  --reference outputs/step04/hf-reference.json
-# Start the native engine using tools/step04/serve.sh inside the container.
-python -m k2hv_sglang.logprob_gate evaluate \
-  --reference outputs/step04/hf-reference.json --report outputs/step04/logprob.json
+docker exec k2hv-step04 bash tools/step04/activate.sh python -m k2hv_sglang.check_runtime
+gpu python tools/step04/verify_archive.py --report outputs/step04/final/archive.json
+gpu python -m k2hv.checkpoint_io manifest hf/K2-Horizon-V-init
+gpu python tools/step04/probe.py > outputs/step04/final/cuda-probe.json
+gpu python -m k2hv.gpu_gates --report outputs/step04/final/hf.json
+gpu python -m k2hv.miles_packing_gate --report outputs/step04/final/packing.json
+gpu python -m k2hv.text_prefix_diagnostic --report outputs/step04/final/prefix-diagnostic.json
 ```
 
-The initial BF16 limits are maximum error 0.2 and mean error 0.03 in natural-log
-units. These were declared before comparing native results. Image-pad positions
-are excluded because SGLang replaces their IDs with hashes; every compared
-non-image token ID and position is checked. These limits have not been widened.
-A comparison failure is a failed gate, even when generation succeeds.
+The HF component reports `packing_controlled` separately. The full packing gate is `miles_packing_gate`, which uses real FSDP2 and unpadded separate samples. None of these commands starts a native engine.
 
-`python -m k2hv.gate_training --report outputs/step04/overfit-diagnostic.json`
-runs a bounded 256-update, 64-image, projector-only diagnostic. It uses the real
-processor, `k2hv.sft_rollout` preparation and the pinned Miles actor input method,
-but **does not execute the Miles SFT actor training loop**. It cannot pass the
-required Miles overfit gate. The fixture questions do not contain the answers.
-The mask includes the answer and turn end, excludes the empty think block, and
-validates the decoded span. Experimental parameters are restored in memory;
-no init weight file is changed and no trained model is exported.
+Capture HF references, then release the process before launching SGLang:
+
+```bash
+gpu python -m k2hv_sglang.logprob_gate capture --batch-invariant \
+  --reference outputs/step04/final/text-reference.json
+gpu python -m k2hv_sglang.native_gates capture --directory outputs/step04/final/native
+gpu python tools/step04/capture_runtime.py --report outputs/step04/final/runtime.json
+
+docker exec -e K2HV_GATE_TRACE=/workspace/outputs/step04/final/native-trace \
+  -e K2HV_GATE_WEIGHT_STATE=1 k2hv-step04 bash tools/step04/serve.sh
+# Wait for "The server is fired up"; run clients in another terminal.
+gpu python -m k2hv_sglang.smoke --model-path /workspace/hf/K2-Horizon-V-init \
+  --report outputs/step04/final/smoke.json
+gpu python -m k2hv_sglang.logprob_gate evaluate --reference outputs/step04/final/text-reference.json \
+  --report outputs/step04/final/text-chunked.json
+gpu python -m k2hv_sglang.native_gates evaluate --directory outputs/step04/final/native \
+  --trace outputs/step04/final/native-trace
+gpu python -m k2hv_sglang.cache_gate update --directory outputs/step04/final/cache \
+  --trace outputs/step04/final/native-trace --cases outputs/step04/final/native
+```
+
+Stop only this launched server using `docker exec k2hv-step04 pkill -TERM -f '^python -m sglang.launch_server'`. Launch a fresh engine for the cache experiment:
+
+```bash
+docker exec -e K2HV_GATE_TRACE=/workspace/outputs/step04/final/fresh-trace \
+  -e K2HV_GATE_WEIGHT_STATE=1 k2hv-step04 bash tools/step04/serve.sh \
+  --model-path /workspace/outputs/step04/final/cache/updated-checkpoint
+# After readiness, from another terminal:
+gpu python -m k2hv_sglang.cache_gate fresh --directory outputs/step04/final/cache \
+  --trace outputs/step04/final/fresh-trace --cases outputs/step04/final/native
+```
+
+This uses HTTP pause/begin/update/end/continue through the real tokenizer manager, scheduler and worker. The final stage reloads the init checkpoint and verifies its features. Stop that server, then launch `tools/step04/serve.sh --chunked-prefill-size -1` with a new trace directory and run `logprob_gate evaluate --reference outputs/step04/final/text-reference.json --report outputs/step04/final/text-unchunked.json`. Stop it before training.
+
+Prepare only the small gate fixture and run real Miles SFT:
+
+```bash
+gpu python tools/step04/prepare_sft.py --directory outputs/step04/sft-fixture
+docker exec k2hv-step04 bash tools/step04/miles_sft.sh --num-rollout 512 --save-interval 512 \
+  --save /workspace/outputs/step04/final/miles-checkpoints \
+  > outputs/step04/final/miles-from-init.log 2>&1
+gpu python -m k2hv.verify_frozen_master \
+  --checkpoint outputs/step04/final/miles-checkpoints/iter_0000512 \
+  --report outputs/step04/final/frozen-master.json
+gpu python -m k2hv.miles_sft_evaluate \
+  --checkpoint outputs/step04/final/miles-checkpoints/iter_0000512 \
+  --report outputs/step04/final/overfit.json
+gpu python -m k2hv.miles_training_report --logs outputs/step04/final/miles-from-init.log \
+  --report outputs/step04/final/training-summary.json
+```
+
+For a bounded resume, add `--load /workspace/outputs/step04/final/miles-checkpoints`, increase `--num-rollout` (for example to 528 for one more pass over 64 samples), and use a separate save directory. Miles restores optimizer, RNG and data-source state. The criterion is every example, not an average. Continue bounded resumes if needed and preserve failed measurements. The generic question asks only for color and shape; 4 colors × 4 shapes × 4 locations produce 64 varied images without answer leakage. Actual Miles-prepared tensors and decoded answer-only spans are captured. The answer and turn end are supervised; prompt, image and empty-thinking tokens are excluded. Only the frozen vision tower uses `no_grad`; the frozen decoder passes gradients to the projector. Experiment checkpoints are separate from init.
+
+Finally run the CPU regressions and assemble every required component:
+
+```bash
+K2HV_SGLANG_SOURCE=$PWD/third_party/sglang-source/python/sglang/srt \
+  env -u LD_LIBRARY_PATH .venv-gpu/bin/python -m pytest -q \
+  --junitxml=outputs/step04/final/regression.xml > outputs/step04/final/pytest.log 2>&1
+gpu python -m k2hv.step04_report --root outputs/step04/final \
+  --report outputs/step04/final/report.json
+```
+
+Provenance records a source census. Assembly verifies the model/processor/training compute sources and each stage's actual runner; an edit to an unused evidence CLI does not change a completed computation. Pinned external source audits remain mandatory. The aggregate runner rejects missing/unrun components, failed checks and stale executed source hashes, and returns nonzero until all required gates pass. Component success is not whole-step completion. Large tensor traces, image payloads, checkpoints and logs stay in ignored `outputs/`; commit the sanitized report and compact evidence only.
