@@ -4,7 +4,7 @@ cd /workspace
 source .venv-container/bin/activate
 export TORCH_COMPILE_DISABLE=1
 export UV_NO_SYNC=1
-export K2HV_GATE_NUMERICS=batch_invariant_math
+export K2HV_BATCH_INVARIANT=1
 export SGLANG_EXTERNAL_MODEL_PACKAGE=k2hv_sglang
 export SGLANG_EXTERNAL_MM_MODEL_ARCH=K2HorizonVForConditionalGeneration
 export SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE=k2hv_sglang

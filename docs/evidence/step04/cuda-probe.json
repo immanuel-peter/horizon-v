@@ -1,5 +1,5 @@
 {
-  "python": "3.12.16",
+  "python": "3.12.15",
   "torch": "2.14.1+cu130",
   "cuda": "13.0",
   "device": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
@@ -17,11 +17,11 @@
   ],
   "packages": {
     "transformers": "5.19.0",
-    "sglang": null,
-    "flashinfer-python": null,
+    "sglang": "0.5.23.dev59+gb8d46f2f3",
+    "flashinfer-python": "0.7.1",
     "flash-attn": null,
     "flash-attn-3": null,
-    "flash-attn-4": null,
+    "flash-attn-4": "4.0.0b35",
     "triton": "3.8.0"
   },
   "bf16_matmul_sdpa_backward": "passed",

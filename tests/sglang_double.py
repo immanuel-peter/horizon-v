@@ -64,6 +64,7 @@ class LanguageModel(nn.Module):
         self.config = config
         self.model = nn.Module()
         self.model.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.model.layers = nn.ModuleList()
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.pp_group = SimpleNamespace(is_first_rank=True, is_last_rank=True, world_size=1)
         self.start_layer, self.end_layer = 0, config.num_hidden_layers

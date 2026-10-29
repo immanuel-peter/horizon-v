@@ -1,13 +1,18 @@
-"""Run real BF16 CUDA matmul and SDPA backward before model installation."""
 import importlib.metadata
 import json
 import platform
 
 import torch
 
-result = {"python": platform.python_version(), "torch": torch.__version__, "cuda": torch.version.cuda,
-          "device": torch.cuda.get_device_name(), "capability": torch.cuda.get_device_capability(),
-          "arch_list": torch.cuda.get_arch_list(), "packages": {}}
+result = {
+    "python": platform.python_version(),
+    "torch": torch.__version__,
+    "cuda": torch.version.cuda,
+    "device": torch.cuda.get_device_name(),
+    "capability": torch.cuda.get_device_capability(),
+    "arch_list": torch.cuda.get_arch_list(),
+    "packages": {},
+}
 for package in ("transformers", "sglang", "flashinfer-python", "flash-attn", "flash-attn-3", "flash-attn-4", "triton"):
     try:
         result["packages"][package] = importlib.metadata.version(package)

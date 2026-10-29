@@ -18,6 +18,7 @@ from sglang.srt.models.xllm import K2HorizonForCausalLM
 from sglang.srt.runtime_context import get_mm
 from sglang.srt.utils.common import add_prefix
 
+from k2hv.gpu_numerics import enable as enable_batch_invariant
 from k2hv.hf.modeling_k2_horizon_v import Projector
 from .gate_trace import emit, weight_state
 from .vision_reference import preserve_rounding
@@ -28,12 +29,10 @@ from .input_layout import map_vision_weight, validate_image_grids
 class TruncatedGlm5NextVision(Glm5NextVisionModel):
     def __init__(self, config, prefix=""):
         super().__init__(config, quant_config=None, prefix=prefix, use_data_parallel=False)
-        if hasattr(self.patch_embed.proj, "enable_linear"):
-            self.patch_embed.proj.enable_linear = False
+        self.patch_embed.proj.enable_linear = False
         del self.downsample
         del self.merger
-        if hasattr(self.post_layernorm, "weight"):
-            preserve_rounding(self, config)
+        preserve_rounding(self, config)
 
     def forward(self, pixel_values, grid_thw):
         validate_image_grids(pixel_values, grid_thw, merge_size=self.spatial_merge_size)
@@ -58,16 +57,14 @@ class K2HorizonVForConditionalGeneration(nn.Module):
             raise ValueError("K2-Horizon-V currently loads the unquantized initialization checkpoint")
         if get_mm().mm_enable_dp_encoder:
             raise ValueError("K2-Horizon-V does not yet support the data-parallel encoder path")
-        if os.environ.get("K2HV_GATE_NUMERICS") == "batch_invariant_math":
-            from k2hv.gpu_numerics import enable
-            enable(reset=True)
+        if os.environ.get("K2HV_BATCH_INVARIANT") == "1":
+            enable_batch_invariant()
         self.mm_config = config
         self.config = config.text_config
         self.visual = TruncatedGlm5NextVision(config.vision_config, prefix=add_prefix("visual", prefix))
         self.projector = Projector(config.vision_config.hidden_size, config.text_config.hidden_size, config.vision_config.spatial_merge_size)
         self.language_model = K2HorizonForCausalLM(config.text_config, quant_config=None, prefix=add_prefix("language_model", prefix))
-        if hasattr(self.language_model.model, "layers"):
-            preserve_text_rounding(self.language_model, config.text_config)
+        preserve_text_rounding(self.language_model, config.text_config)
         self.pp_group = self.language_model.pp_group
         self.is_mrope_enabled = False
 

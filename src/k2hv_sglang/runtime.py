@@ -11,10 +11,10 @@ REGISTRATION_ENVIRONMENT = {
 
 SOURCE_SHA256 = {
     "managers/tokenizer_manager.py": "8f29b58741e2cf72bef32eb987865dc020ccc4cfaaa30b4cc0d1019c41782865",
-    'layers/attention/torch_native_backend.py': '5da07edadf56f4f4e4b8319ed48216b5a8ddb989224d3e95011b76800bf9926b',
-    'batch_invariant_ops/batch_invariant_ops.py': '116abe217cae8d402783006ab0ddf60d9eef9e39a18ebe656d391fe6f5520ec5',
-    'layers/conv.py': 'f29a48009e55941c23612d3cf3be2114772d56c052fba70f812b06fe6b61d03f',
-    'layers/rotary_embedding/utils.py': '828a50285218e40c3429d2f4e75b1d051e3a89d831a7ab005e8c2609278aeddc',
+    "layers/attention/torch_native_backend.py": "5da07edadf56f4f4e4b8319ed48216b5a8ddb989224d3e95011b76800bf9926b",
+    "batch_invariant_ops/batch_invariant_ops.py": "116abe217cae8d402783006ab0ddf60d9eef9e39a18ebe656d391fe6f5520ec5",
+    "layers/conv.py": "f29a48009e55941c23612d3cf3be2114772d56c052fba70f812b06fe6b61d03f",
+    "layers/rotary_embedding/utils.py": "828a50285218e40c3429d2f4e75b1d051e3a89d831a7ab005e8c2609278aeddc",
     "models/glm5_next.py": "9ec2d17f12345bbf05cba4f7e9e1b61ac9b952c58f0e7c7b1029b22f8578a1d6",
     "models/xllm.py": "f2aa14ea3af966915bbe4052b90c9c3affed5848ba6bd6b585dd85a3348ae0ab",
     "models/registry.py": "2394ed48eddaf315cfe8e9220969e8ebf796aebd5adb2b7394baa951f6f6e020",
