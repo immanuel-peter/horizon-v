@@ -8,6 +8,8 @@ import pytest
 
 def test_pinned_upstream_discovers_package_without_explicit_adapter_imports():
     source = Path(os.environ.get("K2HV_SGLANG_SOURCE", "third_party/sglang-source")).resolve()
+    if (source / "python/sglang/srt").is_dir():
+        source = source / "python/sglang/srt"
     if not source.is_dir():
         pytest.skip("Set K2HV_SGLANG_SOURCE to the pinned sglang/srt source directory")
     from k2hv_sglang.runtime import REGISTRATION_ENVIRONMENT

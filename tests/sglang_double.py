@@ -64,6 +64,7 @@ class LanguageModel(nn.Module):
         self.config = config
         self.model = nn.Module()
         self.model.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.model.layers = nn.ModuleList()
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.pp_group = SimpleNamespace(is_first_rank=True, is_last_rank=True, world_size=1)
         self.start_layer, self.end_layer = 0, config.num_hidden_layers
@@ -139,7 +140,8 @@ class BaseProcessor:
         self.image_config = getattr(server_args, "image_config", {})
         self.io_executor = ThreadPoolExecutor(2)
 
-    async def fast_load_mm_data(self, prompt, image_data):
+    async def fast_load_mm_data(self, prompt, multimodal_tokens, image_data=None, **kwargs):
+        assert multimodal_tokens.image_token_id == self.hf_config.image_token_id
         import base64
         import io
 
@@ -176,7 +178,7 @@ def install(monkeypatch, *, load_adapters=True):
         "sglang.srt.runtime_context": {"get_mm": lambda: SimpleNamespace(mm_enable_dp_encoder=False)},
         "sglang.srt.utils.common": {"add_prefix": lambda name, prefix: f"{prefix}.{name}" if prefix else name},
         "sglang.srt.managers.schedule_batch": {"Modality": SimpleNamespace(IMAGE="image"), "MultimodalDataItem": Item, "MultimodalProcessorOutput": Output},
-        "sglang.srt.multimodal.processors.base_processor": {"BaseMultimodalProcessor": BaseProcessor},
+        "sglang.srt.multimodal.processors.base_processor": {"BaseMultimodalProcessor": BaseProcessor, "MultimodalSpecialTokens": SimpleNamespace},
     }
     for name, attributes in names.items():
         pieces = name.split(".")

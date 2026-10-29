@@ -1,0 +1,7 @@
+{
+  "revision": "b8d46f2f309fdada4bbb05ef4e90ac4adf7a3bcf",
+  "files": {
+    "python/sglang/srt/managers/tokenizer_manager.py": "8f29b58741e2cf72bef32eb987865dc020ccc4cfaaa30b4cc0d1019c41782865"
+  },
+  "patch_sha256": "5b238df815770a91ec61e5d891021cc4e50b54ac69af128a01e0df9b78b0cb3e"
+}

@@ -1,0 +1,240 @@
+{
+  "starting_pr_head": "a9d5195a14b6a52bd82e545e1078771a0712a157",
+  "unchanged_logprob_limits": {
+    "max": 0.2,
+    "mean": 0.03
+  },
+  "text_before": {
+    "chunked": [
+      {
+        "name": "short",
+        "worst": [
+          {
+            "pos": 3,
+            "id": 8465,
+            "hf": -4.035659313201904,
+            "sg": -3.9799797534942627,
+            "error": 0.0556795597076416
+          },
+          {
+            "pos": 7,
+            "id": 589,
+            "hf": -3.8100781440734863,
+            "sg": -3.8621551990509033,
+            "error": 0.05207705497741699
+          },
+          {
+            "pos": 2,
+            "id": 331,
+            "hf": -1.2544902563095093,
+            "sg": -1.2168068885803223,
+            "error": 0.03768336772918701
+          }
+        ]
+      },
+      {
+        "name": "long",
+        "worst": [
+          {
+            "pos": 2,
+            "id": 14009,
+            "hf": -7.810337066650391,
+            "sg": -8.122791290283203,
+            "error": 0.3124542236328125
+          },
+          {
+            "pos": 4,
+            "id": 37843,
+            "hf": -6.850696563720703,
+            "sg": -6.9270172119140625,
+            "error": 0.07632064819335938
+          },
+          {
+            "pos": 768,
+            "id": 222,
+            "hf": -8.195784568786621,
+            "sg": -8.133744239807129,
+            "error": 0.06204032897949219
+          }
+        ]
+      }
+    ],
+    "unchunked": [
+      {
+        "name": "short",
+        "worst": [
+          {
+            "pos": 3,
+            "id": 8465,
+            "hf": -4.035659313201904,
+            "sg": -3.9799797534942627,
+            "error": 0.0556795597076416
+          },
+          {
+            "pos": 7,
+            "id": 589,
+            "hf": -3.8100781440734863,
+            "sg": -3.8621551990509033,
+            "error": 0.05207705497741699
+          },
+          {
+            "pos": 2,
+            "id": 331,
+            "hf": -1.2544902563095093,
+            "sg": -1.2168068885803223,
+            "error": 0.03768336772918701
+          }
+        ]
+      },
+      {
+        "name": "long",
+        "worst": [
+          {
+            "pos": 2,
+            "id": 14009,
+            "hf": -7.810337066650391,
+            "sg": -8.09864616394043,
+            "error": 0.28830909729003906
+          },
+          {
+            "pos": 4,
+            "id": 37843,
+            "hf": -6.850696563720703,
+            "sg": -6.981922149658203,
+            "error": 0.1312255859375
+          },
+          {
+            "pos": 768,
+            "id": 222,
+            "hf": -8.195784568786621,
+            "sg": -8.07140064239502,
+            "error": 0.12438392639160156
+          }
+        ]
+      }
+    ]
+  },
+  "findings": [
+    "The long text worst position is 2, before any chunk boundary. Disabling chunks does not fix it. Target IDs and causal shift were aligned.",
+    "Stock HF BF16 GEMMs change early-prefix logprobs with total sequence length. Pinned batch-invariant matrix kernels remove this prefix dependence.",
+    "Triton attention still differs from HF SDPA math on image prompts. Supported native torch_native text attention closes this without changing limits.",
+    "Native vision initially diverges at Conv3d-to-linear patch embedding; Q/K RMSNorm epsilon also differs (1e-6 versus source 1e-5). Preserving Conv3d, epsilon, eager RoPE and BF16 norm/SiLU rounding makes native tower and projector outputs exact.",
+    "The original full packing gradient difference persists with FP32 master leaves and disappears with explicit document-sized SDPA. Same-shape isolation remains a separate control.",
+    "Constant-color equal-pixel fixtures cannot establish geometry-dependent features. Varied patch groups produce identical pixel tensors on different grids, distinct features and distinct real cache entries.",
+    "Pinned tensor updates require begin_weight_update and end_weight_update around the scheduler operation. HTTP pause/update/flush/continue alone is rejected; the runner now uses the supported session.",
+    "The CUDA batch-invariant mean override corrupted error-mean instrumentation on a large gradient matrix (a mean greater than the maximum is impossible). Comparisons now copy detached tensors to CPU FP32 before metrics and allclose. The real unpadded gradient mismatch remained after this correction; document-sized attention then removed it. No tolerance was widened.",
+    "A final cache restore check selected the initial updated snapshot because directory enumeration is unordered. Worker snapshot 25318-000038-weights.pt actually matches all init projector tensors exactly; 25318-000000-weights.pt contains the update. The runner now selects the latest capture by timestamp, with filename tie breaking, and has a reversed-enumeration regression test. Both old failure and corrected runs are retained."
+  ],
+  "hf_prefix_before": [
+    {
+      "n": 14,
+      "logprobs": [
+        -5.744730472564697,
+        -8.02424430847168,
+        -1.5871994495391846,
+        -6.970239162445068,
+        -3.1687817573547363,
+        -13.443069458007812,
+        -3.7210211753845215,
+        -0.5288285613059998,
+        -0.08971645683050156,
+        -0.25412318110466003,
+        -1.1832585334777832,
+        -1.7206759452819824,
+        -0.4085596799850464
+      ]
+    },
+    {
+      "n": 256,
+      "logprobs": [
+        -5.709882736206055,
+        -8.063268661499023,
+        -1.553098440170288,
+        -6.891136169433594,
+        -3.2008838653564453,
+        -13.370381355285645,
+        -3.6617746353149414,
+        -0.5374130606651306,
+        -0.08116605132818222,
+        -0.23735445737838745,
+        -1.165247917175293,
+        -1.6486916542053223,
+        -0.4379296600818634
+      ]
+    },
+    {
+      "n": 769,
+      "logprobs": [
+        -5.758797645568848,
+        -7.810337066650391,
+        -1.5222638845443726,
+        -6.850696563720703,
+        -3.1138734817504883,
+        -13.447344779968262,
+        -3.6533915996551514,
+        -0.5305554866790771,
+        -0.08215799182653427,
+        -0.23766843974590302,
+        -1.156514048576355,
+        -1.688077688217163,
+        -0.4063766598701477
+      ]
+    }
+  ],
+  "hf_prefix_after": [
+    {
+      "n": 14,
+      "logprobs": [
+        -5.764248847961426,
+        -8.179274559020996,
+        -1.5840481519699097,
+        -6.975037574768066,
+        -3.1240477561950684,
+        -13.408958435058594,
+        -3.7760157585144043,
+        -0.5201159715652466,
+        -0.0884806215763092,
+        -0.24491748213768005,
+        -1.1541119813919067,
+        -1.7124392986297607,
+        -0.4175490140914917
+      ]
+    },
+    {
+      "n": 256,
+      "logprobs": [
+        -5.764248847961426,
+        -8.179274559020996,
+        -1.5840481519699097,
+        -6.975037574768066,
+        -3.1240477561950684,
+        -13.408958435058594,
+        -3.7760157585144043,
+        -0.5201159715652466,
+        -0.0884806215763092,
+        -0.24491748213768005,
+        -1.1541119813919067,
+        -1.7124392986297607,
+        -0.4175490140914917
+      ]
+    },
+    {
+      "n": 769,
+      "logprobs": [
+        -5.764248847961426,
+        -8.179274559020996,
+        -1.5840481519699097,
+        -6.975037574768066,
+        -3.1240477561950684,
+        -13.408958435058594,
+        -3.7760157585144043,
+        -0.5201159715652466,
+        -0.0884806215763092,
+        -0.24491748213768005,
+        -1.1541119813919067,
+        -1.7124392986297607,
+        -0.4175490140914917
+      ]
+    }
+  ]
+}

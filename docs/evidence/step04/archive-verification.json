@@ -1,0 +1,9 @@
+{
+  "build_info.json": "fe33e2d783b4fb4268c750b0e92d1e6820796a3068993b10b59a0a4230c23bb2",
+  "model-00001-of-00004.safetensors": "beb374d9e5c3db7e1e51b49c6eb14f884d5c396d4d5aa5df06f9adc4e813c1a0",
+  "model-00002-of-00004.safetensors": "6bcddfdf7f873b78d9bc5c075e7aa56226f8fbb24b8fec2319bf24af6540b2fd",
+  "model-00003-of-00004.safetensors": "99be344787ea797d1d49be3093b4839564255685c8486ad94b6cbb7734c2effb",
+  "model-00004-of-00004.safetensors": "43de4cd7bbbd6c3af4e5e0c479153a4f5ca4e207aade044f3badb52308bf5f75",
+  "model.safetensors.index.json": "23253f5ff85eff7bee805e8623879cc6bc84d8a557baf10ab5ba09a51f317e9a",
+  "tokenizer.json": "838d767b7c9925ff257feb20eaa4299a8e3cc35bb3d805589c373f51d2cc3cb6"
+}

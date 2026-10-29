@@ -26,3 +26,7 @@ dist/
 /hf/*/SHA256SUMS
 /hf/*/.building/
 /hf/*/.cache/
+
+.venv-gpu/
+
+.venv-container/

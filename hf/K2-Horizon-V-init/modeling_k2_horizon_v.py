@@ -88,7 +88,11 @@ class Projector(nn.Module):
         return x.reshape(-1, group * x.shape[-1])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.fc2(F.gelu(self.fc1(self.merge(self.norm(x)))))
+        dtype = x.dtype
+        norm, fc1, fc2 = self.norm, self.fc1, self.fc2
+        normalized = F.layer_norm(x, norm.normalized_shape, norm.weight.to(dtype), norm.bias.to(dtype), norm.eps)
+        hidden = F.linear(self.merge(normalized), fc1.weight.to(dtype), fc1.bias.to(dtype))
+        return F.linear(F.gelu(hidden), fc2.weight.to(dtype), fc2.bias.to(dtype))
 
     def init_module(self, module: nn.Module, generator: torch.Generator | None = None) -> None:
         if module is self.norm:
@@ -197,6 +201,10 @@ class K2HorizonVForConditionalGeneration(PreTrainedModel, GenerationMixin):
             raise ValueError(
                 f"pixel_values has {pixel_values.shape[0]} patches but image_grid_thw describes {num_patches}"
             )
+
+        if len(grid) > 1:
+            patches = pixel_values.split(grid.prod(-1).tolist())
+            return torch.cat([self.get_image_features(pixels, image_grid[None]) for pixels, image_grid in zip(patches, grid)])
 
         pixel_values = pixel_values.to(device=self.visual.device, dtype=self.visual.dtype)
         with torch.no_grad():

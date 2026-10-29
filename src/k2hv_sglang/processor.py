@@ -4,8 +4,9 @@ from functools import partial
 import torch
 
 from sglang.srt.managers.schedule_batch import Modality, MultimodalDataItem, MultimodalProcessorOutput
-from sglang.srt.multimodal.processors.base_processor import BaseMultimodalProcessor
+from sglang.srt.multimodal.processors.base_processor import BaseMultimodalProcessor, MultimodalSpecialTokens
 
+from .gate_trace import emit
 from .input_layout import expand_image_tokens, image_hash, split_image_features
 from .k2_horizon_v import K2HorizonVForConditionalGeneration
 
@@ -27,6 +28,14 @@ class K2HorizonVImageProcessor(BaseMultimodalProcessor):
         if set(self.image_config) - {"min_image_tokens", "max_image_tokens"}:
             raise ValueError("Only min_image_tokens/max_image_tokens overrides are supported in the image process config")
 
+    def validate_mm_input_ids(self, input_ids, request_obj):
+        if input_ids is None or getattr(request_obj, "image_data", None):
+            return
+        ids = input_ids.tolist() if isinstance(input_ids, torch.Tensor) else input_ids
+        image_ids = {self.hf_config.image_start_token_id, self.hf_config.image_token_id, self.hf_config.image_end_token_id}
+        if any(token in image_ids for token in ids):
+            raise ValueError("Image marker tokens require image_data")
+
     async def process_mm_data_async(self, image_data, input_text, request_obj, *args, **kwargs):
         if getattr(request_obj, "video_data", None) or getattr(request_obj, "audio_data", None):
             raise ValueError("K2-Horizon-V supports images and text only")
@@ -39,7 +48,7 @@ class K2HorizonVImageProcessor(BaseMultimodalProcessor):
         else:
             ids = list(input_text)
 
-        loaded = await self.fast_load_mm_data(prompt="", image_data=image_data or [])
+        loaded = await self.fast_load_mm_data(prompt="", multimodal_tokens=MultimodalSpecialTokens(image_token_id=self.hf_config.image_token_id), image_data=image_data or [])
         if any(isinstance(image, (dict, list)) for image in loaded.images):
             raise ValueError("Precomputed embeddings, processor-output dictionaries and image frame lists are not supported")
         if loaded.images:
@@ -58,6 +67,7 @@ class K2HorizonVImageProcessor(BaseMultimodalProcessor):
             item = MultimodalDataItem(modality=Modality.IMAGE, feature=pixels, offsets=[offset], model_specific_data={"image_grid_thw": grid})
             item.set_hash(image_hash(pixels, grid))
             items.append(item)
+        emit("processor", ids=ids, offsets=offsets, pixels=[p for p, g in features], grids=grids)
         items = self._finalize_mm_items(items, images=loaded.images)
         return MultimodalProcessorOutput(mm_items=items, input_ids=ids, im_token_id=self.hf_config.image_token_id,
                                          im_start_id=self.hf_config.image_start_token_id, im_end_id=self.hf_config.image_end_token_id)

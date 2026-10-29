@@ -19,7 +19,13 @@ IMAGE_TOKENS = 256
 def post(base_url, path, payload):
     request = Request(base_url.rstrip("/") + path, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
     with urlopen(request, timeout=300) as response:
-        return json.load(response)
+        body = response.read()
+    if not body:
+        return None
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError:
+        return {"text": body.decode()}
 
 
 def main():
