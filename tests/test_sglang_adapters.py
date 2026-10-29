@@ -209,3 +209,14 @@ def test_quantization_fails_explicitly(adapters):
     module, _ = adapters
     with pytest.raises(ValueError, match="unquantized"):
         module.K2HorizonVForConditionalGeneration(tiny.composite_config(), quant_config=object())
+
+
+def test_text_path_rejects_image_marker_ids_without_media(adapters, processor):
+    adapter=make_processor(adapters,processor)
+    try:
+        with pytest.raises(ValueError,match='require image_data'):
+            adapter.validate_mm_input_ids([processor.image_token_id],SimpleNamespace(image_data=[]))
+        adapter.validate_mm_input_ids([7,11,13],SimpleNamespace(image_data=[]))
+        adapter.validate_mm_input_ids([processor.image_token_id],SimpleNamespace(image_data=['image']))
+    finally:
+        adapter.io_executor.shutdown()

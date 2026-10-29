@@ -1,0 +1,15 @@
+{
+  "revision": "5078ff7cd6387f553db010bb38148a59e9e12cb0",
+  "files": {
+    "miles/backends/fsdp_utils/actor.py": "6bba0063a50ffa2ead48bfb0296bee1951f62c68e13f0b3ad0bc51657274a78a",
+    "miles/backends/fsdp_utils/adaptations/arch_adapter.py": "f3cbbd1fe1ffc924a08eec21415709e38b53b775e83e7bc0c6a322a3792b1062",
+    "miles/backends/fsdp_utils/adaptations/specs/__init__.py": "708901886b258a25a2f421688aa2100cbaefbb091edb0fd2ed146579f2fbc8a2",
+    "miles/backends/fsdp_utils/adaptations/precision.py": "cb4560c8457db5b42f7d9ee134a2edeed16d16d3c3b1cc6823fa9cf0669d1637",
+    "miles/backends/fsdp_utils/parallel.py": "a80e5e38e296e5397df1a4d05f0f71309db6a137b67a69d4604fc2df4046d425",
+    "miles/backends/training_utils/data/rollout.py": "be15c90200e67f0073666544d3a01744119cd14bf9ec3f1303ae166264b98e8f",
+    "miles/backends/training_utils/loss/hub/losses.py": "ffb9f0f85eb0f40423d00a1fe7edf4de129a23538f00504bc80b5554be7981e1",
+    "miles/rollout/data_source.py": "ab91c7c94088fb099a3f844a5e22016ce86d8db801535bf4e8e7ea709eb57317",
+    "miles/utils/processing_utils.py": "787876a2f5b4ec2b3a80aaba868ca88c6ea5278e7a60f06b86afd223a7475c5f"
+  },
+  "patch_sha256": "f5dec690c0dc033eb070d1a2a741e8ca8ad748e6ad036647403b6d53a3c3d39e"
+}

@@ -1,0 +1,31 @@
+diff --git a/miles/backends/fsdp_utils/actor.py b/miles/backends/fsdp_utils/actor.py
+index c7b8d05323..e373adc911 100644
+--- a/miles/backends/fsdp_utils/actor.py
++++ b/miles/backends/fsdp_utils/actor.py
+@@ -458,7 +458,10 @@ def apply_fsdp2(model, mesh=None, cpu_offload=False, args=None, param_dtype=None
+ 
+     # fully_shard each layer first, then the root model
+     for module in modules:
+-        fully_shard(module, **fsdp_kwargs)
++        module_kwargs = dict(fsdp_kwargs)
++        if hasattr(module, "_k2hv_mixed_precision"):
++            module_kwargs["mp_policy"] = module._k2hv_mixed_precision
++        fully_shard(module, **module_kwargs)
+     fully_shard(model, **fsdp_kwargs)
+ 
+     return model
+diff --git a/miles/backends/fsdp_utils/adaptations/specs/__init__.py b/miles/backends/fsdp_utils/adaptations/specs/__init__.py
+index c713987dd2..8eda486520 100644
+--- a/miles/backends/fsdp_utils/adaptations/specs/__init__.py
++++ b/miles/backends/fsdp_utils/adaptations/specs/__init__.py
+@@ -15,7 +15,10 @@ from miles.backends.fsdp_utils.adaptations.specs.qwen3_5 import Qwen35Adapter, Q
+ from miles.backends.fsdp_utils.adaptations.specs.qwen3_moe import Qwen3MoeAdapter
+ from miles.backends.fsdp_utils.adaptations.specs.qwen3_vl import Qwen3VLAdapter
+ 
++from k2hv.miles_gate_adapter import K2HorizonVAdapter
++
+ _ADAPTERS: tuple[ArchAdapter, ...] = (
++    K2HorizonVAdapter(),
+     Glm4MoeLiteAdapter(),
+     NemotronHAdapter(),
+     Qwen3Adapter(),

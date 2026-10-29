@@ -18,6 +18,9 @@ MEAN_ERROR = 0.03
 
 
 def capture(args):
+    if args.batch_invariant:
+        from k2hv.gpu_numerics import enable
+        enable()
     processor = AutoProcessor.from_pretrained(args.checkpoint, trust_remote_code=True, local_files_only=True)
     model = AutoModelForImageTextToText.from_pretrained(args.checkpoint, trust_remote_code=True, local_files_only=True, dtype=torch.bfloat16, attn_implementation="sdpa").cuda().eval()
     cases = []
@@ -38,7 +41,8 @@ def capture(args):
             logits = model(**{k: v.cuda() for k, v in inputs.items()}, use_cache=False).logits[0, :-1].float()
             logprobs = logits.log_softmax(-1).gather(-1, ids[1:].cuda().unsqueeze(-1)).squeeze(-1).cpu().tolist()
         references.append({"name": name, "ids": ids.tolist(), "image_data": images, "logprobs": logprobs})
-    args.reference.write_text(json.dumps({"seed": 0, "dtype": "bfloat16", "backend": "sdpa", "max_error": MAX_ERROR, "mean_error": MEAN_ERROR, "cases": references}))
+    from k2hv.gate_provenance import capture as provenance
+    args.reference.write_text(json.dumps({"provenance":provenance(), "peak_allocated_bytes":torch.cuda.max_memory_allocated(), "seed": 0, "dtype": "bfloat16", "backend": "sdpa", "batch_invariant": args.batch_invariant, "max_error": MAX_ERROR, "mean_error": MEAN_ERROR, "cases": references}))
 
 
 def evaluate(args):
@@ -52,15 +56,18 @@ def evaluate(args):
         rows = result["meta_info"]["input_token_logprobs"]
         assert len(rows) == len(case["ids"]), (len(rows), len(case["ids"]))
         errors = []
+        positions = []
         for position, (row, token) in enumerate(zip(rows, case["ids"])):
             if position == 0 or token == 250062:
                 continue
             assert row[1] == token, (position, row[1], token)
             assert row[0] is not None, position
             errors.append(abs(row[0] - case["logprobs"][position - 1]))
+            positions.append({"position":position,"token_id":token,"hf":case["logprobs"][position-1],"native":row[0],"abs_error":errors[-1]})
         maximum, mean = max(errors), sum(errors) / len(errors)
-        results.append({"name": case["name"], "input_length": len(case["ids"]), "compared_positions": len(errors), "max_error": maximum, "mean_error": mean, "status": "passed" if maximum <= MAX_ERROR and mean <= MEAN_ERROR else "failed"})
-    report = {"max_error_tolerance": MAX_ERROR, "mean_error_tolerance": MEAN_ERROR, "results": results}
+        results.append({"name": case["name"], "input_length": len(case["ids"]), "compared_positions": len(errors), "worst_positions": sorted(positions,key=lambda x:-x["abs_error"])[:10], "max_error": maximum, "mean_error": mean, "status": "passed" if maximum <= MAX_ERROR and mean <= MEAN_ERROR else "failed"})
+    from k2hv.gate_provenance import capture as provenance
+    report = {"provenance":provenance(), "max_error_tolerance": MAX_ERROR, "mean_error_tolerance": MEAN_ERROR, "results": results}
     args.report.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
     if any(row["status"] != "passed" for row in results):
@@ -70,6 +77,7 @@ def evaluate(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("stage", choices=("capture", "evaluate"))
+    parser.add_argument("--batch-invariant", action="store_true")
     parser.add_argument("--checkpoint", default="hf/K2-Horizon-V-init")
     parser.add_argument("--reference", type=Path, required=True)
     parser.add_argument("--report", type=Path, default=Path("outputs/step04/logprob.json"))

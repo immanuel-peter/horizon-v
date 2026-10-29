@@ -88,7 +88,9 @@ class Projector(nn.Module):
         return x.reshape(-1, group * x.shape[-1])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.fc2(F.gelu(self.fc1(self.merge(self.norm(x)))))
+        normalized = F.layer_norm(x, self.norm.normalized_shape, self.norm.weight.to(x.dtype), self.norm.bias.to(x.dtype), self.norm.eps)
+        hidden = F.linear(self.merge(normalized), self.fc1.weight.to(x.dtype), self.fc1.bias.to(x.dtype))
+        return F.linear(F.gelu(hidden), self.fc2.weight.to(x.dtype), self.fc2.bias.to(x.dtype))
 
     def init_module(self, module: nn.Module, generator: torch.Generator | None = None) -> None:
         if module is self.norm:

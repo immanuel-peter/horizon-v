@@ -1,4 +1,4 @@
-"""Explicit CUDA gate runner. Unselected/unimplemented required gates block completion."""
+"""HF reference component of step 04; assemble all components with k2hv.step04_report."""
 from __future__ import annotations
 
 import argparse
@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-GATES = ("cuda", "load_hf", "text_hf", "vision_hf", "load_sglang", "text_sglang", "vision_sglang", "preprocessing", "logprob", "cache_update", "packing", "overfit")
+GATES = ("cuda", "load_hf", "text_hf", "vision_hf", "packing_controlled")
 
 
 def command(*args):
@@ -21,7 +21,8 @@ def command(*args):
 
 def compare(a, b, *, atol=0, rtol=0):
     import torch
-    delta = (a.float() - b.float()).abs()
+    a, b = a.detach().float().cpu(), b.detach().float().cpu()
+    delta = (a - b).abs()
     metrics = {"shape": list(a.shape), "max_abs": delta.max().item(), "mean_abs": delta.mean().item(), "atol": atol, "rtol": rtol}
     if not torch.allclose(a.float(), b.float(), atol=atol, rtol=rtol):
         raise AssertionError(json.dumps(metrics))
@@ -31,8 +32,10 @@ def compare(a, b, *, atol=0, rtol=0):
 def run(args):
     import torch
     from transformers import AutoModelForCausalLM, AutoModelForImageTextToText, AutoProcessor
+    from .gpu_numerics import enable
+    enable()
     torch.manual_seed(args.seed)
-    report = {"schema": 1, "command": sys.argv, "seed": args.seed, "starting_sha": args.starting_sha,
+    report = {"schema": 2, "component": "HF reference and controlled isolation; full completion requires k2hv.step04_report", "command": sys.argv, "seed": args.seed, "starting_sha": args.starting_sha,
               "head_sha": command("git", "rev-parse", "HEAD"),
               "code_sha256": {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for root in ("src", "hf/K2-Horizon-V-init", "tools/step04") for p in Path(root).rglob("*.py") if "__pycache__" not in p.parts}, "python": platform.python_version(),
               "packages": {p: importlib.metadata.version(p) for p in ("torch", "transformers", "pillow", "safetensors")},
@@ -103,7 +106,7 @@ def run(args):
         with sdpa_kernel(SDPBackend.MATH):
             return check(model, processor)
 
-    functions = {"cuda": cuda, "load_hf": load, "text_hf": text, "vision_hf": vision, "packing": packing}
+    functions = {"cuda": cuda, "load_hf": load, "text_hf": text, "vision_hf": vision, "packing_controlled": packing}
     for name in GATES:
         row = {"gate": name, "status": "blocked"}
         start = time.monotonic()
@@ -114,7 +117,7 @@ def run(args):
                 row["reason"] = "runner not implemented; no GPU correctness claim"
             elif name != "cuda" and not cuda_ok:
                 row["reason"] = "CUDA prerequisite failed or unrun"
-            elif name in ("text_hf", "vision_hf", "packing") and model is None:
+            elif name in ("text_hf", "vision_hf", "packing_controlled") and model is None:
                 row["reason"] = "HF load prerequisite failed or unrun"
             else:
                 torch.cuda.reset_peak_memory_stats() if torch.cuda.is_available() else None

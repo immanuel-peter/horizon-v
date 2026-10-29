@@ -1,0 +1,15 @@
+diff --git a/python/sglang/srt/managers/tokenizer_manager.py b/python/sglang/srt/managers/tokenizer_manager.py
+index d60385527e..d210fd2559 100644
+--- a/python/sglang/srt/managers/tokenizer_manager.py
++++ b/python/sglang/srt/managers/tokenizer_manager.py
+@@ -1213,6 +1213,10 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
+                     input_text, is_cross_encoder_request
+                 )
+ 
++        validate_mm_ids = getattr(self.mm_processor, "validate_mm_input_ids", None)
++        if validate_mm_ids is not None:
++            validate_mm_ids(input_ids, obj)
++
+         if contains_mm_input and get_disagg().language_model_only:
+             raise ValueError(
+                 "Multimodal inputs are not supported when --language-model-only "
