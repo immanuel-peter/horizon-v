@@ -33,7 +33,7 @@ The child venv explicitly exposes the image's `/opt/sglang` packages. Bootstrap 
 
 Peak GPU allocations: native 22.41 GB, SFT 44.38 GB, full packing verification 75.50 GB. Heavy stages ran sequentially. No tolerance was increased. No required gate remains failed, blocked or unrun.
 
-The [loss curve](../evidence/step04/miles-loss.png), [complete optimizer CSV](../evidence/step04/miles-loss.csv), [64-example losses and generations](../evidence/step04/overfit.csv), and [fixture dimensions/hashes](../evidence/step04/fixtures.json) are committed. Actual Miles inputs contain 40 tokens, including 16 image tokens and three supervised answer/end tokens. Decoded spans include, for example, `blue circle<|ifm|im_end|>`; prompt, image and empty-thinking tokens are excluded. Only vision runs under no_grad; frozen LM operations propagate gradients to image features.
+The [optimizer loss CSV](../evidence/step04/miles-loss.csv), [64-example losses and generations](../evidence/step04/overfit.csv), and [fixture dimensions/hashes](../evidence/step04/fixtures.json) are committed. Actual Miles inputs contain 40 tokens, including 16 image tokens and three supervised answer/end tokens. Decoded spans include, for example, `blue circle<|ifm|im_end|>`; prompt, image and empty-thinking tokens are excluded. Only vision runs under no_grad; frozen LM operations propagate gradients to image features.
 
 ## Diagnoses
 
@@ -45,7 +45,7 @@ The pinned CUDA mean override treats an empty dimension list incorrectly for ins
 
 ## Persistent assets and rerun
 
-Use `docker start k2hv-step04` on this machine. For a clean recreation:
+Run `docker start k2hv-step04` on this machine, or recreate the container:
 
 ```bash
 docker run --name k2hv-step04 --gpus device=0 --ipc=host -d \
@@ -55,12 +55,12 @@ docker exec k2hv-step04 git config --global --add safe.directory '*'
 docker exec k2hv-step04 bash tools/step04/activate.sh python -m k2hv_sglang.check_runtime
 ```
 
-Source checkouts are radixark/miles and sgl-project/sglang under ignored `third_party/`, at the full pins above. Patch recipes audit the revision, patch digest and expected working-file hashes, refusing unexpected edits. The complete step guide gives sequential reference capture, native runs, cache updates, packing, training, evaluation and fail-closed assembly commands. Gate assembly verifies actual compute dependencies and each executed runner; unused evidence utilities in a source census do not invalidate unchanged model computations. Pinned external audits remain strict.
+Clone radixark/miles and sgl-project/sglang under the ignored `third_party/` at the pins above. The patch recipes check the revision, patch digest and working-file hashes, and refuse unexpected edits. The [step guide](../steps/04-gate-checks.md) has the sequential commands.
 
-The archive revision remains `fc1f1c887facf728e2e02a13f9bf9a920af44552`. All seven downloaded assets were reverified after the experiments against the separate archive manifest; current tracked HF code/configs and the original random projector remain attached. The combined local 23-file manifest was regenerated. Independent sources remain pinned to IFM/K2-Horizon-7B `4622f94a6632384784471fd674d5b78f8d527798` and immanuelpeter/GLM-5.3-Flash-Vision `44a87fd4e6e31f5722a375238b7aedce3e0ad2db`.
+The archive revision is still `fc1f1c887facf728e2e02a13f9bf9a920af44552`. After the experiments, all seven downloaded assets matched the separate archive manifest. The tracked HF code, configs and original random projector stay attached, and the combined 23-file local manifest was regenerated. Independent sources stay pinned to IFM/K2-Horizon-7B `4622f94a6632384784471fd674d5b78f8d527798` and immanuelpeter/GLM-5.3-Flash-Vision `44a87fd4e6e31f5722a375238b7aedce3e0ad2db`.
 
-[Machine artifact hashes](../evidence/step04/machine-artifacts.json) cover primary logs, fixtures, tensor traces, updated projector/checkpoint shards and the final Miles checkpoint. The final model file is `outputs/step04/final/miles-checkpoints/iter_0000512/model/__0_0.distcp` (37,748,956,064 bytes, SHA256 `bf58f6a3962a59e9e5b08671e3b86ccc0104f4adbfce7b7817dd688f6b0caf2f`). Full raw reports and reference payloads stay under `outputs/step04/final/`.
+`report.json` summarizes the machine-only artifacts under `outputs/step04/final/` (file count, total bytes and a digest of the sorted path and SHA256 list). The final model file is `outputs/step04/final/miles-checkpoints/iter_0000512/model/__0_0.distcp` (37,748,956,064 bytes, SHA256 `bf58f6a3962a59e9e5b08671e3b86ccc0104f4adbfce7b7817dd688f6b0caf2f`). Full raw reports and reference payloads stay in the same directory.
 
 Additional machine-only assets: init weight assets under `hf/`, source checkpoints under `models/`, both venvs, exact source checkouts, Docker image/container and Rust cache; earlier diagnostic logs and integration/warmup/resume checkpoints under `outputs/step04/miles-sft/{checkpoints,final-checkpoints,resumed-checkpoints,pre-final}`; older cache experiments under `outputs/step04/cache-debug2/`. These historical checkpoints are retained, not substituted for the final proof. Experimental projectors are separate; no model was uploaded. Repository visibility was unchanged (GitHub already reported PUBLIC; the HF archive remains private). Full SFT, RL and bulk preparation were not run.
 
-Task servers and the task container were stopped after evidence generation; the container is retained. The Brev instance remains running.
+The task servers and container are stopped, and the container is kept. The Brev instance is still running.

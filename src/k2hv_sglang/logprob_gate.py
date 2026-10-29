@@ -1,4 +1,5 @@
 """Sequential HF reference capture and native SGLang teacher-forced comparison."""
+
 import argparse
 import base64
 import io
@@ -9,17 +10,17 @@ import torch
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
+from k2hv.gate_provenance import capture as provenance
+from k2hv.gpu_numerics import enable
+
 from .smoke import post
 
-# BF16 log-softmax accumulates output-logit rounding across different kernels.
-# These bounds are declared before the first native comparison and are not auto-tuned.
 MAX_ERROR = 0.2
 MEAN_ERROR = 0.03
 
 
 def capture(args):
     if args.batch_invariant:
-        from k2hv.gpu_numerics import enable
         enable()
     processor = AutoProcessor.from_pretrained(args.checkpoint, trust_remote_code=True, local_files_only=True)
     model = AutoModelForImageTextToText.from_pretrained(args.checkpoint, trust_remote_code=True, local_files_only=True, dtype=torch.bfloat16, attn_implementation="sdpa").cuda().eval()
@@ -41,8 +42,22 @@ def capture(args):
             logits = model(**{k: v.cuda() for k, v in inputs.items()}, use_cache=False).logits[0, :-1].float()
             logprobs = logits.log_softmax(-1).gather(-1, ids[1:].cuda().unsqueeze(-1)).squeeze(-1).cpu().tolist()
         references.append({"name": name, "ids": ids.tolist(), "image_data": images, "logprobs": logprobs})
-    from k2hv.gate_provenance import capture as provenance
-    args.reference.write_text(json.dumps({"provenance":provenance(), "peak_allocated_bytes":torch.cuda.max_memory_allocated(), "seed": 0, "dtype": "bfloat16", "backend": "sdpa", "batch_invariant": args.batch_invariant, "max_error": MAX_ERROR, "mean_error": MEAN_ERROR, "cases": references}))
+
+    args.reference.write_text(
+        json.dumps(
+            {
+                "provenance": provenance(),
+                "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
+                "seed": 0,
+                "dtype": "bfloat16",
+                "backend": "sdpa",
+                "batch_invariant": args.batch_invariant,
+                "max_error": MAX_ERROR,
+                "mean_error": MEAN_ERROR,
+                "cases": references,
+            }
+        )
+    )
 
 
 def evaluate(args):
@@ -63,11 +78,21 @@ def evaluate(args):
             assert row[1] == token, (position, row[1], token)
             assert row[0] is not None, position
             errors.append(abs(row[0] - case["logprobs"][position - 1]))
-            positions.append({"position":position,"token_id":token,"hf":case["logprobs"][position-1],"native":row[0],"abs_error":errors[-1]})
+            positions.append({"position": position, "token_id": token, "hf": case["logprobs"][position - 1], "native": row[0], "abs_error": errors[-1]})
         maximum, mean = max(errors), sum(errors) / len(errors)
-        results.append({"name": case["name"], "input_length": len(case["ids"]), "compared_positions": len(errors), "worst_positions": sorted(positions,key=lambda x:-x["abs_error"])[:10], "max_error": maximum, "mean_error": mean, "status": "passed" if maximum <= MAX_ERROR and mean <= MEAN_ERROR else "failed"})
-    from k2hv.gate_provenance import capture as provenance
-    report = {"provenance":provenance(), "max_error_tolerance": MAX_ERROR, "mean_error_tolerance": MEAN_ERROR, "results": results}
+        results.append(
+            {
+                "name": case["name"],
+                "input_length": len(case["ids"]),
+                "compared_positions": len(errors),
+                "worst_positions": sorted(positions, key=lambda x: -x["abs_error"])[:10],
+                "max_error": maximum,
+                "mean_error": mean,
+                "status": "passed" if maximum <= MAX_ERROR and mean <= MEAN_ERROR else "failed",
+            }
+        )
+
+    report = {"provenance": provenance(), "max_error_tolerance": MAX_ERROR, "mean_error_tolerance": MEAN_ERROR, "results": results}
     args.report.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
     if any(row["status"] != "passed" for row in results):

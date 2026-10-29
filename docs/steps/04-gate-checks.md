@@ -1,6 +1,6 @@
 # Step 4: GPU gates
 
-Complete these checks before full SFT or RL. The authorized 64-example projector overfit is part of this step. CPU regressions alone cannot certify it. Results and machine-only artifact locations are in [the handoff](../handoff/04-gate-checks.md) and [the structured report](../evidence/step04/report.json).
+Run these checks before full SFT or RL. The 64-example projector overfit is part of the step, and CPU regressions alone cannot certify it. Results are in [the handoff](../handoff/04-gate-checks.md) and [the structured report](../evidence/step04/report.json).
 
 | Gate | Required measurement |
 |---|---|
@@ -14,15 +14,31 @@ Complete these checks before full SFT or RL. The authorized 64-example projector
 
 ## Runtime and numerical policy
 
-Use the exact image, source revisions and patch recipes in the handoff. Preserve the image's CUDA torch stack. Activate the child GPU venv, use editable `--no-deps` installs and `UV_NO_SYNC=1`; do not sync the development lock. TP=1, BF16, one GPU, context 2048, max running requests 1 and KV capacity 4096 bound the native runs. Heavy HF, Miles and SGLang stages run sequentially.
+Use the image, source revisions and patch recipes from the handoff. Keep the image's CUDA torch stack. Activate the child GPU venv, install editable with `--no-deps`, set `UV_NO_SYNC=1`, and never sync the development lock.
 
-The supported SM120 profile selects native SGLang `torch_native` text attention and `sdpa` vision attention. HF uses SDPA math. Both use the pinned SGLang batch-invariant matrix kernels with BMM override disabled. `TORCH_COMPILE_DISABLE=1` preserves the archived vision RoPE's eager rounding. This is the native scheduler/KV/model path, including external model and processor registration and `k2_horizon` reasoning parsing. It does not dispatch requests to an HF inference engine.
+The native runs use TP=1, BF16, one GPU, context 2048, max running requests 1 and KV capacity 4096. Run the heavy HF, Miles and SGLang stages one at a time.
 
-The native adapter preserves the source Conv3d patch embedding, vision Q/K normalization epsilon and BF16 rounding boundaries. The K2 decoder preserves HF RoPE and materialized SiLU rounding. Source audits retain the original audited interfaces and include the newly used attention/update interfaces. A small pinned tokenizer-manager patch invokes the optional adapter validator before the image-free fast path; image markers without media must fail there as well.
+- SGLang uses `torch_native` text attention and `sdpa` vision attention. HF uses SDPA math. Both use the pinned batch-invariant matrix kernels with the BMM override off.
+- `TORCH_COMPILE_DISABLE=1` keeps the archived vision RoPE in eager rounding.
+- The native path covers the scheduler, KV cache, model, processor registration and the `k2_horizon` reasoning parser. It never sends requests to an HF inference engine.
+- The native adapter keeps the source Conv3d patch embedding, the vision Q/K normalization epsilon and BF16 rounding. The K2 decoder keeps HF RoPE and materialized SiLU rounding.
+- Source audits cover the original interfaces plus the attention and update interfaces added in this step.
+- A small pinned tokenizer-manager patch calls the adapter validator before the image-free fast path, so image markers without media fail there too.
 
-For Miles, the narrow `k2_horizon_v` adapter passes explicit document boundaries into document-sized SDPA calls within a truly concatenated decoder row. Linear layers remain packed. This avoids shape-dependent BF16 attention backward reductions. FP32 projector master leaves accumulate gradients from separate images before any BF16 rounding; forward weights and activations remain BF16. The pinned Miles patch registers this adapter and lets `apply_fsdp2` honor its per-module precision policy. The generic adapter's controlled same-shape isolation result remains a separate diagnostic.
+Miles uses the `K2HorizonVAdapter`, which passes document boundaries into document-sized SDPA calls inside one concatenated decoder row. Linear layers stay packed. This removes the shape dependence of BF16 attention backward reductions. FP32 projector master leaves sum gradients from separate images before any BF16 rounding, while forward weights and activations stay BF16. The pinned Miles patch registers the adapter and lets `apply_fsdp2` honor its per-module precision. The generic adapter's same-shape isolation result stays a separate diagnostic.
 
-Tolerances are fixed: stock/HF logits and source/HF vision outputs exact; pixels, grids, IDs, counts, offsets, native embedding insertion exact; HF/native tower, projector and HF embedding insertion `atol=0.05, rtol=0.03`; token logprobs max error 0.2 and mean error 0.03 natural-log units; packed loss absolute error 0.02 and projector gradient `atol=0.005, rtol=0.03`. Image-pad prediction targets are excluded from logprob comparisons because their IDs become hashes. Every retained target ID and causal prediction position is checked. Thresholds are never adjusted in response to results.
+### Tolerances
+
+| Quantity | Limit |
+|---|---|
+| Stock/HF logits, source/HF vision outputs | Exact |
+| Pixels, grids, IDs, counts, offsets, native embedding insertion | Exact |
+| HF/native tower, projector and HF embedding insertion | `atol=0.05`, `rtol=0.03` |
+| Token logprob error (natural log) | max 0.2, mean 0.03 |
+| Packed loss | absolute error 0.02 |
+| Projector gradient | `atol=0.005`, `rtol=0.03` |
+
+Image-pad prediction targets are excluded from logprob comparisons because their IDs become hashes. Every other target ID and causal prediction position is checked. Never change a limit to fit a result.
 
 ## Rerun commands
 
@@ -37,7 +53,7 @@ gpu() {
 }
 ```
 
-First verify the archive and source patches. Download only the assets allowed in the processor handoff; retain current tracked HF code/configs and the original projector. Bootstrap once with `tools/step04/activate.sh`, not during a running training/serving stage.
+Verify the archive and source patches first. Download only the assets the processor handoff allows, and keep the tracked HF code, configs and original projector. Run `tools/step04/activate.sh` once to bootstrap, never during a training or serving stage.
 
 ```bash
 docker exec k2hv-step04 bash tools/step04/activate.sh python -m k2hv_sglang.check_runtime
@@ -46,7 +62,6 @@ gpu python -m k2hv.checkpoint_io manifest hf/K2-Horizon-V-init
 gpu python tools/step04/probe.py > outputs/step04/final/cuda-probe.json
 gpu python -m k2hv.gpu_gates --report outputs/step04/final/hf.json
 gpu python -m k2hv.miles_packing_gate --report outputs/step04/final/packing.json
-gpu python -m k2hv.text_prefix_diagnostic --report outputs/step04/final/prefix-diagnostic.json
 ```
 
 The HF component reports `packing_controlled` separately. The full packing gate is `miles_packing_gate`, which uses real FSDP2 and unpadded separate samples. None of these commands starts a native engine.
@@ -102,7 +117,9 @@ gpu python -m k2hv.miles_training_report --logs outputs/step04/final/miles-from-
   --report outputs/step04/final/training-summary.json
 ```
 
-For a bounded resume, add `--load /workspace/outputs/step04/final/miles-checkpoints`, increase `--num-rollout` (for example to 528 for one more pass over 64 samples), and use a separate save directory. Miles restores optimizer, RNG and data-source state. The criterion is every example, not an average. Continue bounded resumes if needed and preserve failed measurements. The generic question asks only for color and shape; 4 colors × 4 shapes × 4 locations produce 64 varied images without answer leakage. Actual Miles-prepared tensors and decoded answer-only spans are captured. The answer and turn end are supervised; prompt, image and empty-thinking tokens are excluded. Only the frozen vision tower uses `no_grad`; the frozen decoder passes gradients to the projector. Experiment checkpoints are separate from init.
+The fixture asks only for color and shape. Four colors, four shapes and four locations give 64 varied images without leaking the answer. The captured Miles tensors and decoded spans show that the answer and turn end are supervised, while prompt, image and empty-thinking tokens are not. Only the frozen vision tower runs under `no_grad`. The frozen decoder passes gradients to the projector. Keep experiment checkpoints separate from init.
+
+To resume, add `--load /workspace/outputs/step04/final/miles-checkpoints`, raise `--num-rollout` (528 adds one pass over the 64 samples) and use a new save directory. Miles restores optimizer, RNG and data-source state. The criterion is every example, not the average. Keep failed measurements.
 
 Finally run the CPU regressions and assemble every required component:
 
@@ -114,4 +131,4 @@ gpu python -m k2hv.step04_report --root outputs/step04/final \
   --report outputs/step04/final/report.json
 ```
 
-Provenance records a source census. Assembly verifies the model/processor/training compute sources and each stage's actual runner; an edit to an unused evidence CLI does not change a completed computation. Pinned external source audits remain mandatory. The aggregate runner rejects missing/unrun components, failed checks and stale executed source hashes, and returns nonzero until all required gates pass. Component success is not whole-step completion. Large tensor traces, image payloads, checkpoints and logs stay in ignored `outputs/`; commit the sanitized report and compact evidence only.
+Provenance records a source census. Assembly checks the hashes of the model, processor and training compute sources and of each stage's runner, so editing an evidence CLI that no stage ran leaves finished computations valid. Pinned external source audits stay mandatory. The runner exits nonzero on missing or unrun components, failed checks or stale source hashes. Keep large tensor traces, image payloads, checkpoints and logs in the ignored `outputs/`, and commit only the sanitized report and compact evidence.

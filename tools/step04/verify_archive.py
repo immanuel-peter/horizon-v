@@ -1,4 +1,5 @@
 """Verify generated checkpoint assets against the separately downloaded archive manifest."""
+
 import argparse
 import hashlib
 import json

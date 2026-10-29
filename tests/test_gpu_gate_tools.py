@@ -23,8 +23,7 @@ def test_archive_rejects_missing_coverage(tmp_path, archive_verifier):
 
 
 def test_archive_verifies_only_generated_assets_and_rejects_corruption(tmp_path, archive_verifier):
-    files = {"build_info.json": b"{}", "tokenizer.json": b"{}", "model.safetensors": b"weights",
-             "model.safetensors.index.json": json.dumps({"weight_map": {"tensor": "model.safetensors"}}).encode()}
+    files = {"build_info.json": b"{}", "tokenizer.json": b"{}", "model.safetensors": b"weights", "model.safetensors.index.json": json.dumps({"weight_map": {"tensor": "model.safetensors"}}).encode()}
     lines = []
     for name, content in files.items():
         (tmp_path / name).write_bytes(content)

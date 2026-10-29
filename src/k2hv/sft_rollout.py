@@ -1,4 +1,7 @@
-"""Single-turn image SFT preparation for Miles, with answer-only supervision."""
+import hashlib
+import os
+
+import torch
 
 PROCESSOR = None
 
@@ -17,7 +20,7 @@ def prepare_sample(processor, sample):
     ids = output["input_ids"][0].tolist()
     tokenizer = processor.tokenizer
     closing = tokenizer.encode("</ifm|think>", add_special_tokens=False)
-    ends = [i + len(closing) for i in range(len(ids) - len(closing) + 1) if ids[i:i + len(closing)] == closing]
+    ends = [i + len(closing) for i in range(len(ids) - len(closing) + 1) if ids[i : i + len(closing)] == closing]
     if len(ends) != 1:
         raise ValueError("Expected exactly one closing think marker")
     start = ends[0]
@@ -39,15 +42,15 @@ def generate_rollout(args, rollout_id, data_buffer, evaluation=False):
     global PROCESSOR
     if PROCESSOR is None:
         from miles.utils.processing_utils import load_processor
+
         PROCESSOR = load_processor(args.hf_checkpoint, trust_remote_code=True)
     samples = data_buffer.get_samples(args.rollout_batch_size)
     for (sample,) in samples:
         prepare_sample(PROCESSOR, sample)
-        import os
+
         if os.environ.get("K2HV_MILES_GATE"):
-            import hashlib
             from pathlib import Path
-            import torch
+
             root = Path(os.environ["K2HV_MILES_GATE"]) / "fixture"
             root.mkdir(parents=True, exist_ok=True)
             pixels = sample.multimodal_train_inputs["pixel_values"]

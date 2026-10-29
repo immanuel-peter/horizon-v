@@ -1,4 +1,5 @@
 """HF reference component of step 04; assemble all components with k2hv.step04_report."""
+
 from __future__ import annotations
 
 import argparse
@@ -12,6 +13,19 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
+import torch
+from PIL import Image
+from torch.nn.attention import SDPBackend, sdpa_kernel
+from transformers import (
+    AutoModelForCausalLM,
+    AutoModelForImageTextToText,
+    AutoProcessor,
+)
+from transformers.models.glm5_next.modeling_glm5_next import Glm5NextVisionModel
+
+from .gpu_numerics import enable
+
 GATES = ("cuda", "load_hf", "text_hf", "vision_hf", "packing_controlled")
 
 
@@ -20,7 +34,7 @@ def command(*args):
 
 
 def compare(a, b, *, atol=0, rtol=0):
-    import torch
+
     a, b = a.detach().float().cpu(), b.detach().float().cpu()
     delta = (a - b).abs()
     metrics = {"shape": list(a.shape), "max_abs": delta.max().item(), "mean_abs": delta.mean().item(), "atol": atol, "rtol": rtol}
@@ -30,16 +44,25 @@ def compare(a, b, *, atol=0, rtol=0):
 
 
 def run(args):
-    import torch
-    from transformers import AutoModelForCausalLM, AutoModelForImageTextToText, AutoProcessor
-    from .gpu_numerics import enable
+
     enable()
     torch.manual_seed(args.seed)
-    report = {"schema": 2, "component": "HF reference and controlled isolation; full completion requires k2hv.step04_report", "command": sys.argv, "seed": args.seed, "starting_sha": args.starting_sha,
-              "head_sha": command("git", "rev-parse", "HEAD"),
-              "code_sha256": {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for root in ("src", "hf/K2-Horizon-V-init", "tools/step04") for p in Path(root).rglob("*.py") if "__pycache__" not in p.parts}, "python": platform.python_version(),
-              "packages": {p: importlib.metadata.version(p) for p in ("torch", "transformers", "pillow", "safetensors")},
-              "cuda": torch.version.cuda, "hf_backend": "sdpa", "results": []}
+    report = {
+        "schema": 2,
+        "component": "HF reference and controlled isolation; full completion requires k2hv.step04_report",
+        "command": sys.argv,
+        "seed": args.seed,
+        "starting_sha": args.starting_sha,
+        "head_sha": command("git", "rev-parse", "HEAD"),
+        "code_sha256": {
+            str(p): hashlib.sha256(p.read_bytes()).hexdigest() for root in ("src", "hf/K2-Horizon-V-init", "tools/step04") for p in Path(root).rglob("*.py") if "__pycache__" not in p.parts
+        },
+        "python": platform.python_version(),
+        "packages": {p: importlib.metadata.version(p) for p in ("torch", "transformers", "pillow", "safetensors")},
+        "cuda": torch.version.cuda,
+        "hf_backend": "sdpa",
+        "results": [],
+    }
     selected = set(args.only or GATES)
     model = processor = None
     cuda_ok = False
@@ -80,14 +103,12 @@ def run(args):
         return {"prompts": results}
 
     def vision():
-        from PIL import Image
-        from transformers.models.glm5_next.modeling_glm5_next import Glm5NextVisionModel
+
         reference = Glm5NextVisionModel.from_pretrained(args.glm, local_files_only=True, dtype=torch.bfloat16, attn_implementation="sdpa").cuda().eval()
         captured = []
         handle = reference.post_layernorm.register_forward_hook(lambda m, i, o: captured.append(o.detach()))
         results = []
         for size in ((448, 448), (560, 112), (112, 560), (1, 1), (1400, 1200)):
-            import numpy as np
             rng = np.random.default_rng(args.seed)
             image = Image.fromarray(rng.integers(0, 256, (size[1], size[0], 3), dtype=np.uint8))
             inputs = processor.image_processor([image], return_tensors="pt")
@@ -102,7 +123,7 @@ def run(args):
 
     def packing():
         from .gate_training import packing as check
-        from torch.nn.attention import sdpa_kernel, SDPBackend
+
         with sdpa_kernel(SDPBackend.MATH):
             return check(model, processor)
 

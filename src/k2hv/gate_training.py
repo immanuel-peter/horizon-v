@@ -1,13 +1,16 @@
-"""Bounded projector gates using the pinned Miles actor's model-input method."""
+import hashlib
+import json
 from types import SimpleNamespace
 
 import torch
+from PIL import Image, ImageDraw
+from transformers import AutoModelForImageTextToText, AutoProcessor
 
 from .sft_rollout import prepare_sample
 
 
 def fixtures(processor):
-    from PIL import Image, ImageDraw
+
     samples = []
     colors = (("red", (220, 30, 30)), ("green", (30, 190, 30)), ("blue", (30, 30, 220)), ("yellow", (220, 220, 30)))
     for color, rgb in colors:
@@ -26,7 +29,10 @@ def fixtures(processor):
                     draw.rectangle((x + 16, y, x + 28, y + 44), fill=rgb)
                     draw.rectangle((x, y + 16, x + 44, y + 28), fill=rgb)
                 answer = f"{color} {shape}"
-                sample = SimpleNamespace(prompt=[{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": "Name the color and shape."}]}, {"role": "assistant", "content": answer, "think": ""}], multimodal_inputs={"images": [image]})
+                sample = SimpleNamespace(
+                    prompt=[{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": "Name the color and shape."}]}, {"role": "assistant", "content": answer, "think": ""}],
+                    multimodal_inputs={"images": [image]},
+                )
                 samples.append(prepare_sample(processor, sample))
     return samples
 
@@ -34,20 +40,24 @@ def fixtures(processor):
 def model_inputs(model, samples):
     from miles.backends.fsdp_utils.actor import FSDPTrainRayActor
     from miles.backends.fsdp_utils.adaptations.specs import resolve_arch_adapter
+
     lengths = [len(s.tokens) for s in samples]
     bounds = [0]
     for n in lengths:
         bounds.append(bounds[-1] + n)
-    batch = {"tokens": torch.tensor([[t for s in samples for t in s.tokens]], device="cuda"),
-             "position_ids": torch.tensor([[i for n in lengths for i in range(n)]], device="cuda"),
-             "cu_seqlens": torch.tensor(bounds, device="cuda", dtype=torch.int32),
-             "cu_seqlens_host": tuple(bounds), "max_seqlen": max(lengths),
-             "multimodal_train_inputs": {k: torch.cat([s.multimodal_train_inputs[k] for s in samples]).cuda() for k in ("pixel_values", "image_grid_thw")}}
+    batch = {
+        "tokens": torch.tensor([[t for s in samples for t in s.tokens]], device="cuda"),
+        "position_ids": torch.tensor([[i for n in lengths for i in range(n)]], device="cuda"),
+        "cu_seqlens": torch.tensor(bounds, device="cuda", dtype=torch.int32),
+        "cu_seqlens_host": tuple(bounds),
+        "max_seqlen": max(lengths),
+        "multimodal_train_inputs": {k: torch.cat([s.multimodal_train_inputs[k] for s in samples]).cuda() for k in ("pixel_values", "image_grid_thw")},
+    }
     actor = SimpleNamespace(arch_adapter=resolve_arch_adapter(model.config))
     inputs = FSDPTrainRayActor._get_model_inputs_args(actor, batch)
     labels = torch.full_like(batch["tokens"], -100)
     for s, end in zip(samples, bounds[1:]):
-        labels[0, end - s.response_length:end] = torch.tensor(s.tokens[-s.response_length:], device="cuda")
+        labels[0, end - s.response_length : end] = torch.tensor(s.tokens[-s.response_length :], device="cuda")
     return inputs, labels
 
 
@@ -59,6 +69,7 @@ def loss(model, samples):
 
 def packing(model, processor):
     from .gpu_gates import compare
+
     samples = fixtures(processor)
     pair = [samples[0], samples[-1]]
     model.zero_grad(set_to_none=True)
@@ -83,8 +94,14 @@ def packing(model, processor):
     model.zero_grad(set_to_none=True)
     value, count = loss(model, pair)
     (value / count).backward()
-    metrics = {"separate_loss": separate, "packed_loss": (value / count).item(), "supervised_tokens": total, "comparison": "two packed image documents versus individual documents padded to the same tensor shape and offsets; other document tokens replaced by zero",
-               "gradient_tolerance": {"atol": 0.005, "rtol": 0.03}, "loss_atol": 0.02}
+    metrics = {
+        "separate_loss": separate,
+        "packed_loss": (value / count).item(),
+        "supervised_tokens": total,
+        "comparison": "two packed image documents versus individual documents padded to the same tensor shape and offsets; other document tokens replaced by zero",
+        "gradient_tolerance": {"atol": 0.005, "rtol": 0.03},
+        "loss_atol": 0.02,
+    }
     assert abs(metrics["packed_loss"] - separate) <= 0.02, metrics
     metrics["gradients"] = {n: compare(p.grad, gradients[n], atol=0.005, rtol=0.03) for n, p in model.projector.named_parameters()}
     assert all(p.grad is None for n, p in model.named_parameters() if not n.startswith("projector."))
@@ -92,13 +109,13 @@ def packing(model, processor):
 
 
 def frozen_hashes(model):
-    import hashlib
+
     return {n: hashlib.sha256(p.detach().contiguous().view(torch.uint8).cpu().numpy().tobytes()).hexdigest() for n, p in model.named_parameters() if not n.startswith("projector.")}
 
 
 def overfit(model, processor, *, steps=256, lr=0.001, seed=0):
     samples = fixtures(processor)
-    print("Masked span:", processor.tokenizer.decode(samples[0].tokens[-samples[0].response_length:], skip_special_tokens=False), flush=True)
+    print("Masked span:", processor.tokenizer.decode(samples[0].tokens[-samples[0].response_length :], skip_special_tokens=False), flush=True)
     before = frozen_hashes(model)
     projector_before = {n: p.detach().clone() for n, p in model.projector.named_parameters()}
     optimizer = torch.optim.AdamW(model.projector.parameters(), lr=lr, weight_decay=0)
@@ -131,13 +148,20 @@ def overfit(model, processor, *, steps=256, lr=0.001, seed=0):
                 predictions = model(**inputs).logits[:, :-1].argmax(-1)
                 mask = labels[:, 1:] != -100
                 per_example.append({"loss": (value / count).item(), "teacher_forced_exact": bool((predictions[mask] == labels[:, 1:][mask]).all())})
-        result = {"criterion": "every example loss < 0.05 and teacher-forced answer token agreement 100%", "steps": steps, "batch": 4, "lr": lr,
-                  "curve": curve, "per_example": per_example, "frozen_unchanged": before == frozen_hashes(model),
-                  "projector_changed": any(not torch.equal(p, projector_before[n]) for n, p in model.projector.named_parameters()),
-                  "masked_span": processor.tokenizer.decode(samples[0].tokens[-samples[0].response_length:], skip_special_tokens=False),
-                  "integration": "pinned Miles FSDP actor model-input method; not a distributed FSDP launch",
-                  "criterion_met": all(x["loss"] < 0.05 and x["teacher_forced_exact"] for x in per_example),
-                  "peak_allocated_bytes": torch.cuda.max_memory_allocated()}
+        result = {
+            "criterion": "every example loss < 0.05 and teacher-forced answer token agreement 100%",
+            "steps": steps,
+            "batch": 4,
+            "lr": lr,
+            "curve": curve,
+            "per_example": per_example,
+            "frozen_unchanged": before == frozen_hashes(model),
+            "projector_changed": any(not torch.equal(p, projector_before[n]) for n, p in model.projector.named_parameters()),
+            "masked_span": processor.tokenizer.decode(samples[0].tokens[-samples[0].response_length :], skip_special_tokens=False),
+            "integration": "pinned Miles FSDP actor model-input method; not a distributed FSDP launch",
+            "criterion_met": all(x["loss"] < 0.05 and x["teacher_forced_exact"] for x in per_example),
+            "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
+        }
         return result
     finally:
         with torch.no_grad():
@@ -148,9 +172,8 @@ def overfit(model, processor, *, steps=256, lr=0.001, seed=0):
 
 def main():
     import argparse
-    import json
     from pathlib import Path
-    from transformers import AutoModelForImageTextToText, AutoProcessor
+
     parser = argparse.ArgumentParser(description="HF diagnostic only; does not certify Miles distributed SFT")
     parser.add_argument("--checkpoint", default="hf/K2-Horizon-V-init")
     parser.add_argument("--report", type=Path, required=True)
