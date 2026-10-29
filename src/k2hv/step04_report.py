@@ -16,11 +16,16 @@ def assemble(root):
         path=root/name
         artifacts[name]={'path':str(path),'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
         return json.loads(path.read_text())
-    def identity(metadata):
+    def identity(metadata, runners=()):
         hashes=metadata.get('source_sha256',metadata.get('code_sha256',{}))
         assert hashes,'Missing executed source hashes'
-        for name,digest in hashes.items():
-            assert current['source_sha256'].get(name)==digest,f'Stale executed source: {name}'
+        compute_prefixes=('hf/K2-Horizon-V-init/',)
+        compute_names={'src/k2hv/'+name+'.py' for name in ('gpu_numerics','sft_rollout','miles_gate_adapter','packed_attention')}
+        compute_names.update('src/k2hv_sglang/'+name+'.py' for name in ('k2_horizon_v','processor','input_layout','vision_reference','text_reference','gate_trace','runtime'))
+        required={name for name in current['source_sha256'] if name.startswith(compute_prefixes)} | compute_names | set(runners)
+        for name in required:
+            assert name in hashes,f'Missing executed source hash: {name}'
+            assert current['source_sha256'][name]==hashes[name],f'Stale executed source: {name}'
     def gate(name,run):
         try:
             evidence=run()
@@ -30,7 +35,7 @@ def assemble(root):
         except Exception as error:
             results.append({'gate':name,'status':'failed','error':str(error)})
     def hf(name):
-        report=load('hf.json');identity(report)
+        report=load('hf.json');identity(report,('src/k2hv/gpu_gates.py','src/k2hv/gate_training.py'))
         row=next(r for r in report['results'] if r['gate']==name)
         assert row['status']=='passed',row
         return row
@@ -45,22 +50,24 @@ def assemble(root):
     def text():
         stages=[]
         for name in ('text-chunked.json','text-unchunked.json'):
-            report=load(name);identity(report['provenance'])
+            report=load(name);identity(report['provenance'],('src/k2hv_sglang/logprob_gate.py',))
             assert len(report['results'])==6 and all(r['status']=='passed' for r in report['results']),report['results']
             assert report['max_error_tolerance']==0.2 and report['mean_error_tolerance']==0.03
             stages.append({'path':name,'results':report['results']})
-        identity(load('text-reference.json')['provenance'])
+        identity(load('text-reference.json')['provenance'],('src/k2hv_sglang/logprob_gate.py',))
         return stages
     gate('text_sglang',text)
     def native():
-        identity(load('native/hf-provenance.json'));identity(load('native/native-provenance.json'))
+        identity(load('native/hf-provenance.json'),('src/k2hv_sglang/native_gates.py',));identity(load('native/native-provenance.json'),('src/k2hv_sglang/native_gates.py',))
         rows=load('native/native-report.json');malformed=load('native/malformed-report.json')
         assert len(rows)==12 and all(r['passed'] for r in rows)
         assert len(malformed)==3 and all(r['passed'] for r in malformed)
         return {'cases':rows,'malformed':malformed}
     gate('native_vision_preprocessing_tokens_insertion_logprobs',native)
     def simple(name):
-        report=load(name);identity(report['provenance']);assert report['passed'],report
+        report=load(name)
+        runner={'cache/report.json':'src/k2hv_sglang/cache_gate.py','packing.json':'src/k2hv/miles_packing_gate.py','overfit.json':'src/k2hv/miles_sft_evaluate.py'}[name]
+        identity(report['provenance'],(runner,));assert report['passed'],report
         return {k:v for k,v in report.items() if k!='provenance'}
     gate('cache_projector_update_fresh_engine',lambda:simple('cache/report.json'))
     gate('packing_unpadded_and_gradients',lambda:simple('packing.json'))

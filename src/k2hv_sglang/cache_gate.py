@@ -24,7 +24,9 @@ def request(args,case):
 
 
 def state(args):
-    return [e for e in traces(args.trace).values() if e['kind']=='weights'][-1]
+    snapshots=[(path,event) for path,event in traces(args.trace).items() if event['kind']=='weights']
+    if not snapshots:raise RuntimeError('No real worker weight snapshot was captured')
+    return max(snapshots,key=lambda pair:(pair[0].stat().st_mtime_ns,pair[0].name))[1]
 
 
 def load_projector():
