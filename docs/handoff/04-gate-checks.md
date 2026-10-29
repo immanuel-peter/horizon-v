@@ -1,10 +1,12 @@
 # Step 04 GPU handoff
 
+Re-certified PR #5 after cleanup at execution commit `19bef3f403d5a70d3a67615651b861471868bc71`. Every GPU stage and the CPU discovery test were rerun without changing hashed sources or thresholds. The report below supersedes the pre-cleanup certification.
+
 Step 04 is complete. Every required gate passed on the local SM120 GPU through the intended HF, native SGLang and real Miles FSDP paths. [The sanitized report](../evidence/step04/report.json) records results, execution commits, source hashes, thresholds and artifact hashes. [Exact rerun commands](../steps/04-gate-checks.md) are separate from the fast CPU suite.
 
 ## Checkout and runtime
 
-Resumed PR #4 on `step04-gpu-gates` at `a9d5195a14b6a52bd82e545e1078771a0712a157`, preserving the checkout and cached assets. A fresh fetch still resolved main to `2b00cf5f32e66741dbe36316c5e785e66ac99ab2`. No AGENTS.md was present. The final from-init training used model code at `4febe97f52dab29680747ec6c4811b5ce6f3bd69`; later commits add verification utilities and fix snapshot selection, without changing model computation. Per-stage execution commits and matching compute-source hashes are in the report.
+The recert checkout was clean at `19bef3f403d5a70d3a67615651b861471868bc71` on `step04-cleanup`, with PR #5 targeting `step04-gpu-gates`. Every stage records this execution commit and fresh source hashes. Earlier proof remains intact under `outputs/step04/final/`.
 
 Rechecked hardware: RTX PRO 6000 Blackwell Server Edition, SM120, 97887 MiB, driver 595.112.07; x86_64, 16 CPUs, 124 GiB RAM. This is neither Hopper nor SM100.
 
@@ -27,7 +29,7 @@ The child venv explicitly exposes the image's `/opt/sglang` packages. Bootstrap 
 | Native vision/preprocessing/insertion | All 12 expanded/raw cases passed; pixels, grids, tower outputs, projected features and decoder embeddings exact; counts, original text IDs, hash offsets and full insertion coverage checked; three malformed cases rejected with HTTP 400 |
 | Packing | Actual Miles get_batch → FSDP2 → actor inputs → SFT loss, packed length 128 versus unpadded length-39 samples: loss error 1.58946e-7; all six projector gradients exact. Controlled same-shape isolation is separately reported |
 | Cache/update | Real pause/begin/tensor-update/end/continue worker session, KV flush, repeated/multiple images and identical pixels with different grids passed. Frozen digest unchanged; feature change 0.2509766; fresh-engine features/logprobs exact; init weights/features reloaded |
-| Real Miles overfit | Fresh 512-update run from init: batch loss 4.66667 → 7.94729e-8; every example <0.05, worst 1.58946e-7; teacher forcing 64/64 and free generation 64/64 |
+| Real Miles overfit | Fresh 512-update run from init: batch loss 4.66667 → 5.96046e-08; every example <0.05, worst 1.98682e-07; teacher forcing 64/64 and free generation 64/64 |
 | Training invariants | Six projector tensors trainable; all 512 gradient norms finite/nonzero; 2,048 image-feature backward checks passed; all 666 frozen FP32 checkpoint tensors exactly equal promoted init values before downcast |
 | CPU regression | 163 passed, separate from GPU certification |
 
@@ -59,8 +61,10 @@ Clone radixark/miles and sgl-project/sglang under the ignored `third_party/` at 
 
 The archive revision is still `fc1f1c887facf728e2e02a13f9bf9a920af44552`. After the experiments, all seven downloaded assets matched the separate archive manifest. The tracked HF code, configs and original random projector stay attached, and the combined 23-file local manifest was regenerated. Independent sources stay pinned to IFM/K2-Horizon-7B `4622f94a6632384784471fd674d5b78f8d527798` and immanuelpeter/GLM-5.3-Flash-Vision `44a87fd4e6e31f5722a375238b7aedce3e0ad2db`.
 
-`report.json` summarizes the machine-only artifacts under `outputs/step04/final/` (file count, total bytes and a digest of the sorted path and SHA256 list). The final model file is `outputs/step04/final/miles-checkpoints/iter_0000512/model/__0_0.distcp` (37,748,956,064 bytes, SHA256 `bf58f6a3962a59e9e5b08671e3b86ccc0104f4adbfce7b7817dd688f6b0caf2f`). Full raw reports and reference payloads stay in the same directory.
+`report.json` summarizes the machine-only artifacts under `outputs/step04/recert/` (file count, total bytes and a digest of the sorted path and SHA256 list). The final model file is `outputs/step04/recert/miles-checkpoints/iter_0000512/model/__0_0.distcp` (37,748,956,064 bytes, SHA256 `fc6d1d83981271941ad0de637a9a88b5cc23fec5c373e76067ff5b11e80cab54`). Full raw reports and reference payloads stay in the same directory.
 
 Additional machine-only assets: init weight assets under `hf/`, source checkpoints under `models/`, both venvs, exact source checkouts, Docker image/container and Rust cache; earlier diagnostic logs and integration/warmup/resume checkpoints under `outputs/step04/miles-sft/{checkpoints,final-checkpoints,resumed-checkpoints,pre-final}`; older cache experiments under `outputs/step04/cache-debug2/`. These historical checkpoints are retained, not substituted for the final proof. Experimental projectors are separate; no model was uploaded. Repository visibility was unchanged (GitHub already reported PUBLIC; the HF archive remains private). Full SFT, RL and bulk preparation were not run.
 
 The task servers and container are stopped, and the container is kept. The Brev instance is still running.
+
+Recertification: max logprob error `3.456108970567584e-06`, packed loss error `1.5894571969710114e-07`, worst overfit loss `1.986821113556895e-07`; teacher forcing and free generation both 64/64; 666 frozen FP32 masters exact. The final checkpoint SHA256 above is from this recert run.
