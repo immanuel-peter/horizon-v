@@ -1,3 +1,10 @@
+Jinja2==3.1.6
+Markdown==3.11.2
+MarkupSafe==3.0.4
+PyJWT==2.15.1
+PyYAML==6.0.3
+Pygments==2.21.0
+Werkzeug==3.1.9
 absl-py==2.5.1
 accelerate==1.15.0
 aiohappyeyeballs==2.7.1
@@ -33,13 +40,10 @@ httpx2==2.16.0
 httpx==0.28.1
 huggingface_hub==2.3.0
 idna==3.20
-Jinja2==3.1.6
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
 kubernetes_asyncio==36.1.0
 markdown-it-py==4.2.0
-Markdown==3.11.2
-MarkupSafe==3.0.4
 mcp-types==2.3.0
 mcp==2.3.0
 mdurl==0.1.2
@@ -79,14 +83,11 @@ pyasn1_modules==0.4.2
 pycparser==3.12
 pydantic==2.14.1
 pydantic_core==2.50.1
-Pygments==2.21.0
-PyJWT==2.15.1
 pylatexenc==2.11
 python-dateutil==3.0.0
 python-discovery==1.6.7
 python-dotenv==1.2.4
 python-multipart==0.0.32
-PyYAML==6.0.3
 qwen-vl-utils==0.0.14
 ray==2.58.0
 referencing==0.37.0
@@ -108,6 +109,7 @@ sympy==1.14.0
 tensorboard-data-server==0.7.2
 tensorboard==2.21.0
 tqdm==4.70.1
+transformers==5.19.0
 truststore==0.10.5
 typer==0.27.3
 typing-inspection==0.4.4
@@ -118,7 +120,6 @@ uvicorn==0.54.0
 vcs-versioning==2.6.0
 virtualenv==21.15.1
 wandb==0.31.0
-Werkzeug==3.1.9
 wheel==0.48.0
 wrapt==2.5.1
 xxhash==3.7.1
