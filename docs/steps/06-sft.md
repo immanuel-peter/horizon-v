@@ -1,97 +1,57 @@
 # Step 6: Stage 1, projector SFT
 
-Train only the projector on short-answer image data, in upstream Miles with the FSDP backend and no rollout engines.
+Train only the projector on short-answer image data with upstream Miles, FSDP and no rollout engines. [Step 4](04-gate-checks.md) validated this path on the 64-example fixture on one SM120 GPU (real Miles FSDP packing, FP32 projector masters, 512-update overfit). It did not run bulk data, multiple GPUs or any other GPU/attention backend. Everything under "Full run" below is proposed and unmeasured.
 
-## Custom SFT rollout
+## What exists
 
-Miles's stock `miles/rollout/sft_rollout.py` is text-only. It tokenizes with `tokenizer.apply_chat_template`, which leaves one pad token per image, and it never sets `sample.multimodal_train_inputs`. Run as-is, SFT would train the projector on text with no images. Replace it:
+| Piece | Behavior |
+|---|---|
+| `src/k2hv/sft_rollout.py` | Processes images and validates one user/assistant pair with explicit `think: ""`. Sets tokens, the answer mask and `multimodal_train_inputs` (`pixel_values`, `image_grid_thw`). |
+| `src/k2hv/miles_gate_adapter.py` | `K2HorizonVAdapter` freezes everything except the projector, installs packed attention, keeps projector masters in FP32 and sets its FSDP2 precision. |
+| `src/k2hv/packed_attention.py` | Document-sized SDPA calls inside one packed row, with packed linear layers. |
+| `tools/step04/miles_sft.sh` | The launch that passed the gate. |
 
-```python
-# k2hv/sft_rollout.py
-from miles.utils.processing_utils import load_processor
+The loss covers only the answer and `<|ifm|im_end|>`, excluding prompt, image and empty-thinking tokens. Only the vision tower runs under `no_grad`; the frozen language model passes gradients back to the projector.
 
-PROCESSOR = None
-THINK_CLOSE_ID = None
+Do not pass `--apply-chat-template`. Miles would turn `sample.prompt` into a generation-prompt string and lose the assistant turn. With `--multimodal-keys` and no template flag, Miles keeps the message list and fills `sample.multimodal_inputs["images"]`. The row format is in [step 5](05-data.md).
 
+### Template compatibility
 
-def generate_rollout(args, rollout_id, data_buffer, evaluation=False):
-    global PROCESSOR, THINK_CLOSE_ID
-    if PROCESSOR is None:
-        PROCESSOR = load_processor(args.hf_checkpoint, trust_remote_code=True)
-        THINK_CLOSE_ID = PROCESSOR.tokenizer.convert_tokens_to_ids("</ifm|think>")
+IFM's SFT rollout (`miles/rollout/sft_rollout.py` in [RL360](https://github.com/ifm-ai/RL360/blob/3e13010e0e47b7d08f19dfb6bdd3ac6d21dc200e/components/miles/miles/rollout/sft_rollout.py)) builds a text loss mask and never produces `multimodal_train_inputs`, so it cannot replace ours. The [process_entry training template](https://github.com/ifm-ai/process_entry/blob/a4745b10f5ce71e15d46021301e1ee717dc09bdc/tokenizer/chat_template.jinja) differs in reasoning newlines and drops non-string content such as images. Keep `hf/K2-Horizon-V-init/chat_template.jinja`.
 
-    samples = data_buffer.get_samples(args.rollout_batch_size)
-    for (s,) in samples:
-        text = PROCESSOR.apply_chat_template(s.prompt, tokenize=False)
-        out = PROCESSOR(text=text, images=s.multimodal_inputs["images"], return_tensors="pt")
-        ids = out["input_ids"][0].tolist()
-        start = len(ids) - ids[::-1].index(THINK_CLOSE_ID)
-        s.tokens = ids
-        s.response_length = len(ids) - start
-        s.loss_mask = [1] * s.response_length
-        s.multimodal_train_inputs = {
-            "pixel_values": out["pixel_values"],
-            "image_grid_thw": out["image_grid_thw"],
-        }
-        s.reward = 0
-    return samples
-```
+The rollout is single-turn with empty thinking. Before extending it to multi-turn, nonempty reasoning, other efforts or several images, add tests for rendered bytes, token IDs and supervised spans on each case.
 
-Single-turn only. Multi-turn data would need one masked span per assistant turn.
+## Full run
 
-### Loss mask: answer only
+Create a bulk launcher from `tools/step04/miles_sft.sh` in the step 4 container/environment. Preserve the registration variables, `UV_NO_SYNC=1`, `--attn-implementation sdpa --true-on-policy-mode --gradient-checkpointing` and the SFT loss/rollout flags. Replace the fixture input, run length and save path with the step 5 dataset and a separate output directory.
 
-The loss covers the answer and `<|ifm|im_end|>`, the tokens after `</ifm|think>`. If the empty think block `<ifm|think>\n</ifm|think>` were in the loss, the projector would learn image embeddings that make K2 close its thinking immediately. That works directly against [stage 2](08-rl.md), where K2 must reason about images.
+Remove its `K2HV_MILES_GATE` export before using new data: it enables capture hooks and writes sample tensors into the step 4 evidence directory. The script's one actor GPU, 4-sample batch and constant 1e-3 LR are the tested gate settings; the full-run settings below need measurement.
 
-### No `--apply-chat-template`
+Proposed settings to sweep, none yet measured on bulk data:
 
-With that flag, Miles turns `sample.prompt` into a generation-prompt string (`miles/utils/data.py:228`) and the assistant turn is lost. With `--multimodal-keys` set and no `--apply-chat-template`, Miles keeps the message list and fills `sample.multimodal_inputs` with `{"images": [...]}`.
-
-## Launch
-
-Adapted from `examples/geo3k_vlm/run_geo3k_vlm_sft.sh`. Run on a GPU node with the project venv active ([step 0](00-environment.md)):
-
-```bash
-python third_party/miles/train_async.py \
-  --train-backend fsdp --gradient-checkpointing --attn-implementation flash_attention_2 \
-  --actor-num-nodes 1 --actor-num-gpus-per-node 8 \
-  --hf-checkpoint /models/K2-Horizon-V-init --load /models/K2-Horizon-V-init \
-  --rollout-function-path k2hv.sft_rollout.generate_rollout \
-  --prompt-data /data/sft.parquet --input-key messages --multimodal-keys '{"image": "images"}' \
-  --rollout-shuffle --num-epoch 1 --rollout-batch-size 256 --global-batch-size 256 \
-  --loss-type sft_loss --calculate-per-token-loss \
-  --disable-compute-advantages-and-returns --debug-train-only \
-  --optimizer adam --lr 1e-3 --min-lr 1e-5 --lr-decay-style cosine \
-  --lr-warmup-fraction 0.03 --weight-decay 0 \
-  --save /ckpt/sft --save-interval 500
-```
-
-- Use whichever attention implementation K2's remote code supports.
-- `--debug-train-only` starts no SGLang engines.
-- `--loss-mask-type` does not matter here: the custom rollout builds the mask.
-
-## Hyperparameters
-
-| Setting | Value | Note |
+| Setting | Starting value | Note |
 |---|---|---|
-| LR | 1e-3, cosine to 1e-5 | LLaVA's projector-pretraining LR. Sweep {2e-4, 1e-3} on a 50k-sample slice first. |
-| Warmup | 3% | |
-| Batch | 256 | |
-| Weight decay | 0 | |
+| LR | 1e-3, cosine to 1e-5 | LLaVA's projector-pretraining value. Sweep {2e-4, 1e-3} on the 50k subset from [step 5](05-data.md). The gate used a constant 1e-3. |
+| Warmup | 3% | Not in `miles_sft.sh`; add the Miles LR flags. |
+| Batch | 256 | Gate used 4. Memory at this size is unmeasured. |
+| Weight decay | 0 | Matches the gate. |
 | Epochs | 1 | |
 
-## Hardware and cost
+Measure before committing compute. The gate peaked at 44.4 GB for SFT, 75.5 GB for the full packing check, on 97.9 GB. Time a few hundred steps to get tokens per second, peak memory and the cost of a 256-sample batch, then size the run. Multi-GPU FSDP, other GPUs and `flash_attention_2` are untested here (flash-attn 2/3 are absent from the step 4 image).
 
-- One 8×H100 node is more than enough. The frozen weights take a few GB per GPU when sharded; the optimizer state covers only ~33.6M params.
-- About 0.4B tokens through an 8B model at roughly three forward-pass equivalents per step (forward, backward without weight gradients, checkpoint recompute): about 2e19 FLOPs, or roughly 15 H100-hours at 40% MFU.
+## Check the result
 
-## Export to HF format
+- `python -m k2hv.verify_frozen_master --checkpoint <iter dir> --report <path>` compares every frozen FP32 checkpoint tensor with the promoted init value.
+- Track the training loss from the Miles log and a held-out loss on the validation split from [step 5](05-data.md). `miles_training_report` and `miles_sft_evaluate` depend on the gate's captured fixture, so they are regression checks on the 64 examples, not bulk-run metrics.
+- Confirm the trainable set stays the six projector tensors.
 
-```bash
-python third_party/miles/tools/convert_fsdp_to_hf.py \
-  --input-dir /ckpt/sft/<iter> \
-  --output-dir /models/K2-Horizon-V-sft \
-  --origin-hf-dir /models/K2-Horizon-V-init
-```
+## Export
 
-`--origin-hf-dir` copies every non-weight file from the init repo: code, tokenizer, template and processor configs. The SFT checkpoint gets the same layout as the init checkpoint.
+Miles writes a distributed FP32 checkpoint. The verified readers are `verify_frozen_master` and `miles_sft_evaluate`, which also writes `*.projector.safetensors` with the six projector tensors. A full FSDP-to-HF converter is not validated here, and Miles's `tools/convert_fsdp_to_hf.py` has not been run against this model.
+
+Only the projector changes, so the proposed export is the init HF repo with the projector tensors replaced. Verify it before step 7:
+
+1. Keep every non-weight file (code, tokenizer, template, processor) identical to init, and regenerate the manifest with `python -m k2hv.checkpoint_io manifest <dir>`.
+2. Reload through HF and serve it with `tools/step04/serve.sh --model-path <dir>`, then compare projected features and logprobs with the Miles checkpoint, as the cache gate's fresh-engine stage does.
+
+Keep experiment checkpoints separate from the init directory.
