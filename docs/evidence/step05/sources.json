@@ -1,0 +1,607 @@
+{
+ "datasets": {
+  "chartverse_rl": {
+   "bytes": 15051253636,
+   "files": 1,
+   "repo": "opendatalab/ChartVerse-RL-40K",
+   "revision": "0b28d2620cfb6329f845e76bc83991f1c35bdec3",
+   "schema": {
+    "ability": "string",
+    "category": "string",
+    "data_source": "string",
+    "images": "list<element: struct<bytes: binary, path: string>>",
+    "prompt": "list<element: struct<content: string, role: string>>",
+    "reward_model": "struct<ground_truth: string, style: string>",
+    "source": "string"
+   },
+   "schema_file": "ChartVerse-RL-40K.parquet"
+  },
+  "chartverse_sft": {
+   "bytes": 259098930432,
+   "files": 64,
+   "repo": "opendatalab/ChartVerse-SFT-600K",
+   "revision": "07b1576394fa58f43e19987842d1d2c7fd1f1a92",
+   "schema": {
+    "answer": "string",
+    "code": "string",
+    "code_solution": "string",
+    "cot_solution": "string",
+    "id": "string",
+    "images": "list<element: struct<bytes: binary, path: string>>",
+    "question": "string"
+   },
+   "schema_file": "train-00000-of-00064.parquet"
+  },
+  "cosyn": {
+   "bytes": 67844049622,
+   "files": 151,
+   "repo": "allenai/CoSyn-400K",
+   "revision": "86e46e1fd5e754d056169f0fb38f06c6997ff7de",
+   "schema": {
+    "code": "string",
+    "data": "string",
+    "id": "string",
+    "image": "struct<bytes: binary, path: string>",
+    "metadata": "struct<figure_type: string, persona: string, topic: string>",
+    "qa_pairs": "struct<question: list<element: string>, explanation: list<element: string>, answer: list<element: string>>"
+   },
+   "schema_file": "chart/train-00000-of-00051.parquet"
+  },
+  "docmatix": {
+   "bytes": 981843505379,
+   "files": 2027,
+   "repo": "HuggingFaceM4/Docmatix",
+   "revision": "0725b65616e0e5f6024be10e38ddf8d8c48664fd",
+   "schema": {
+    "images": "list<element: struct<bytes: binary, path: string>>",
+    "texts": "list<element: struct<user: string, assistant: string, source: string>>"
+   },
+   "schema_file": "data/train-00000-of-01106-8ce5201aa40b0141.parquet"
+  },
+  "finevision": {
+   "bytes": 4645230556607,
+   "files": 9499,
+   "repo": "HuggingFaceM4/FineVision",
+   "revision": "3c380a731a3429c1d04693d6ec16d7e683def84c",
+   "schema": {
+    "formatting_min": "int64",
+    "formatting_ratings": "list<element: int64>",
+    "image_correspondence_min": "int64",
+    "image_correspondence_ratings": "list<element: int64>",
+    "images": "list<element: struct<bytes: binary, path: string>>",
+    "relevance_min": "int64",
+    "relevance_ratings": "list<element: int64>",
+    "source": "string",
+    "texts": "list<element: struct<user: string, assistant: string>>",
+    "visual_dependency_min": "int64",
+    "visual_dependency_ratings": "list<element: int64>"
+   },
+   "schema_file": "CoSyn_400k_chart/train-00000-of-00052.parquet"
+  },
+  "finevision/ai2d_merged": {
+   "bytes": 860582630,
+   "files": 2,
+   "rows": 4858
+  },
+  "finevision/chartqa": {
+   "bytes": 803910718,
+   "files": 2,
+   "rows": 18265
+  },
+  "finevision/clevr": {
+   "bytes": 10465001066,
+   "files": 22,
+   "rows": 70000
+  },
+  "finevision/docvqa": {
+   "bytes": 12007345171,
+   "files": 25,
+   "rows": 10189
+  },
+  "finevision/dvqa": {
+   "bytes": 4302544626,
+   "files": 10,
+   "rows": 200000
+  },
+  "finevision/iconqa": {
+   "bytes": 326819099,
+   "files": 1,
+   "rows": 27307
+  },
+  "finevision/infographic_vqa": {
+   "bytes": 4465512444,
+   "files": 9,
+   "rows": 4394
+  },
+  "finevision/ocrvqa": {
+   "bytes": 6057032047,
+   "files": 13,
+   "rows": 165746
+  },
+  "finevision/plotqa": {
+   "bytes": 5345605223,
+   "files": 18,
+   "rows": 157070
+  },
+  "finevision/st_vqa": {
+   "bytes": 876025784,
+   "files": 2,
+   "rows": 17247
+  },
+  "finevision/tallyqa": {
+   "bytes": 4663708984,
+   "files": 10,
+   "rows": 98680
+  },
+  "finevision/textvqa": {
+   "bytes": 2140127123,
+   "files": 5,
+   "rows": 21943
+  },
+  "finevision/visual7w": {
+   "bytes": 4443416633,
+   "files": 9,
+   "rows": 14366
+  },
+  "finevision/vqav2": {
+   "bytes": 4262624701,
+   "files": 9,
+   "rows": 82772
+  },
+  "finevision/vsr": {
+   "bytes": 107612332,
+   "files": 1,
+   "rows": 2157
+  },
+  "geometry3k": {
+   "bytes": 59259794,
+   "files": 3,
+   "repo": "hiyouga/geometry3k",
+   "revision": "fd21e533e1e50d0662a2bf7b223e60511bd5f8b7",
+   "schema": {
+    "answer": "string",
+    "images": "list<element: struct<bytes: binary, path: string>>",
+    "problem": "string"
+   },
+   "schema_file": "data/test-00000-of-00001.parquet"
+  },
+  "nemotron_coco": {
+   "bytes": 28087634555,
+   "files": 45,
+   "repo": "nvidia/Nemotron-Image-Training-v3.5",
+   "revision": "70b27e021e64bd97641597dc1f127a208b58be0e"
+  },
+  "pixmo_ama": {
+   "bytes": 63295710,
+   "files": 1,
+   "repo": "allenai/pixmo-ask-model-anything",
+   "revision": "739ffd8b417737da31e5069b9c8ff6a72a7d58b6",
+   "schema": {
+    "answer": "string",
+    "image_sha256": "string",
+    "image_url": "string",
+    "question": "string"
+   },
+   "schema_file": "data/train-00000-of-00001.parquet"
+  },
+  "pixmo_count": {
+   "bytes": 5235768,
+   "files": 3,
+   "repo": "allenai/pixmo-count",
+   "revision": "ebf51cf70e45d12374e64d475862e4f8d21d31d0",
+   "schema": {
+    "count": "int32",
+    "image_sha256": "string",
+    "image_url": "string",
+    "label": "string",
+    "points": "struct<x: list<element: float>, y: list<element: float>>"
+   },
+   "schema_file": "data/test-00000-of-00001.parquet"
+  },
+  "thinklite": {
+   "bytes": 5780797124,
+   "files": 1,
+   "repo": "russwang/ThinkLite-VL-70k",
+   "revision": "5c86ea41d624e27e53002af47b8cf4538aa2c88f",
+   "schema": {
+    "answer": "string",
+    "choices": "null",
+    "ground_truth": "string",
+    "id": "int64",
+    "image": "binary",
+    "problem": "string"
+   },
+   "schema_file": "ThinkLite-VL-70k.parquet"
+  },
+  "virl39k": {
+   "bytes": 1780932116,
+   "files": 2,
+   "repo": "TIGER-Lab/ViRL39K",
+   "revision": "812ec617dea4bc8a4e751663b88e4ebb7de4d00e",
+   "schema": {
+    "PassRate_32BTrained": "double",
+    "PassRate_7BBase": "double",
+    "answer": "string",
+    "category": "string",
+    "image": "list<element: string>",
+    "qid": "string",
+    "question": "string",
+    "source": "string"
+   },
+   "schema_file": "39Krelease.parquet"
+  },
+  "visonlyqa": {
+   "bytes": 14964065248,
+   "files": 50,
+   "repo": "ryokamoi/VisOnlyQA_Train",
+   "revision": "10d60126fba59ed3731e4de20290be169b8b8a8a",
+   "schema": {
+    "answer": "string",
+    "decoded_image": "struct<bytes: binary, path: string>",
+    "id": "string",
+    "image_category": "string",
+    "image_path": "string",
+    "prompt_no_reasoning": "string",
+    "prompt_reasoning": "null",
+    "question": "null",
+    "question_type": "string",
+    "response_options": "list<element: string>",
+    "source": "string",
+    "task_category": "string"
+   },
+   "schema_file": "data/3d__angle-00000-of-00009.parquet"
+  },
+  "vwi_verified": {
+   "bytes": 8499531596,
+   "files": 95,
+   "repo": "TIGER-Lab/VisualWebInstruct-verified",
+   "revision": "0e54d1161f62daabb2a13346949b02bb8df5b836",
+   "schema": {
+    "answer": "string",
+    "difficulty": "int64",
+    "idx": "string",
+    "images": "list<element: struct<bytes: binary, path: string>>",
+    "question": "string",
+    "short_answer": "string"
+   },
+   "schema_file": "batch_0001_of_0022/train-00000-of-00004.parquet"
+  }
+ },
+ "evaluation_sets": {
+  "chartqa_test": {
+   "bytes": 72610993,
+   "repo": "lmms-lab/ChartQA",
+   "revision": "9e63b7df1592a1c2158e735cc1725454aef0d6d9"
+  },
+  "docvqa_val": {
+   "bytes": 12100684024,
+   "repo": "lmms-lab/DocVQA",
+   "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e"
+  },
+  "mathvista_testmini": {
+   "bytes": 885819490,
+   "repo": "AI4Math/MathVista",
+   "revision": "2b6ad69445fbb5695c9b165475e8decdbeb97747"
+  },
+  "mmbench_dev": {
+   "bytes": 527204937,
+   "repo": "lmms-lab/MMBench",
+   "revision": "56ba1af8954932c4804bd3f522e05ed96e63b654"
+  },
+  "mmmu_val": {
+   "bytes": 3377778136,
+   "repo": "lmms-lab/MMMU",
+   "revision": "364f2e2eb107b36e07ff4c5a15f5947a759cef47"
+  },
+  "pope_test": {
+   "bytes": 510045828,
+   "repo": "lmms-lab/POPE",
+   "revision": "4db1276663dfa5eb8ad16a52d24c31a09e470896"
+  },
+  "textvqa_val": {
+   "bytes": 8097805782,
+   "repo": "lmms-lab/textvqa",
+   "revision": "9c0699cd19768ac5ab97568f6b3cbac4c0062884"
+  }
+ },
+ "not_built_alternatives": {
+  "HuggingFaceM4/the_cauldron@847a98a779b1652d65111daf20c972dfcd333605": "vqav2 82,772 rows and chartqa 18,265 rows, identical counts and text formatting to FineVision's copies; 168.9 GB",
+  "liuhaotian/LLaVA-Instruct-150K@9d451dc7629cfe0469f6ae4432b765cd603d5fcb": "1.62 GB of JSON conversations referencing unbundled COCO/GQA/OCR-VQA/TextVQA/VG images",
+  "nvidia/Nemotron-Image-Training-v3.5 (other subsets)": "reasoning traces, a benchmark-derived subset, arXiv-source rendering, detection/grounding/video/multi-image: see docs/steps/05-data.md"
+ },
+ "note": "Pinned listings, schemas and row counts from `python -m k2hv.data inventory`; decisions are in configs/data/step05.toml and docs/steps/05-data.md.",
+ "preserved_splits": {
+  "cosyn_chart": [
+   "chart/validation-00000-of-00001.parquet"
+  ],
+  "cosyn_diagram": [
+   "diagram/validation-00000-of-00001.parquet"
+  ],
+  "cosyn_document": [
+   "document/validation-00000-of-00001.parquet"
+  ],
+  "cosyn_table": [
+   "table/validation-00000-of-00001.parquet"
+  ],
+  "pixmo_count": [
+   "data/test-00000-of-00001.parquet",
+   "data/validation-00000-of-00001.parquet"
+  ],
+  "rl_geometry3k": [
+   "data/test-00000-of-00001.parquet",
+   "data/validation-00000-of-00001.parquet"
+  ]
+ },
+ "sources": {
+  "chartverse_sft": {
+   "adapter": "chartverse_sft",
+   "config": null,
+   "kind": "sft",
+   "status": "exclude",
+   "task": "chart_synthetic",
+   "terms": "apache-2.0",
+   "terms_note": "ChartVerse-SFT-600K Apache-2.0 (Hub metadata)"
+  },
+  "cosyn_chart": {
+   "adapter": "cosyn",
+   "config": "chart",
+   "kind": "sft",
+   "status": "include",
+   "task": "chart_synthetic",
+   "terms": "odc-by",
+   "terms_note": "CoSyn-400K ODC-BY (Hub metadata)"
+  },
+  "cosyn_diagram": {
+   "adapter": "cosyn",
+   "config": "diagram",
+   "kind": "sft",
+   "status": "include",
+   "task": "diagram_synthetic",
+   "terms": "odc-by",
+   "terms_note": "CoSyn-400K ODC-BY (Hub metadata)"
+  },
+  "cosyn_document": {
+   "adapter": "cosyn",
+   "config": "document",
+   "kind": "sft",
+   "status": "include",
+   "task": "document_synthetic",
+   "terms": "odc-by",
+   "terms_note": "CoSyn-400K ODC-BY (Hub metadata)"
+  },
+  "cosyn_table": {
+   "adapter": "cosyn",
+   "config": "table",
+   "kind": "sft",
+   "status": "include",
+   "task": "table_synthetic",
+   "terms": "odc-by",
+   "terms_note": "CoSyn-400K ODC-BY (Hub metadata)"
+  },
+  "docmatix": {
+   "adapter": "docmatix",
+   "config": null,
+   "kind": "sft",
+   "status": "exclude",
+   "task": "document",
+   "terms": "mit",
+   "terms_note": "Docmatix MIT (Hub metadata); PDFA pages"
+  },
+  "fv_ai2d": {
+   "adapter": "finevision",
+   "config": "ai2d_merged",
+   "kind": "sft",
+   "status": "include",
+   "task": "diagram_choice",
+   "terms": "unverified",
+   "terms_note": "AI2D: no license located; release review required"
+  },
+  "fv_chartqa": {
+   "adapter": "finevision",
+   "config": "chartqa",
+   "kind": "sft",
+   "status": "addon",
+   "task": "chart",
+   "terms": "gpl-3.0",
+   "terms_note": "ChartQA GPL-3.0 (HuggingFaceM4/ChartQA Hub metadata)"
+  },
+  "fv_clevr": {
+   "adapter": "finevision",
+   "config": "clevr",
+   "kind": "sft",
+   "status": "include",
+   "task": "counting_synthetic",
+   "terms": "cc-by-4.0",
+   "terms_note": "CLEVR CC BY 4.0"
+  },
+  "fv_docvqa": {
+   "adapter": "finevision",
+   "config": "docvqa",
+   "kind": "sft",
+   "status": "include",
+   "task": "document",
+   "terms": "unverified",
+   "terms_note": "DocVQA: research-use dataset, no license located; release review required"
+  },
+  "fv_dvqa": {
+   "adapter": "finevision",
+   "config": "dvqa",
+   "kind": "sft",
+   "status": "addon",
+   "task": "chart_synthetic",
+   "terms": "cc-by-nc-4.0",
+   "terms_note": "DVQA CC BY-NC 4.0 per Bee table; another paper states CC BY 4.0; release review required"
+  },
+  "fv_iconqa": {
+   "adapter": "finevision",
+   "config": "iconqa",
+   "kind": "sft",
+   "status": "addon",
+   "task": "diagram_math_choice",
+   "terms": "cc-by-nc-sa-4.0",
+   "terms_note": "IconQA CC BY-NC-SA 4.0 per Bee table"
+  },
+  "fv_infographic_vqa": {
+   "adapter": "finevision",
+   "config": "infographic_vqa",
+   "kind": "sft",
+   "status": "include",
+   "task": "infographic",
+   "terms": "unverified",
+   "terms_note": "InfographicVQA: no license located; release review required"
+  },
+  "fv_ocrvqa": {
+   "adapter": "finevision",
+   "config": "ocrvqa",
+   "kind": "sft",
+   "status": "exclude",
+   "task": "ocr_book_cover",
+   "terms": "unverified",
+   "terms_note": "OCR-VQA: no license located; Amazon cover images; release review required"
+  },
+  "fv_plotqa": {
+   "adapter": "finevision",
+   "config": "plotqa",
+   "kind": "sft",
+   "status": "include",
+   "task": "chart",
+   "terms": "mit",
+   "terms_note": "PlotQA MIT per Bee license table (secondary)"
+  },
+  "fv_st_vqa": {
+   "adapter": "finevision",
+   "config": "st_vqa",
+   "kind": "sft",
+   "status": "include",
+   "task": "scene_text",
+   "terms": "unverified",
+   "terms_note": "ST-VQA: no license located; release review required"
+  },
+  "fv_tallyqa": {
+   "adapter": "finevision",
+   "config": "tallyqa",
+   "kind": "sft",
+   "status": "include",
+   "task": "counting",
+   "terms": "apache-2.0",
+   "terms_note": "Apache-2.0 per CVPRW 2025 supplemental (secondary); COCO and Visual Genome images"
+  },
+  "fv_textvqa": {
+   "adapter": "finevision",
+   "config": "textvqa",
+   "kind": "sft",
+   "status": "include",
+   "task": "scene_text",
+   "terms": "cc-by-4.0",
+   "terms_note": "TextVQA CC BY 4.0 (facebook/textvqa Hub metadata); Open Images"
+  },
+  "fv_visual7w": {
+   "adapter": "finevision",
+   "config": "visual7w",
+   "kind": "sft",
+   "status": "include",
+   "task": "general_vqa_choice",
+   "terms": "mit",
+   "terms_note": "MIT per Bee license table (secondary); COCO images"
+  },
+  "fv_vqav2": {
+   "adapter": "finevision",
+   "config": "vqav2",
+   "kind": "sft",
+   "status": "include",
+   "task": "general_vqa",
+   "terms": "cc-by-4.0",
+   "terms_note": "VQAv2 annotations CC BY 4.0; COCO train2014 images under Flickr terms"
+  },
+  "fv_vsr": {
+   "adapter": "finevision",
+   "config": "vsr",
+   "kind": "sft",
+   "status": "include",
+   "task": "spatial",
+   "terms": "cc-by-4.0",
+   "terms_note": "CC BY 4.0 per Bee license table (secondary); COCO 2017 images"
+  },
+  "nemotron_coco_count_spatial": {
+   "adapter": "nemotron_coco",
+   "config": null,
+   "kind": "sft",
+   "status": "include",
+   "task": "counting_spatial_choice",
+   "terms": "openmdw-1.1",
+   "terms_note": "Annotations OpenMDW-1.1; COCO train2017 images (CC BY 4.0 annotations, Flickr images)"
+  },
+  "pixmo_ama": {
+   "adapter": "pixmo_ama",
+   "config": null,
+   "kind": "sft",
+   "status": "exclude",
+   "task": "general_human",
+   "terms": "odc-by",
+   "terms_note": "PixMo-AskModelAnything ODC-BY (Hub metadata); images fetched from source URLs under site terms"
+  },
+  "pixmo_count": {
+   "adapter": "pixmo_count",
+   "config": null,
+   "kind": "sft",
+   "status": "pending",
+   "task": "counting",
+   "terms": "odc-by",
+   "terms_note": "PixMo-Count ODC-BY (Hub metadata); images fetched from source URLs under site terms"
+  },
+  "rl_chartverse": {
+   "adapter": "chartverse_rl",
+   "config": null,
+   "kind": "rl",
+   "status": "include",
+   "task": "chart_reasoning",
+   "terms": "apache-2.0",
+   "terms_note": "ChartVerse-RL-40K Apache-2.0 (Hub metadata)"
+  },
+  "rl_geometry3k": {
+   "adapter": "geometry3k",
+   "config": null,
+   "kind": "rl",
+   "status": "include",
+   "task": "geometry",
+   "terms": "mit",
+   "terms_note": "Geometry3K MIT (Hub metadata, Bee table)"
+  },
+  "rl_thinklite": {
+   "adapter": "thinklite",
+   "config": null,
+   "kind": "rl",
+   "status": "include",
+   "task": "math_science_reasoning",
+   "terms": "mit",
+   "terms_note": "ThinkLite-VL-70k MIT (Hub metadata); no per-row upstream source"
+  },
+  "rl_virl39k": {
+   "adapter": "virl39k",
+   "config": null,
+   "kind": "rl",
+   "status": "include",
+   "task": "math_science_reasoning",
+   "terms": "mit",
+   "terms_note": "ViRL39K MIT (Hub metadata); components retain upstream terms"
+  },
+  "rl_vwi_verified": {
+   "adapter": "vwi_verified",
+   "config": null,
+   "kind": "rl",
+   "status": "include",
+   "task": "web_stem_reasoning",
+   "terms": "mit",
+   "terms_note": "VisualWebInstruct-verified MIT (Hub metadata); web-crawled images"
+  },
+  "visonlyqa": {
+   "adapter": "visonlyqa",
+   "config": null,
+   "kind": "sft",
+   "status": "addon",
+   "task": "geometry_perception_choice",
+   "terms": "gpl-3.0",
+   "terms_note": "VisOnlyQA_Train GPL-3.0 (Hub metadata and LICENSE.md); bases CLEVR/SuperCLEVR BSD, synthetic geometry"
+  }
+ }
+}

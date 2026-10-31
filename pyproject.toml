@@ -16,6 +16,13 @@ dependencies = [
 dev = [
     "pytest",
 ]
+data = [
+    "pyarrow",
+    "qwen-vl-utils==0.0.14",
+]
+
+[tool.uv]
+default-groups = ["dev", "data"]
 
 [build-system]
 requires = ["hatchling"]
