@@ -12,5 +12,10 @@
  },
  "result": "identical selection, split membership and export bytes; resumed verify passed (1,579 rows, 1,283 images)",
  "unit_test": "tests/test_data_pipeline.py::test_scan_is_atomic_and_resume_reproduces_outputs injects a failure mid-shard and checks no partial output, byte-identical resumed output and reuse of completed shards",
- "note": "the killed worker left one never-renamed temporary file under images/; temporary files are not read as assets"
+ "note": "the killed worker left one never-renamed temporary file under images/; temporary files are not read as assets",
+ "exports_SHA256SUMS_sha256_after_index_schema_change": {
+  "clean": "1185e88739fb9271945ee287012aa3a453ff41267d298adb76721b4c22f7a031",
+  "resumed": "1185e88739fb9271945ee287012aa3a453ff41267d298adb76721b4c22f7a031",
+  "note": "both roots re-exported after the export index switched to one shared schema; only index/ files changed"
+ }
 }

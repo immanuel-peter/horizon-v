@@ -493,13 +493,14 @@ def export(ctx):
 
     edir = ctx.root / "exports" / ctx.profile_name
     files = {}
+    index_cols = ["record_id", "source", "task", "terms", "dataset", "revision", "file", "row", "turn", "upstream_id", "orig_split", "answer_orig", "answer_type", "selector", "image_sha256", "image_path", "width", "height", "group_id", "split", "rank", "total_tokens", "image_tokens", "supervised_tokens", "prompt_tokens", "bos_tokens", "portable_hash", "provenance"]
+    index_schema = pa.Table.from_pylist([{k: r[k] for k in index_cols} for r in final]).schema  # one schema for SFT and RL buckets so index/ reads as one dataset
     for name, rows in sorted(groups.items()):
         if not rows:
             continue
         rows = sorted(rows, key=lambda r: r["rank"])
         portable = pa.Table.from_pylist([miles_row(r, None) for r in rows])
-        index_cols = ["record_id", "source", "task", "terms", "dataset", "revision", "file", "row", "turn", "upstream_id", "orig_split", "answer_orig", "answer_type", "selector", "image_sha256", "image_path", "width", "height", "group_id", "split", "rank", "total_tokens", "image_tokens", "supervised_tokens", "prompt_tokens", "bos_tokens", "portable_hash", "provenance"]
-        index = pa.Table.from_pylist([{k: r[k] for k in index_cols} for r in rows])
+        index = pa.Table.from_pylist([{k: r[k] for k in index_cols} for r in rows], schema=index_schema)
         for part, start in enumerate(range(0, len(rows), 100_000)):
             path = edir / "portable" / name / f"part-{part:05d}.parquet"
             write_table(path, portable.slice(start, 100_000))
@@ -528,6 +529,12 @@ def export(ctx):
     return manifest
 
 
+def _split_role(name):
+    """(sft|rl, split) of an export bucket ``variant/kind/split``; groups may repeat across variants of one role, never across roles."""
+    _, kind, split = name.split("/")
+    return ("rl" if kind.startswith("rl") else "sft", split)
+
+
 def quality_report(ctx, sel, val, final, groups):
     scan_markers = [json.loads(p.read_text()) for p in sorted((ctx.work / "scan").glob("*/*.done.json")) if p.parent.name in ctx.sources]
     scanned = defaultdict(lambda: {"rows": 0, "turns": 0, "accepted": 0, "capped_turns": 0, "rejected": Counter()})
@@ -553,7 +560,7 @@ def quality_report(ctx, sel, val, final, groups):
             "image_sides": _percentiles([max(r["width"], r["height"]) for r in rows]),
         }
     exports = {name: {"rows": len(rows), "unique_images": len({r["image_sha256"] for r in rows}), "unique_qa": len({(r["group_id"], overlap.core_question(r["question"]), text.key(r["answer"])) for r in rows}), "by_task": dict(Counter(r["task"] for r in rows))} for name, rows in groups.items()}
-    leak = {}
+    leak, same_split = {}, {}
     split_groups = defaultdict(set)
     for name, rows in groups.items():
         if "sweep" in name:
@@ -565,13 +572,13 @@ def quality_report(ctx, sel, val, final, groups):
         for b in range(a + 1, len(names)):
             shared = split_groups[names[a]] & split_groups[names[b]]
             if shared:
-                leak[f"{names[a]} & {names[b]}"] = len(shared)
+                (same_split if _split_role(names[a]) == _split_role(names[b]) else leak)[f"{names[a]} & {names[b]}"] = len(shared)
     sweep = groups.get("default/sft/sweep50k") or groups.get("default/sft/sweep") or []
     train_ids = {r["record_id"] for r in groups.get("default/sft/train", [])}
     evals = {json.loads(p.read_text())["eval"]: {k: v for k, v in json.loads(p.read_text()).items() if k not in ("fingerprint",)} for p in sorted((ctx.root / "work" / "evals").glob("*.done.json"))}
     return {
         "profile": ctx.profile_name, "per_source": per_source, "exports": exports,
-        "split_group_leakage": leak, "sweep_subset_of_train": all(r["record_id"] in train_ids for r in sweep),
+        "split_group_leakage": leak, "shared_groups_same_split": same_split, "sweep_subset_of_train": all(r["record_id"] in train_ids for r in sweep),
         "selection": select_stats, "evaluation_sets": evals, "preserved_splits": build.preserved_splits(ctx),
         "bos_tokens": dict(Counter(str(r["bos_tokens"]) for r in final if r["kind"] == "sft")),
     }
@@ -727,7 +734,7 @@ def exclusion_sheets(ctx, per_category=12, out=None):
                 path = images.find_asset(root, sha)
                 if path:
                     sheet.paste(images.fit(images.to_rgb(Image.open(path)), 256), (col * 260, 290 * k))
-            draw.text((2, 290 * k + 258), f"d={r.get('distance')} sim={r.get('similarity')} {r['question'][:60]}", fill="black")
+            draw.text((2, 290 * k + 258), f"{r['method']} d={r.get('distance')} edge={r.get('edge')} block={r.get('max_block')} {r['question'][:50]}", fill="black")
         name = f"{src}__{ev}__{method}__{status}.png"
         sheet.save(out / name)
         written.append({"category": [src, ev, method, status], "count": len(items), "unique_images": len(seen), "sheet": name})
@@ -775,7 +782,7 @@ def evidence(ctx, out):
         "evaluation_sets": {k: {kk: vv for kk, vv in v.items() if kk not in ("sha256",)} for k, v in quality["evaluation_sets"].items()},
         "preserved_splits": quality["preserved_splits"],
         "validation": {"rows": validated.num_rows, "failures": dict(Counter(r for r in validated.column("reason").to_pylist() if r)), "bos_tokens": quality["bos_tokens"]},
-        "split_group_leakage": quality["split_group_leakage"], "sweep_subset_of_train": quality["sweep_subset_of_train"],
+        "split_group_leakage": quality["split_group_leakage"], "shared_groups_same_split": quality.get("shared_groups_same_split", {}), "sweep_subset_of_train": quality["sweep_subset_of_train"],
         "verify": {k: verify_report[k] for k in ("files_checked", "bad_files", "rows", "row_mismatches", "images_checked", "bad_image_count", "passed")},
     }
     out = Path(out)

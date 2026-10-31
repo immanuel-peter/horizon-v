@@ -191,7 +191,77 @@ Pinned Miles `Dataset.__init__` calls `process_vision_info` for every row at loa
 
 ## Build results
 
-Filled in from `exports/<profile>/reports/` after the run.
+Full build on 2026-10-31 (n2d-standard-16, 16 vCPU, 62 GiB), profile `full`, recipe sha256 `c91f84fe…a807`, seed 20261031. Wall time: scan 62 min, evals 7 min, select 88 min, validate 126 min, export 1 min, materialize 11 s, verify 11 min. Compact summaries: [`full.json`](../evidence/step05/full.json), [`pilot.json`](../evidence/step05/pilot.json); every number below comes from them.
+
+### Funnel
+
+| Stage | Records |
+|---|---|
+| Candidates after text and image rules (scan) | 2,624,494 over 820,020 unique images, 683,947 image groups |
+| Excluded for evaluation overlap | 8,938 |
+| Exact QA duplicates (same group, question and answer) | 44,198 (35,341 TallyQA questions already present as VQAv2 rows on the same COCO image) |
+| SFT records reserved for RL (image group shared with an RL row) | 13,527 (6,977 groups) |
+| Selected with 1.15× oversampling, all validated | 1,174,681; **0 contract failures** |
+| Exported after final quotas | 1,102,190 rows, 709,353 images (99.28 GB) |
+
+### Exports
+
+| Bucket | Rows | Unique images | Tokens p50 / p99 / max | Supervised p50 / p99 / max |
+|---|---|---|---|---|
+| `default/sft/train` | 839,928 | 483,567 | 469 / 1,064 / 1,134 total | 2 / 14 / 101 |
+| `default/sft/validation` | 8,605 | 4,954 | 486 / 1,064 / 1,100 total | 2 / 15 / 60 |
+| `default/sft/sweep50k` (subset of train) | 50,000 | 48,340 | 487 / 1,064 / 1,102 total | 2 / 14 / 44 |
+| `addon/sft/train` | 111,245 | 101,969 | 295 / 1,131 / 1,142 total | 2 / 5 / 27 |
+| `addon/sft/validation` | 1,104 | 1,022 | 295 / 1,131 / 1,140 total | 2 / 5 / 9 |
+| `default/rl/pool` | 119,413 | 97,537 | 200 / 1,142 / 1,445 prompt | |
+| `default/rl/heldout` | 6,409 | 5,307 | 199 / 1,145 / 1,390 prompt | |
+| `default/rl_pending_numeric/pool` | 14,706 | 14,498 | 1,090 / 1,122 / 1,190 prompt | |
+| `default/rl_pending_numeric/heldout` | 780 | 777 | 1,090 / 1,120 / 1,139 prompt | |
+
+SFT totals: 848,533 default rows and 960,882 with the add-on. Image tokens never exceed 1,024, total SFT tokens never exceed 1,142 and supervised tokens never exceed 101, all well inside the 2,048/128 limits; the limits were not changed. Every SFT row carries two BOS tokens ([above](#step-6-finding-double-bos-in-the-sft-path)). RL selectors: `math_dapo` 98,420 and `stem__supergpqa` 27,402 rows in `rl/`; 15,486 long-decimal rows (15,105 from ChartVerse-RL) wait in `rl_pending_numeric/` for a tolerance selector.
+
+Sources below quota exported every eligible row: AI2D 4,057 of 15,000, VSR 3,065 of 10,000, InfographicVQA 21,306 of 30,000, DocVQA 29,086 of 40,000, TextVQA 34,551 of 40,000, ST-VQA 22,970 of 25,000, Nemotron COCO 14,447 of 15,000, CoSyn chart 119,051 of 120,000; add-on ChartQA 26,081 of 40,000 and IconQA 16,268 of 20,000; RL ThinkLite 41,107 of 70,000, VisualWebInstruct 34,821 of 100,000, ViRL39K 29,793 of 40,000, ChartVerse-RL 34,077 of 40,000, Geometry3K 1,510 of 3,000. Per-source rejection reasons (answer length, multi-line or explanatory answers, free-form or yes/no RL references, scorer admission) are in `per_source.*.scan.rejected` of `full.json`.
+
+### Evaluation exclusion
+
+8,938 records: MMBench dev 3,901, MathVista testmini 2,983, ChartQA test 1,259, POPE 393, DocVQA val 371, TextVQA val 29, MMMU val 2. By method: identical pixels 426, stage-2 confirmed 2,748, stage-2 uncertain 4,078, question text 1,686 (a further 15,412 template-question matches are listed and kept). The largest groups are ThinkLite against MMBench (957 confirmed copies, 1,832 uncertain US-map and chart templates), add-on ChartQA train against ChartQA test (9 identical, 29 confirmed, 1,078 uncertain same-template Statista charts), DVQA questions matching MathVista text (1,063), VQAv2/TallyQA/Visual7W COCO images inside MMBench and POPE, Nemotron COCO images identical to POPE (73) and Geometry3K images identical to MathVista (66). Uncertain matches are excluded, which costs some template look-alikes in exchange for no known leakage. Pair sheets for all 64 categories are written by `inspect` to `outputs/step05/full/exclusions/`.
+
+### Checks
+
+| Check | Scope | Result |
+|---|---|---|
+| Miles normalization, `prepare_sample` and processor contract | every selected row (1,174,681) | 0 failures |
+| Image decode and sha256 | every exported image (709,353), every exported file (29) | 0 bad |
+| Miles rows hash to validated portable rows | every exported row incl. sweep (1,152,190) | 0 mismatches |
+| Image group shared across splits or between SFT and RL | all buckets | none; groups repeat only between variants of one split (add-on/default SFT train 3,529, validation 36; RL/pending pool 265, heldout 13) |
+| Sweep is a subset of train | 50,000 rows | true |
+| Visual review of model inputs, supervision and exclusion pairs | sampled: 56 pilot cards plus 6 at native resolution, 20 pilot RL cards, 25 pilot exclusion categories, 51 full-build cards | [findings](../evidence/step05/manual-audit.json) |
+
+The sampled review found no label errors in the inspected cards. It did find limits worth knowing: Nemotron COCO spatial labels follow box geometry and are ambiguous for held or overlapping objects, and `math_dapo` compares normalized strings, so `5/7`, `\dfrac{5}{7}` and `5√3` score wrong against `\frac{5}{7}` and `5\sqrt{3}` targets (spaces do not matter). Step 8 should word the RL prompt or the selector accordingly.
+
+### Reproducibility
+
+The pilot was rebuilt in a fresh root, killed with SIGKILL after 15 of 58 scan shards and again during validation, and resumed. All 58 shard outputs, `selected.parquet` and the export SHA256SUMS were byte-identical to the clean pilot, and stayed identical after the final export change ([evidence](../evidence/step05/reproducibility.json)). A unit test injects a mid-shard failure and checks atomicity and byte-identical resume.
+
+### Artifacts
+
+| Path (under `data/step05/`) | Size | sha256 |
+|---|---|---|
+| `exports/full/SHA256SUMS` (per-file sha256 of every Parquet file) | 29 files, 617 MB | `6d78bf8bd6a5b1a720ac9b552c5931094d1e7ea663f09ff829c0c2903531fd73` |
+| `exports/full/manifest.json` (recipe, pins, runtime, counts, files) | 17 KB | `9af418ba41c05c9014be419b74edd8ff360a204bb03521dc83c75523eb63f4e8` |
+| `exports/full/images.parquet` (sha256, path, bytes, size of every image) | 54 MB | `cf6a031d4ce56b7d704a84f743834ead721e9dc787d1e6748d3cd0b8d592db53` |
+| `images/` | 99.28 GB referenced (104 GB stored including unselected candidates) | per image, by name |
+| `exports/pilot/SHA256SUMS` | 1.3 MB export | `1185e88739fb9271945ee287012aa3a453ff41267d298adb76721b4c22f7a031` |
+
+These artifacts exist only on the CPU instance; nothing was uploaded. The same holds for `hf/` (116 GB verified source downloads), `evals/` (2.3 GB), `work/` (1.4 GB resumable state), `data/step05-resume/` (12 GB, the reproducibility root), `outputs/step05/` (build logs, inspection and exclusion sheets) and the `third_party/` checkouts. To use the data elsewhere, copy `images/` and `exports/full/` and run `materialize` and `verify` as [above](#outputs-and-rematerialization). To rebuild from nothing, follow [Setup](#setup) and run `build --profile full` (about 5 hours and 225 GB on this machine type). The rebuild reproduces these bytes as long as the pinned Hub revisions and the COCO train2017 zip (ETag-pinned) stay available.
+
+### Known limitations
+
+- Cropped copies of evaluation images are not detected; re-encoded, resized and recolored copies are.
+- ChartVerse-RL and Nemotron COCO are single-file sources, so their scan runs on one worker and dominates scan time.
+- A worker killed during the reproducibility test left one temporary file in `data/step05-resume/images/`; temporary files are never read as assets.
+- PixMo-Count stays pending: none of 923 checked URLs matched the published image hashes.
+- Terms are unlisted for ST-VQA, DocVQA, InfographicVQA and AI2D (default build, flagged). ChartQA and VisOnlyQA (GPL-3.0), IconQA and DVQA (non-commercial) are confined to `addon/`. Using either set is a licensing decision for the project owner.
 
 ## RL prompt selection after SFT
 
