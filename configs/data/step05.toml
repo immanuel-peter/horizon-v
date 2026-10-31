@@ -1,0 +1,483 @@
+# Step 5 data recipe. Every source, revision, rule, limit, quota and split parameter used by
+# `python -m k2hv.data` lives here; the recipe hash is recorded in every build manifest.
+# status: include (default export), addon (built and validated, exported separately pending a
+# terms decision), pending (pilot-audited, not built), exclude (audited, not built).
+
+[recipe]
+name = "k2hv-step05"
+version = 1
+seed = 20261031
+processor = "hf/K2-Horizon-V-init"
+
+[limits]
+max_supervised_tokens = 128   # answer + <|ifm|im_end|>
+max_total_tokens = 2048       # fully expanded sequence, image pads included
+max_image_tokens = 1024       # processor default cap; asserted, never truncated
+rl_max_prompt_tokens = 1536   # rendered generation prompt incl. image, leaves room to answer
+
+[rules]
+max_question_chars = 1200
+max_answer_words = 24
+max_answer_sentences = 2
+single_line_answer = true
+
+[split]
+sft_validation_fraction = 0.01
+rl_heldout_fraction = 0.05
+sweep_size = 50000
+oversample = 1.15
+
+[overlap]
+# Stage 1 (all pairs): 64-bit pHash Hamming distance and 32x32 thumbnail correlation.
+eval_phash_distance = 10
+group_phash_distance = 3
+prefilter_similarity = 0.6
+# Stage 2 (decoded pairs, aligned 256-px renders): see overlap.aligned_metrics. Calibrated on the
+# pilot's inspected pairs: templated charts/maps/forms reach edge 0.95 with max_block >= 0.2;
+# recolored or re-encoded copies reach edge >= 0.98 or max_block <= 0.05.
+max_aspect_diff = 0.03
+confirm_edge = 0.98
+confirm_edge_local = 0.93
+confirm_max_block = 0.10
+uncertain_edge = 0.85          # uncertain matches are excluded and listed for inspection
+eval_question_min_chars = 40   # identical question text (after removing format lines) to an eval item is listed
+eval_question_specific_chars = 120   # ...and excluded as uncertain when this long,
+eval_question_image_similarity = 0.5 # or when the two images are at least loosely similar (32x32 correlation)
+
+[workers]
+scan = 14
+validate = 15
+url_threads = 12
+
+[terms]
+# Classes recorded on every row. "review" components are exported only in the add-on.
+permissive = ["cc-by-4.0", "mit", "apache-2.0", "odc-by", "openmdw-1.1"]
+review = ["gpl-3.0", "cc-by-nc-sa-4.0", "cc-by-nc-4.0"]
+
+# ---------------------------------------------------------------- SFT sources
+[sources.fv_vqav2]
+kind = "sft"
+adapter = "finevision"
+config = "vqav2"
+task = "general_vqa"
+terms = "cc-by-4.0"
+terms_note = "VQAv2 annotations CC BY 4.0; COCO train2014 images under Flickr terms"
+status = "include"
+quota = 200000
+max_qa_per_image = 3
+
+[sources.fv_visual7w]
+kind = "sft"
+adapter = "finevision"
+config = "visual7w"
+task = "general_vqa_choice"
+terms = "mit"
+terms_note = "MIT per Bee license table (secondary); COCO images"
+status = "include"
+quota = 40000
+max_qa_per_image = 3
+
+[sources.fv_vsr]
+kind = "sft"
+adapter = "finevision"
+config = "vsr"
+task = "spatial"
+terms = "cc-by-4.0"
+terms_note = "CC BY 4.0 per Bee license table (secondary); COCO 2017 images"
+status = "include"
+quota = 10000
+max_qa_per_image = 3
+
+[sources.fv_tallyqa]
+kind = "sft"
+adapter = "finevision"
+config = "tallyqa"
+task = "counting"
+terms = "apache-2.0"
+terms_note = "Apache-2.0 per CVPRW 2025 supplemental (secondary); COCO and Visual Genome images"
+status = "include"
+quota = 120000
+max_qa_per_image = 2
+
+[sources.fv_clevr]
+kind = "sft"
+adapter = "finevision"
+config = "clevr"
+task = "counting_synthetic"
+terms = "cc-by-4.0"
+terms_note = "CLEVR CC BY 4.0"
+status = "include"
+quota = 40000
+max_qa_per_image = 1
+files = 13
+
+[sources.fv_textvqa]
+kind = "sft"
+adapter = "finevision"
+config = "textvqa"
+task = "scene_text"
+terms = "cc-by-4.0"
+terms_note = "TextVQA CC BY 4.0 (facebook/textvqa Hub metadata); Open Images"
+status = "include"
+quota = 40000
+max_qa_per_image = 3
+
+[sources.fv_st_vqa]
+kind = "sft"
+adapter = "finevision"
+config = "st_vqa"
+task = "scene_text"
+terms = "unverified"
+terms_note = "ST-VQA: no license located; release review required"
+status = "include"
+quota = 25000
+max_qa_per_image = 3
+
+# Pilot: kept questions are metadata-derived (titles include series text absent from the cover;
+# "Is this a <category> book?" comes from Amazon categories). Excluded for label quality.
+[sources.fv_ocrvqa]
+kind = "sft"
+adapter = "finevision"
+config = "ocrvqa"
+task = "ocr_book_cover"
+terms = "unverified"
+terms_note = "OCR-VQA: no license located; Amazon cover images; release review required"
+status = "exclude"
+quota = 40000
+max_qa_per_image = 1
+files = 4
+# Genre and author labels come from Amazon metadata, not the cover; pilot decides.
+question_exclude = "(?i)genre|\\bwrote\\b|\\bauthor\\b|\\btype of book\\b|\\bcomic\\b|related to|\\bbook (?:is|about)\\b"
+
+[sources.fv_docvqa]
+kind = "sft"
+adapter = "finevision"
+config = "docvqa"
+task = "document"
+terms = "unverified"
+terms_note = "DocVQA: research-use dataset, no license located; release review required"
+status = "include"
+quota = 40000
+max_qa_per_image = 4
+
+[sources.fv_infographic_vqa]
+kind = "sft"
+adapter = "finevision"
+config = "infographic_vqa"
+task = "infographic"
+terms = "unverified"
+terms_note = "InfographicVQA: no license located; release review required"
+status = "include"
+quota = 30000
+max_qa_per_image = 8
+
+[sources.fv_ai2d]
+kind = "sft"
+adapter = "finevision"
+config = "ai2d_merged"
+task = "diagram_choice"
+terms = "unverified"
+terms_note = "AI2D: no license located; release review required"
+status = "include"
+quota = 15000
+max_qa_per_image = 3
+
+[sources.fv_plotqa]
+kind = "sft"
+adapter = "finevision"
+config = "plotqa"
+task = "chart"
+terms = "mit"
+terms_note = "PlotQA MIT per Bee license table (secondary)"
+status = "include"
+quota = 40000
+max_qa_per_image = 1
+files = 6
+
+[sources.fv_dvqa]
+kind = "sft"
+adapter = "finevision"
+config = "dvqa"
+task = "chart_synthetic"
+terms = "cc-by-nc-4.0"
+terms_note = "DVQA CC BY-NC 4.0 per Bee table; another paper states CC BY 4.0; release review required"
+status = "addon"
+quota = 40000
+max_qa_per_image = 1
+files = 3
+
+[sources.fv_iconqa]
+kind = "sft"
+adapter = "finevision"
+config = "iconqa"
+task = "diagram_math_choice"
+terms = "cc-by-nc-sa-4.0"
+terms_note = "IconQA CC BY-NC-SA 4.0 per Bee table"
+status = "addon"
+quota = 20000
+max_qa_per_image = 2
+
+[sources.fv_chartqa]
+kind = "sft"
+adapter = "finevision"
+config = "chartqa"
+task = "chart"
+terms = "gpl-3.0"
+terms_note = "ChartQA GPL-3.0 (HuggingFaceM4/ChartQA Hub metadata)"
+status = "addon"
+quota = 40000
+max_qa_per_image = 4
+
+[sources.cosyn_chart]
+kind = "sft"
+adapter = "cosyn"
+config = "chart"
+task = "chart_synthetic"
+terms = "odc-by"
+terms_note = "CoSyn-400K ODC-BY (Hub metadata)"
+status = "include"
+quota = 120000
+max_qa_per_image = 2
+files = 26
+max_answer_decimals = 2
+
+[sources.cosyn_table]
+kind = "sft"
+adapter = "cosyn"
+config = "table"
+task = "table_synthetic"
+terms = "odc-by"
+terms_note = "CoSyn-400K ODC-BY (Hub metadata)"
+status = "include"
+quota = 60000
+max_qa_per_image = 2
+max_answer_decimals = 2
+
+[sources.cosyn_document]
+kind = "sft"
+adapter = "cosyn"
+config = "document"
+task = "document_synthetic"
+terms = "odc-by"
+terms_note = "CoSyn-400K ODC-BY (Hub metadata)"
+status = "include"
+quota = 80000
+max_qa_per_image = 2
+files = 26
+max_answer_decimals = 2
+
+# Pilot: answers are often vague relation words ("Affects", "All actions"); admitted at a reduced quota.
+[sources.cosyn_diagram]
+kind = "sft"
+adapter = "cosyn"
+config = "diagram"
+task = "diagram_synthetic"
+terms = "odc-by"
+terms_note = "CoSyn-400K ODC-BY (Hub metadata)"
+status = "include"
+quota = 20000
+max_qa_per_image = 2
+max_answer_decimals = 2
+
+# Pilot: 30% of answers are unrounded computations (e.g. 136.1013215859031); inspected integer answers
+# are multi-condition computations over dense charts. With empty thinking these train guessing;
+# ChartVerse-RL covers this family in RL. Excluded.
+[sources.chartverse_sft]
+kind = "sft"
+adapter = "chartverse_sft"
+task = "chart_synthetic"
+terms = "apache-2.0"
+terms_note = "ChartVerse-SFT-600K Apache-2.0 (Hub metadata)"
+status = "exclude"
+quota = 30000
+max_qa_per_image = 1
+files = 4
+max_answer_decimals = 2
+
+[sources.pixmo_count]
+kind = "sft"
+adapter = "pixmo_count"
+task = "counting"
+terms = "odc-by"
+terms_note = "PixMo-Count ODC-BY (Hub metadata); images fetched from source URLs under site terms"
+# Pilot: 0 of 923 sampled URLs returned bytes matching the supplied image_sha256 (846 mismatched,
+# 41 gone). Admission needs a decision to accept unverifiable re-encoded bytes.
+status = "pending"
+quota = 40000
+max_qa_per_image = 1
+
+# Pilot: 44 of 1,079 sampled pairs pass the short-answer rules, and those are mostly emoji games,
+# refusals and sentence answers. Excluded.
+[sources.pixmo_ama]
+kind = "sft"
+adapter = "pixmo_ama"
+task = "general_human"
+terms = "odc-by"
+terms_note = "PixMo-AskModelAnything ODC-BY (Hub metadata); images fetched from source URLs under site terms"
+status = "exclude"
+quota = 20000
+max_qa_per_image = 1
+
+# Pilot: 58% of turns are on multi-page documents; single-page answers are LLM-written sentences
+# restating the question. Excluded; DocVQA, InfographicVQA and CoSyn documents cover document reading.
+[sources.docmatix]
+kind = "sft"
+adapter = "docmatix"
+task = "document"
+terms = "mit"
+terms_note = "Docmatix MIT (Hub metadata); PDFA pages"
+status = "exclude"
+quota = 0
+pilot_files = 3
+
+[sources.visonlyqa]
+kind = "sft"
+adapter = "visonlyqa"
+task = "geometry_perception_choice"
+terms = "gpl-3.0"
+terms_note = "VisOnlyQA_Train GPL-3.0 (Hub metadata and LICENSE.md); bases CLEVR/SuperCLEVR BSD, synthetic geometry"
+status = "addon"
+quota = 30000
+max_qa_per_image = 1
+
+[sources.nemotron_coco_count_spatial]
+kind = "sft"
+adapter = "nemotron_coco"
+task = "counting_spatial_choice"
+terms = "openmdw-1.1"
+terms_note = "Annotations OpenMDW-1.1; COCO train2017 images (CC BY 4.0 annotations, Flickr images)"
+status = "include"
+quota = 15000
+max_qa_per_image = 2
+
+# ---------------------------------------------------------------- RL sources
+[sources.rl_virl39k]
+kind = "rl"
+adapter = "virl39k"
+task = "math_science_reasoning"
+terms = "mit"
+terms_note = "ViRL39K MIT (Hub metadata); components retain upstream terms"
+status = "include"
+quota = 40000
+
+[sources.rl_vwi_verified]
+kind = "rl"
+adapter = "vwi_verified"
+task = "web_stem_reasoning"
+terms = "mit"
+terms_note = "VisualWebInstruct-verified MIT (Hub metadata); web-crawled images"
+status = "include"
+quota = 100000
+
+[sources.rl_chartverse]
+kind = "rl"
+adapter = "chartverse_rl"
+task = "chart_reasoning"
+terms = "apache-2.0"
+terms_note = "ChartVerse-RL-40K Apache-2.0 (Hub metadata)"
+status = "include"
+quota = 40000
+
+[sources.rl_thinklite]
+kind = "rl"
+adapter = "thinklite"
+task = "math_science_reasoning"
+terms = "mit"
+terms_note = "ThinkLite-VL-70k MIT (Hub metadata); no per-row upstream source"
+status = "include"
+quota = 70000
+
+[sources.rl_geometry3k]
+kind = "rl"
+adapter = "geometry3k"
+task = "geometry"
+terms = "mit"
+terms_note = "Geometry3K MIT (Hub metadata, Bee table)"
+status = "include"
+quota = 3000
+
+# ---------------------------------------------------------------- datasets
+[datasets.finevision]
+repo = "HuggingFaceM4/FineVision"
+revision = "3c380a731a3429c1d04693d6ec16d7e683def84c"
+[datasets.cosyn]
+repo = "allenai/CoSyn-400K"
+revision = "86e46e1fd5e754d056169f0fb38f06c6997ff7de"
+[datasets.chartverse_sft]
+repo = "opendatalab/ChartVerse-SFT-600K"
+revision = "07b1576394fa58f43e19987842d1d2c7fd1f1a92"
+[datasets.pixmo_count]
+repo = "allenai/pixmo-count"
+revision = "ebf51cf70e45d12374e64d475862e4f8d21d31d0"
+[datasets.pixmo_ama]
+repo = "allenai/pixmo-ask-model-anything"
+revision = "739ffd8b417737da31e5069b9c8ff6a72a7d58b6"
+[datasets.docmatix]
+repo = "HuggingFaceM4/Docmatix"
+revision = "0725b65616e0e5f6024be10e38ddf8d8c48664fd"
+[datasets.visonlyqa]
+repo = "ryokamoi/VisOnlyQA_Train"
+revision = "10d60126fba59ed3731e4de20290be169b8b8a8a"
+[datasets.nemotron_coco]
+repo = "nvidia/Nemotron-Image-Training-v3.5"
+revision = "70b27e021e64bd97641597dc1f127a208b58be0e"
+media = "https://images.cocodataset.org/zips/train2017.zip"
+[datasets.virl39k]
+repo = "TIGER-Lab/ViRL39K"
+revision = "812ec617dea4bc8a4e751663b88e4ebb7de4d00e"
+[datasets.vwi_verified]
+repo = "TIGER-Lab/VisualWebInstruct-verified"
+revision = "0e54d1161f62daabb2a13346949b02bb8df5b836"
+[datasets.chartverse_rl]
+repo = "opendatalab/ChartVerse-RL-40K"
+revision = "0b28d2620cfb6329f845e76bc83991f1c35bdec3"
+[datasets.thinklite]
+repo = "russwang/ThinkLite-VL-70k"
+revision = "5c86ea41d624e27e53002af47b8cf4538aa2c88f"
+[datasets.geometry3k]
+repo = "hiyouga/geometry3k"
+revision = "fd21e533e1e50d0662a2bf7b223e60511bd5f8b7"
+
+# ---------------------------------------------------------------- evaluation exclusions (step 7)
+[evals.mmmu_val]
+repo = "lmms-lab/MMMU"
+revision = "364f2e2eb107b36e07ff4c5a15f5947a759cef47"
+files = ["data/validation-00000-of-00001.parquet"]
+[evals.mathvista_testmini]
+repo = "AI4Math/MathVista"
+revision = "2b6ad69445fbb5695c9b165475e8decdbeb97747"
+files = ["data/testmini-00000-of-00001-725687bf7a18d64b.parquet"]
+[evals.chartqa_test]
+repo = "lmms-lab/ChartQA"
+revision = "9e63b7df1592a1c2158e735cc1725454aef0d6d9"
+files = ["data/test-00000-of-00001.parquet"]
+[evals.docvqa_val]
+repo = "lmms-lab/DocVQA"
+revision = "539088ef8a8ada01ac8e2e6d4e372586748a265e"
+glob = "DocVQA/validation-*.parquet"
+[evals.textvqa_val]
+repo = "lmms-lab/textvqa"
+revision = "9c0699cd19768ac5ab97568f6b3cbac4c0062884"
+glob = "data/validation-*.parquet"
+[evals.mmbench_dev]
+repo = "lmms-lab/MMBench"
+revision = "56ba1af8954932c4804bd3f522e05ed96e63b654"
+files = ["en/dev-00000-of-00001.parquet"]
+# POPE: lmms-eval `pope` task, lmms-lab/POPE default config, test split = adversarial+popular+random,
+# 9,000 questions over 500 COCO val2014 images.
+[evals.pope_test]
+repo = "lmms-lab/POPE"
+revision = "4db1276663dfa5eb8ad16a52d24c31a09e470896"
+glob = "data/test-*.parquet"
+
+# ---------------------------------------------------------------- build profiles
+[profiles.pilot]
+# ~1,000 SFT examples across adapters, plus RL samples. Reads row groups from evenly spaced files.
+sft_quota = 45
+rl_quota = 60
+files = 2
+row_groups = 1
+statuses = ["include", "addon", "pending", "exclude"]
+
+[profiles.full]
+statuses = ["include", "addon"]

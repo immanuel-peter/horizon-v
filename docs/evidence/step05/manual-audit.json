@@ -1,0 +1,62 @@
+{
+ "kind": "sampled manual inspection (not a complete scan); the automated contract and image checks cover every exported row",
+ "inspected_by": "agent visual review of `python -m k2hv.data inspect` sheets (pilot and full): exact model-input images reconstructed from pixel_values, prompt and decoded supervised span",
+ "sft_cards": {
+  "reviewed": "56 cards on contact sheets plus 6 model inputs at native resolution (2 DocVQA, 4 Nemotron COCO)",
+  "sources": [
+   "fv_vqav2",
+   "fv_tallyqa",
+   "fv_textvqa",
+   "fv_docvqa",
+   "fv_visual7w",
+   "fv_vsr",
+   "fv_clevr",
+   "fv_ai2d",
+   "fv_ocrvqa",
+   "fv_plotqa",
+   "cosyn_chart",
+   "cosyn_table",
+   "cosyn_document",
+   "cosyn_diagram",
+   "chartverse_sft",
+   "nemotron_coco_count_spatial"
+  ],
+  "findings": [
+   "VQAv2, TallyQA, TextVQA, Visual7W, VSR, CLEVR and AI2D labels were consistent with the visible image in every inspected card (e.g. plate '0011 fcg', 'since 1879', Casio watch, horse count 7).",
+   "DocVQA pages at the 1,024-image-token cap (784x1008 model input) remain legible at native resolution: typed form fields, letterheads and personnel lists read clearly; the payee 'Washington University' is visible.",
+   "CoSyn charts/tables are legible at ~1,000 image tokens; some answers are computed (averages, percentages) rather than read off the image; diagram answers are often vague relation words.",
+   "ChartVerse-SFT questions are multi-condition computations over dense multi-panel charts at the token cap; excluded.",
+   "OCR-VQA title labels include series text not on the cover and yes/no category questions come from store metadata; excluded.",
+   "Nemotron COCO counts follow COCO instance annotations: the person count (4) and 'toilets: 0' were verifiable; a 'cows: 3' item was not visible at model resolution."
+  ]
+ },
+ "rl_cards": {
+  "reviewed": 20,
+  "findings": [
+   "ViRL39K prompts ended with a truncated 'Let's think step by step and' after the first format-stripping rule; fixed by removing the whole sentence that mentions the box, rerun before the full build.",
+   "One ViRL39K prompt has a literal '<image>/n'; normalized to a newline.",
+   "Geometry3K, ThinkLite and VisualWebInstruct references and canonical targets matched the source references (degrees and units removed: '65°' -> 65, '2 meters' -> 2)."
+  ]
+ },
+ "exclusion_pairs": {
+  "reviewed_categories": 25,
+  "findings": [
+   "Single-stage pHash+thumbnail matching flagged 233 pilot images; inspected pairs were mostly same-template charts (Statista bars/pies, TabMWP tables), US maps highlighting different states, and different pages of one UCSF document present in both DocVQA train and validation.",
+   "True duplicates: Nemotron COCO images pixel-identical to POPE images; Geometry3K and VisOnlyQA training images pixel-identical to MathVista testmini; ThinkLite images matching MathVista testmini and MMBench dev; a ThinkLite table recolored relative to an MMBench image; a VSR image in MathVista testmini.",
+   "The two-stage rule (aligned 256-px edge correlation and max 16x16-block RGB difference) was set from these pairs; it keeps every true duplicate above and rejects the templated look-alikes.",
+   "Question-text-only matches were all generic template questions on different images; they are listed and only excluded when long or when the images are loosely similar."
+  ]
+ },
+ "pixmo_count_hashes": "0 of 923 sampled URLs matched the supplied image_sha256 (raw bytes, decoded RGB, URL string and _o/_b/_k/_h/_c/_z size variants all tried on samples)",
+ "full_build": {
+  "kind": "sampled manual inspection of the full export (not a complete scan)",
+  "reviewed": "51 cards: 12 DocVQA/InfographicVQA/ST-VQA, 12 add-on (ChartQA, DVQA, IconQA, VisOnlyQA), 15 RL (3 per source), 12 AI2D/TextVQA/VSR/Nemotron",
+  "findings": [
+   "DocVQA, InfographicVQA, ST-VQA, TextVQA, AI2D, ChartQA, DVQA and IconQA labels were consistent with the visible image where checkable (bus '10 MANCHESTER', plate 'ADSENSE', 5 squares -> E, Louisiana farthest west); some infographic numbers are not legible at contact-sheet scale.",
+   "RL targets matched source references; Geometry3K/ThinkLite keep spaced LaTeX ('\\frac { 5 } { 7 }', '3 \\sqrt { 2 }'), which the pinned math_dapo accepts against compact forms ('\\frac{5}{7}', '\\frac57', '3\\sqrt2') because it strips spaces.",
+   "math_dapo is exact-string after normalization: '5/7', '\\dfrac{5}{7}' and '5√3' are scored wrong against '\\frac{5}{7}' and '5\\sqrt{3}' targets; step 8 should account for this (prompt wording or an equivalence-aware selector).",
+   "Nemotron COCO spatial labels come from box geometry and can be ambiguous for held or overlapping objects (person 'below' the raised tennis racket, skateboard 'below' a person holding it at foot height).",
+   "ChartVerse-RL prompts are dense multi-panel charts at the 1,024-image-token cap; their numeric targets were not re-derived by hand."
+  ]
+ }
+}

@@ -1,0 +1,21 @@
+{
+ "test": "pilot built in a fresh data root, SIGKILLed after 15 of 58 scan shards, resumed and SIGKILLed again during validation (chunk inputs written, no results), then resumed to completion; compared with the clean pilot build of the same recipe and code",
+ "scan_shards": 58,
+ "scan_shard_candidate_checksums_equal": 58,
+ "selected_parquet_sha256": {
+  "clean": "ce674938ee44ef1ed970d02470717cf544b4e931809272c5423e71b45c07e570",
+  "resumed": "ce674938ee44ef1ed970d02470717cf544b4e931809272c5423e71b45c07e570"
+ },
+ "exports_SHA256SUMS_sha256": {
+  "clean": "1c6c1916b320c9996e7cabb4754d5a9487c901ffe17d52aca06edabe3ddee62e",
+  "resumed": "1c6c1916b320c9996e7cabb4754d5a9487c901ffe17d52aca06edabe3ddee62e"
+ },
+ "result": "identical selection, split membership and export bytes; resumed verify passed (1,579 rows, 1,283 images)",
+ "unit_test": "tests/test_data_pipeline.py::test_scan_is_atomic_and_resume_reproduces_outputs injects a failure mid-shard and checks no partial output, byte-identical resumed output and reuse of completed shards",
+ "note": "the killed worker left one never-renamed temporary file under images/; temporary files are not read as assets",
+ "exports_SHA256SUMS_sha256_after_index_schema_change": {
+  "clean": "1185e88739fb9271945ee287012aa3a453ff41267d298adb76721b4c22f7a031",
+  "resumed": "1185e88739fb9271945ee287012aa3a453ff41267d298adb76721b4c22f7a031",
+  "note": "both roots re-exported after the export index switched to one shared schema; only index/ files changed"
+ }
+}
