@@ -29,7 +29,7 @@ Importing `miles.utils.data` or `miles.utils.processing_utils.load_processor` pu
 | `inventory` | Pin listings (sizes, LFS sha256), schemas, row counts and preserved official splits of every recipe dataset and evaluation set |
 | `scan` | Per source shard: read pinned rows, apply text rules, fetch and decode every image, store it content-addressed, compute hashes; write candidates, rejects and a done marker |
 | `evals` | Index every evaluation image and question |
-| `select` | Evaluation exclusion, near-duplicate grouping, QA deduplication, RL reservation, quotas and group-level splits |
+| `select` | Evaluation exclusion, near-duplicate grouping, QA deduplication, RL reservation, quotas and group-level splits; `--trace` also writes each candidate's decision and the edges that formed each group |
 | `validate` | Run every selected row through the pinned Miles path and the processor/supervision contract |
 | `export` | Final quotas over validated rows; portable Parquet, indices, image list, checksums, manifest and quality report |
 | `materialize` | Rewrite image paths to absolute paths under a target root |
@@ -336,7 +336,7 @@ No row failed the length limits. Every exported row passed the processor contrac
 - **RL.** 129,546 default rows (122,896 pool, 6,650 held-out), up from 20,998: ThinkLite 41,117, VisualWebInstruct-verified 39,331, ViRL39K 28,616, ChartVerse-RL 18,972, Geometry3K 1,510. Selectors: `k2hv_math_v1` 100,638, `k2hv_choice_v1` 27,401, `k2hv_decimal_v1` 1,507. By task: maths and science reasoning 69,733, web STEM 39,331, charts 18,972, geometry 1,510. ViRL39K categories in the default buckets: grade-school geometry 9,674, other grade-school maths 9,350, tables/diagrams/charts 4,700, grade-school science 3,262, spatial 1,529, broader STEM 802, social science 496, commonsense 117.
 - **Geometry3K.** 516 of v2's Geometry3K rows are now ThinkLite rows: ThinkLite contains the same problems, every one has a ThinkLite twin with the same normalized question and answer, and deduplication keeps the source listed first. Another 39 Geometry3K rows moved between pool and held-out, with unchanged content, because merging with ThinkLite's copies of their images changed their group.
 - **Pending.** The ChartVerse long-decimal rows are byte-identical to v2 (15,107). New pending rows: 1,297 `image_blank` and 379 `no_stated_precision` from the new sources. Nemotron spatial pending: 241 (one moved with an image group reserved for RL).
-- **SFT.** 807,525 rows against v2's 812,260. 8,641 v2 rows left SFT because their image groups now hold RL rows: 7,524 share their v2 group with an exported RL row; for the other 1,117, 768 of their 777 images are within phash distance 2 of a selected RL image and the remaining 9 within 4 to 6, which fits groups merged through the new images. Quota-limited sources refilled 3,906 rows (IconQA 2,090, VQAv2 1,127, TallyQA 570, CLEVR 106, VisOnlyQA 13). The 803,619 rows in both builds are identical in content and bucket. Losses by source: IconQA 5,821 (ThinkLite carries IconQA images), VQAv2 1,127, ChartQA 727, TallyQA 570, AI2D 220, CLEVR 106, Nemotron 44, VisOnlyQA 13, VSR 12, TextVQA 1.
+- **SFT.** 807,525 rows against v2's 812,260. 8,641 v2 rows left SFT, each because its v3 image group holds a selected RL row. Select reserved 8,595 of them for RL directly. The other 46 are IconQA rows that deduplication dropped first, because another IconQA row with the same question and answer sat in the same merged group, and select then reserved that row. 7,524 of the 8,641 already shared their v2 group with an exported RL row. The other 1,117 joined an RL group in v3 through the new sources' images. For 75 the row's own image carries an RL row, 999 sit one identical-pixel or verified near-duplicate edge from an RL image, and 43 sit 2 to 28 edges away. Every RL row in those groups is exported, from ThinkLite or ViRL39K. No group holds only pending RL rows. See [traced removals](#traced-sft-removals). Quota-limited sources refilled 3,906 rows (IconQA 2,090, VQAv2 1,127, TallyQA 570, CLEVR 106, VisOnlyQA 13). The 803,619 rows in both builds are identical in content and bucket. Losses by source: IconQA 5,821 (ThinkLite carries IconQA images), VQAv2 1,127, ChartQA 727, TallyQA 570, AI2D 220, CLEVR 106, Nemotron 44, VisOnlyQA 13, VSR 12, TextVQA 1.
 
 **Checks.**
 
@@ -350,9 +350,32 @@ No row failed the length limits. Every exported row passed the processor contrac
 | Group sharing across train/validation, pool/held-out or SFT/RL | all buckets | none |
 | Same-split sharing between `default` and `pending` (permitted) | | SFT train 197, validation 3; RL pool 277, held-out 13 |
 | Sweep is a subset of train | 50,000 | true |
-| Tests | 278 passed, 1 skipped | |
+| Select rerun with `--trace` reproduces the selection | `selected.parquet`, `exclusions.parquet`, `question_text_matches.parquet`, `select.json` | byte-identical |
+| Tests | 279 passed, 1 skipped | |
 
 RL difficulty calibration on the GPU still waits for the SFT checkpoint ([below](#rl-prompt-selection-after-sft)).
+
+#### Traced SFT removals
+
+The first v3 write-up explained nine removed rows only by pHash distance. Their images are 4 or 6 from the nearest selected RL image, where the others are within 2. Select did not record why two images share a group, so I added `select --trace`. `select/trace/candidates.parquet` holds the decision for every candidate, one of evaluation exclusion, a limit, duplicate with its winner, selected, RL quota, reserved for RL, per-image cap or SFT quota. `select/trace/edges.parquet` holds every identical-pixel, verified near-duplicate and group-hint edge, with stage-2 metrics. Tracing only adds these two files.
+
+I reran select alone with `--trace` in a scratch root that links to the full-v3 scan, evaluation index and image store, so nothing in `work/full-v3` changed. In 94 minutes it reproduced `selected.parquet`, `exclusions.parquet`, `question_text_matches.parquet` and `select.json` byte for byte. `tools/step05/sft_removals_trace.py` then follows the shortest edge chain from each removed row's image to an image with a selected RL row. The summary and the nine rows are in [`sft-removals-v3.json`](../evidence/step05/sft-removals-v3.json). Detail for all 8,641 rows is machine-local in `outputs/step05/full-v3-sft-removals.parquet`.
+
+All nine are FineVision IconQA rows `fv_iconqa:iconqa/train-00000-of-00001.parquet:<row>:0` at revision `3c380a73…`, in v2's `default/sft/train`. Each reaches an exported RL row in its v3 group through confirmed near-duplicate edges. Every edge in these chains is at pHash distance 0 or 2 and passed stage-2 verification. The distance of 4 or 6 between the end images builds up over several edges.
+
+| IconQA row | v3 decision | Edges to the RL image | RL row reached (pool) | Group images |
+|---|---|---|---|---|
+| 13559 | reserved for RL | 2 | `rl_thinklite` 63131 | 5 |
+| 14322 | reserved for RL | 7 | `rl_thinklite` 62749 | 24 |
+| 1646 | duplicate of IconQA 26401 (reserved) | 3 | `rl_thinklite` 59283 | 5 |
+| 16806 | reserved for RL | 5 | `rl_thinklite` 60865 | 22 |
+| 16978 | reserved for RL | 3 | `rl_thinklite` 56101 | 7 |
+| 21067 | reserved for RL | 3 | `rl_thinklite` 62494 | 13 |
+| 2367 | duplicate of IconQA 12734 (reserved) | 28 | `rl_virl39k` 1259 | 191 |
+| 26337 | duplicate of IconQA 22188 (reserved) | 3 | `rl_thinklite` 55455 | 13 |
+| 7594 | reserved for RL | 2 | `rl_thinklite` 60067 | 3 |
+
+The images are IconQA templates, mostly a ruler under a line of varying length, plus a flower beside a cube and a row of tiled squares. Neighbouring images differ by a few pixels, so near-duplicate chains join template images whose questions differ. Row 2367's group has 191 images. The grouping is doing what the recipe specifies. A long chain costs some SFT rows, but it cannot put related images on both sides of a split. No exported row changed, so full-v3 stays as built and needs no new version.
 
 ### v2
 
