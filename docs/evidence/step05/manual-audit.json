@@ -47,16 +47,27 @@
    "Question-text-only matches were all generic template questions on different images; they are listed and only excluded when long or when the images are loosely similar."
   ]
  },
- "pixmo_count_hashes": "0 of 923 sampled URLs matched the supplied image_sha256 (raw bytes, decoded RGB, URL string and _o/_b/_k/_h/_c/_z size variants all tried on samples)",
+ "pixmo_count_hashes": "Corrected: the pilot's 923 sampled URLs gave 830 hash mismatches, 29 gone (404/410), 64 rate-limited (429), 0 matches; v1 text said '846 mismatched, 41 gone'. See docs/evidence/step05/pixmo-count.json for the v2 bounded recheck.",
  "full_build": {
   "kind": "sampled manual inspection of the full export (not a complete scan)",
   "reviewed": "51 cards: 12 DocVQA/InfographicVQA/ST-VQA, 12 add-on (ChartQA, DVQA, IconQA, VisOnlyQA), 15 RL (3 per source), 12 AI2D/TextVQA/VSR/Nemotron",
   "findings": [
    "DocVQA, InfographicVQA, ST-VQA, TextVQA, AI2D, ChartQA, DVQA and IconQA labels were consistent with the visible image where checkable (bus '10 MANCHESTER', plate 'ADSENSE', 5 squares -> E, Louisiana farthest west); some infographic numbers are not legible at contact-sheet scale.",
    "RL targets matched source references; Geometry3K/ThinkLite keep spaced LaTeX ('\\frac { 5 } { 7 }', '3 \\sqrt { 2 }'), which the pinned math_dapo accepts against compact forms ('\\frac{5}{7}', '\\frac57', '3\\sqrt2') because it strips spaces.",
-   "math_dapo is exact-string after normalization: '5/7', '\\dfrac{5}{7}' and '5√3' are scored wrong against '\\frac{5}{7}' and '5\\sqrt{3}' targets; step 8 should account for this (prompt wording or an equivalence-aware selector).",
-   "Nemotron COCO spatial labels come from box geometry and can be ambiguous for held or overlapping objects (person 'below' the raised tennis racket, skateboard 'below' a person holding it at foot height).",
+   "math_dapo is exact-string after normalization: '5/7', '\\dfrac{5}{7}' and '5√3' are scored wrong against '\\frac{5}{7}' and '5\\sqrt{3}' targets; step 8 should account for this (prompt wording or an equivalence-aware selector). [Addressed in v2 by k2hv.reward selectors.]",
+   "Nemotron COCO spatial labels come from box geometry and can be ambiguous for held or overlapping objects (person 'below' the raised tennis racket, skateboard 'below' a person holding it at foot height). [Corrected in v2: against COCO 2017 boxes every single-instance label equals the box-center comparison, including overlapping boxes; overlap is an observed convention, not an error. Only multi-instance rows whose instance pairs disagree (243 of 4,777) are held as pending; see docs/steps/05-data.md#nemotron-coco-spatial-labels.]",
    "ChartVerse-RL prompts are dense multi-panel charts at the 1,024-image-token cap; their numeric targets were not re-derived by hand."
+  ]
+ },
+ "full_v2": {
+  "kind": "sampled manual inspection of the v2 full export (not a complete scan)",
+  "reviewed": "27 cards from python -m k2hv.data inspect --profile full: 15 RL (ChartVerse-RL incl. 2 pending long decimals, Geometry3K incl. 1 k2hv_decimal_v1), 12 SFT from sources new to the default build or with changed terms (ChartQA, IconQA, VisOnlyQA, AI2D)",
+  "findings": [
+   "ChartQA labels match the visible charts (spa visitors 2020 = 124, Egypt's first broadband year 2002, State Farm at 66.15).",
+   "IconQA counts match (13 birds; 4 dots -> option B).",
+   "Geometry3K 'Round to the nearest tenth' row has target 114.2 under k2hv_decimal_v1 with answer_decimals 1; the shaded area (circle r=10 minus inscribed square) is 114.16.",
+   "Pending ChartVerse-RL rows keep their unrounded references (3.646666666666666, 7.254481373606248) and data_source pending_decimal_precision.",
+   "RL prompts end with the new 'After your reasoning, end your response with a line of the form \"Answer: X\"' instruction."
   ]
  }
 }
