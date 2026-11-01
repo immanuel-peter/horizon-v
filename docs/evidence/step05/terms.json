@@ -148,8 +148,14 @@
     {
      "document": "https://ai2-public-datasets.s3.amazonaws.com/diagrams/ai2d-all.zip member ai2d/license.txt (read by HTTP range)",
      "quote": "available for general use by academic or non-profit, or government-sponsored researchers ... does not grant the right to use this software or any derivation of it in a for-profit enterprise ... does not grant the right to modify and publicly release the data in any form ... does not grant the right to distribute the data to a third party in any form"
+    },
+    {
+     "document": "docs/evidence/step05/ai2d-terms.json",
+     "note": "AWS listing history, archive metadata, Wayback captures, TQA comparison, paper"
     }
-   ]
+   ],
+   "conflicting_statement": "AI2's dataset page allenai.org/data/diagrams (Wayback captures 2021-2024; now a redirect to the zip) and the AWS Open Data listing allenai-diagrams.yaml (awslabs/open-data-registry PR #915, submitted by AI2 in April 2021, unchanged since) both say CC BY-SA (4.0 deed). No document found says which governs; the build follows the bundled licence. See ai2d-terms.json and docs/steps/05-data.md#ai2d-terms",
+   "media_correction": "basis_and_media (copied from the v2 recipe terms_note) says the diagrams were collected by AI2 and covered by the same licence. The AI2D paper (arXiv 1603.07396, p. 9) says they were collected by scraping Google Image Search; per-image rights are not established by either AI2 licence. The recipe text is left as built because it is hashed into the v2 manifest and scan fingerprints"
   },
   "fv_plotqa": {
    "status": "include",

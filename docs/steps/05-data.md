@@ -58,7 +58,7 @@ Status: **include** (built and exported), **pending** (not built until a recorde
 |---|---|
 | Included, original statement found | VQAv2 (CC BY 4.0, visualqa.org), VSR (Apache-2.0, project README; data in repo), TallyQA (Apache-2.0; QA zip in the licensed repo), CLEVR (CC BY 4.0), TextVQA (CC BY 4.0, creator's card), PlotQA (CC BY 4.0, README; v1 recorded MIT), CoSyn (ODC-BY), Nemotron COCO (OpenMDW-1.1), ChartVerse-RL (Apache-2.0), Geometry3K (MIT; data ships in the InterGPS repo) |
 | Included, previously add-on | ChartQA (GPL-3.0; data folder in the licensed repo), VisOnlyQA (GPL-3.0 `LICENSE.md`), IconQA (CC BY-NC-SA 4.0 README text; its badge says CC BY-SA) |
-| Included with conditions | AI2D: AI2's `license.txt` in `ai2d-all.zip` permits use by academic, non-profit or government-sponsored researchers, not by a for-profit enterprise, and grants no right to redistribute or publicly release the data |
+| Included with conditions | AI2D: AI2's `license.txt` in `ai2d-all.zip` permits use by academic, non-profit or government-sponsored researchers, not by a for-profit enterprise, and grants no right to redistribute or publicly release the data. AI2's former dataset page and the AWS Open Data listing say CC BY-SA instead; the build follows the bundled licence ([below](#ai2d-terms)) |
 | Pending, terms unverified | Visual7W (toolkit MIT covers code; project page unreachable), ST-VQA, DocVQA and InfographicVQA (RRC download terms are behind registration; public pages state none), DVQA (no statement anywhere; GitHub NOASSERTION), ViRL39K, VisualWebInstruct-verified and ThinkLite-VL-70k (only `license: mit` Hub tags; repository licences cover code) |
 | Pending, integrity | PixMo-Count ([below](#pixmo-count)) |
 
@@ -97,6 +97,44 @@ NVIDIA's card describes this subset only as a "public rule-based-conversion" of 
 ### PixMo-Count
 
 The card's own check is `sha256(requests.get(image_url).content) == image_sha256`, and Molmo's downloader does the same. The v1 pilot's 923 samples gave 830 hash mismatches, 29 gone (404/410), 64 rate-limited (429) and 0 matches. Earlier text that said "846 mismatched, 41 gone" was wrong. A bounded recheck of 60 evenly spaced train rows with the card's exact snippet returned 59 JPEGs and one 404, with no matches. Flickr serves the same bytes on refetch (12 of 12) and with browser or JPEG-only `Accept` headers (12 of 12). 36 of the 59 responses carry a 2019 `Last-Modified` date. Hashes of decoded pixels and of the URL do not match either. That rules out client headers and refetch drift as causes. Two explanations remain hypotheses: the published hashes came from a different representation at crawl time, or Flickr regenerated its size derivatives without changing `Last-Modified`. Hash checks are not waived, so the source stays pending until Ai2's original bytes or a reproducing hash definition is available ([evidence](../evidence/step05/pixmo-count.json)). Coverage from other counting data does not settle this.
+
+### AI2D terms
+
+AI2 has published two sets of terms for AI2D, and no document I found says which one governs ([evidence](../evidence/step05/ai2d-terms.json), collected by `tools/step05/ai2d_terms.py`).
+
+- **Bundled licence.** `ai2d/license.txt` in `ai2d-all.zip`, titled "License for Non-Commercial Use" and marked "(C) 2016". Its zip entry is dated 2016-08-18, and all 28,757 members are dated August or September 2016. It allows "general use by academic or non-profit, or government-sponsored researchers" and evaluation elsewhere. It excludes use "in a for-profit enterprise". It grants no right "to modify and publicly release the data in any form" or "to distribute the data to a third party in any form", only to publish short segments or still images in an academic paper. It must accompany any redistribution.
+- **CC BY-SA label.** AI2's dataset page `allenai.org/data/diagrams` showed "License: CC BY-SA", linked to the 4.0 deed. The field is absent from the 2020-09-27 Wayback capture and present in all 11 readable captures from 2021-01-26 to 2024-06-15. Wayback blocked the requests for six more captures in that span. The AWS Open Data listing (`allenai-diagrams.yaml` in `awslabs/open-data-registry`) copies the label.
+  - The listing was added by [PR #915](https://github.com/awslabs/open-data-registry/pull/915), opened 2021-04-07 and merged 2021-04-20. Its author, Michal Guerquin (`aimichal`), called the bucket "our S3 bucket" and described the files as specs for the AI2 datasets "listed at https://allenai.org/data which have a license".
+  - Every one of the PR's 18 commits had CC BY-SA, and no later commit has touched the file. The AWS Marketplace page shows the same label, with AI2 as provider and manager.
+
+History, and what it does and does not settle:
+
+- **Archive.** The zip has one S3 object version, last modified 2021-02-04T19:48:17Z. The TQA zip has the identical timestamp, which points to a bulk re-upload rather than a revision of AI2D. The archive AI2 serves today still contains the 2016 licence, uploaded after the CC BY-SA label first appeared.
+- **Current pages.** Since at least 2024-08-16, `allenai.org/data/diagrams` redirects (HTTP 307) straight to the zip, so AI2's own site no longer shows a licence. The AWS listing that AI2 manages still says CC BY-SA. The PRIOR project page states no licence in any of its 14 readable captures from 2020-08 to 2026-03; 8 were blocked.
+- **No explanation found.** No AI2 statement explains the label, withdraws the 2016 licence, or says one supersedes the other. I searched the registry history, the PR discussion, AI2's pages and the web.
+- **TQA comparison.** AI2's TQA page gained the same "License: CC BY-SA" field between its 2020-10-23 and 2020-11-09 captures, and PR #915 gave TQA the same label. TQA's archive README says "Creative Commons Attribution – Non-Commerical 3.0", and from November 2020 to at least June 2021 the TQA page showed the CC BY-SA field next to a description saying the data "is distributed under a Creative Commons Attribution – Non-Commerical 3.0 license". The label field contradicted the dataset's own terms on the same AI2 page. That suggests AI2 did not set the field from each dataset's terms. It does not show what AI2 intended for AI2D.
+- **Image origin.** The paper (arXiv 1603.07396, p. 9) says the images "are collected by scraping Google Image Search" and annotated on Mechanical Turk. Neither licence can grant rights in the diagrams themselves that AI2 does not hold, and per-image rights are not verified. The v2 recipe's AI2D `terms_note`, which the v2 manifest copies, says "diagrams collected by AI2, covered by the same licence". That clause is wrong. The recipe stays as built, because its bytes are hashed into the v2 manifest and its AI2D entry into the scan fingerprint. The next recipe revision that rebuilds for another reason should fix it.
+
+This record treats neither source as overriding the other. A CC BY-SA 4.0 grant by AI2 would be irrevocable, and a rightsholder may offer data under more than one licence. The open question is whether the page label was a deliberate grant for AI2D or a catalogue default. The bundled licence is the document AI2 ships with the data, and the build follows it as the stricter of the two. Both allow this project's academic research training, so AI2D stays included as before.
+
+Storage and redistribution are separate questions:
+
+| Use | Bundled 2016 licence | CC BY-SA 4.0 label | Status |
+|---|---|---|---|
+| Copies on this CPU instance's disk (a GCP VM, so the data already sits with a cloud provider), or in a private bucket only the licensed researchers can read | Grants use by academic researchers. Says nothing about where copies are stored and defines neither "third party" nor "distribute" | Permitted | Neither text prohibits it. A cloud provider holding the copy under the project's account is not normally a recipient, but the licence does not say so |
+| Read access for collaborators beyond those researchers, such as a shared bucket or a private Hub repo with other members | Not granted if they count as a third party; the licence names no project or institutional scope | Permitted with attribution | Unresolved. It depends on who counts as a third party |
+| Public release of AI2D rows, images or modified copies (public Hub dataset, public bucket) | Not granted | Permitted with attribution; adapted material under BY-SA | Not permitted under the terms the build follows. Needs written confirmation from AI2 (`ai2-data@allenai.org` per the project page, `vision@allenai.org` per the README) |
+| Weights trained on AI2D | Not addressed; it is unclear whether a model is a "derivation" | Not addressed by the label | Open; outside step 5 |
+
+Per-image rights in the scraped diagrams remain open whichever AI2 licence applies.
+
+**Finding AI2D in the exports.** Index rows (`index/*.parquet`) have `source == "fv_ai2d"` and `terms == "ai2-noncommercial"`, and portable and Miles rows have `metadata.source == "fv_ai2d"`. Full v2 has 4,277 AI2D rows: 4,245 in `default/sft/train` (247 of them in the sweep), 32 in `default/sft/validation`, and none in RL or pending buckets. They use 2,415 images (434.5 MB). No other source shares any of those images, so AI2D's images can be kept apart or left out as a set. `images.parquet` has no source column, so select AI2D images through the index:
+
+```python
+import pyarrow.parquet as pq, pyarrow.compute as pc, glob
+rows = [pq.read_table(f, columns=["source", "image_path"]) for f in glob.glob("exports/full-v2/index/*.parquet")]
+ai2d = sorted({p for t in rows for p in pc.filter(t, pc.equal(t["source"], "fv_ai2d"))["image_path"].to_pylist()})
+```
 
 ### RL candidates
 
@@ -344,7 +382,7 @@ To use the data elsewhere, copy `images/` and `exports/full-v2/` and run `materi
 - Cropped copies of evaluation images are not detected; re-encoded, resized and recolored copies are.
 - The admitted RL pool is small (20,998 rows, chart and geometry only) until the pending RL sources' terms are resolved or other sources are added.
 - Per-image rights of scraped media (ChartQA charts) and textbook diagrams (Geometry3K) are not verified; only the dataset release terms are.
-- AI2D is admitted under an academic, non-profit research licence that forbids redistribution.
+- AI2D is admitted under its bundled academic, non-profit licence, which grants no redistribution. AI2 also labelled it CC BY-SA, and which terms govern is unresolved ([AI2D terms](#ai2d-terms)). Its rows are tagged `fv_ai2d` so they can be held back from anything shared.
 - The fixed BOS path, the lazy loader and the `k2hv.reward` scorers have CPU evidence only; each needs its first GPU run (steps 6 and 8).
 
 ## RL prompt selection after SFT
