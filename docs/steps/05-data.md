@@ -185,9 +185,13 @@ uv run python -m k2hv.data verify --profile full --data-root /path/to/copy --tar
 
 Pinned Miles `Dataset.__init__` calls `process_vision_info` for every row at load time and holds each decoded qwen-resized image in memory: 2.9 MB per row on average (p90 8.9 MB) for this data, about 2.9 TB for a million rows. The full export cannot be loaded as one Miles dataset. Step 6 needs lazy media loading (for example keeping paths in the sample and loading inside `k2hv.sft_rollout.generate_rollout`) or must train over small shards in sequence. The 50k sweep subset would need about 150 GB.
 
-### Step 6 finding: double BOS in the SFT path
+### Step 6 fix: one BOS in the SFT path
 
-`prepare_sample` renders the template, which already begins with `<|ifm|begin_of_text|>`, then calls the processor with default `add_special_tokens=True`, so every training sequence starts with two BOS tokens. The SGLang processor and step 4's gates tokenize with `add_special_tokens=False` (one BOS). The step 4 fixture's 40 tokens include both. This step does not change the certified training path. All reported lengths include the extra token. If step 6 fixes it (`add_special_tokens=False` in `prepare_sample`, then GPU recertification), every row shortens by exactly one token and all exports stay valid.
+The chat template already emits `<|ifm|begin_of_text|>`, and the tokenizer's `TemplateProcessing` post-processor (in `tokenizer.json`) adds another unless the caller passes `add_special_tokens=False`. The step 4 `prepare_sample` used the default, so every v1 training sequence started with two BOS tokens. It now passes `add_special_tokens=False`, which matches SGLang and the step 4 gate tokenization, and the contract rejects any row without exactly one BOS at position 0. On 16 v1 rows (one per source) the fix removes only the duplicate: totals drop by one, while image tokens, grids and supervised answer/end spans are unchanged ([evidence](../evidence/step05/bos.json), `tools/step05/bos_evidence.py`). Row contents are built before `prepare_sample` runs, so only token counts in indices and reports change.
+
+Step 4 certified the old `sft_rollout.py` (sha256 `6d2884ae…`) on GPU. The fixed path has not run on a GPU; step 6 must rerun a short Miles SFT check before a long run.
+
+The pinned Miles multimodal RL rollout (`call_processor` in `miles/utils/processing_utils.py`) tokenizes the rendered prompt the same way and would also double the BOS. See [step 8](08-rl.md).
 
 ## Build results
 

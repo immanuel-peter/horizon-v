@@ -99,7 +99,9 @@ class Checker:
         expected_tokens, size = images.image_tokens(*images.decode(Path(paths[0]).read_bytes())[0].size, self.image_config)
         if image_tokens != [expected_tokens]:
             raise ContractError("image_tokens_unexpected")
-        result = {"total_tokens": len(ids), "image_tokens": sum(image_tokens), "supervised_tokens": sample.response_length, "grid": [list(map(int, g)) for g in grids], "bos_tokens": sum(1 for t in ids[:3] if t == self.bos), "model_input_size": list(size)}
+        if ids.count(self.bos) != 1 or ids[0] != self.bos:
+            raise ContractError("bos_count")
+        result = {"total_tokens": len(ids), "image_tokens": sum(image_tokens), "supervised_tokens": sample.response_length, "grid": [list(map(int, g)) for g in grids], "bos_tokens": ids.count(self.bos), "model_input_size": list(size)}
         if result["image_tokens"] > self.limits["max_image_tokens"]:
             raise ContractError("limit_image_tokens")
         if result["total_tokens"] > self.limits["max_total_tokens"]:
@@ -128,8 +130,10 @@ class Checker:
         except Exception as e:
             raise ContractError(f"miles_media_{type(e).__name__}") from e
         text = self.processor.apply_chat_template(prompt, tokenize=False, add_generation_prompt=True)
-        out = self.processor(text=text, images=mm["images"], return_tensors="pt")
+        out = self.processor(text=text, images=mm["images"], return_tensors="pt", add_special_tokens=False)
         ids = out["input_ids"][0].tolist()
+        if ids.count(self.bos) != 1 or ids[0] != self.bos:
+            raise ContractError("bos_count")
         image_tokens = self._image_block(ids, out["image_grid_thw"].tolist())
         result = {"prompt_tokens": len(ids), "image_tokens": sum(image_tokens)}
         if result["image_tokens"] > self.limits["max_image_tokens"]:

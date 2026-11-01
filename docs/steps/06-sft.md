@@ -11,7 +11,7 @@ Train only the projector on short-answer image data with upstream Miles, FSDP an
 | `src/k2hv/packed_attention.py` | Document-sized SDPA calls inside one packed row, with packed linear layers. |
 | `tools/step04/miles_sft.sh` | The launch that passed the gate. |
 
-The loss covers only the answer and `<|ifm|im_end|>`, excluding prompt, image and empty-thinking tokens. Only the vision tower runs under `no_grad`; the frozen language model passes gradients back to the projector.
+The loss covers only the answer and `<|ifm|im_end|>`, excluding prompt, image and empty-thinking tokens. `prepare_sample` tokenizes the rendered template with `add_special_tokens=False`, so a sequence starts with exactly one BOS. Step 4 certified the earlier version, which added a second BOS ([step 5](05-data.md#step-6-fix-one-bos-in-the-sft-path)); rerun a short GPU SFT check on the fixed path before a long run. Only the vision tower runs under `no_grad`; the frozen language model passes gradients back to the projector.
 
 Do not pass `--apply-chat-template`. Miles would turn `sample.prompt` into a generation-prompt string and lose the assistant turn. With `--multimodal-keys` and no template flag, Miles keeps the message list and fills `sample.multimodal_inputs["images"]`. The row format is in [step 5](05-data.md).
 

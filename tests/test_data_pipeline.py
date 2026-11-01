@@ -304,7 +304,7 @@ def test_sft_contract_through_pinned_miles_path(tmp_path, checker):
     prompt = ids[:start]
     s, e = prompt.index(checker.ids["start"]), prompt.index(checker.ids["end"])
     assert set(prompt[s + 1 : e]) == {checker.ids["pad"]} and e - s - 1 == res["image_tokens"]
-    assert res["total_tokens"] == len(ids) and res["bos_tokens"] == 2, "current prepare_sample adds a second BOS (reported in step 5)"
+    assert res["total_tokens"] == len(ids) and res["bos_tokens"] == 1 and ids[0] == tok.bos_token_id and ids.count(tok.bos_token_id) == 1
 
     bad = []
     two = sft_row(path)
