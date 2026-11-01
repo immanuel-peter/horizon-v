@@ -109,7 +109,7 @@ def _overheads(ctx):
     return sft, rl
 
 
-def select(ctx):
+def select(ctx, trace=False):
     seed = ctx.recipe["recipe"]["seed"]
     cfg = ctx.recipe["overlap"]
     limits = ctx.recipe["limits"]
@@ -196,9 +196,11 @@ def select(ctx):
     for a, b in pairs:
         uf.union(a, b)
     by_hint = {}
+    hint_edges = []
     for i, h in enumerate(c["group_hint"]):
         if h:
             if h in by_hint:
+                hint_edges.append((by_hint[h], rec_img[i], h))
                 uf.union(by_hint[h], rec_img[i])
             else:
                 by_hint[h] = rec_img[i]
@@ -276,6 +278,7 @@ def select(ctx):
     # Pending RL rows reserve their groups too, so admitting them later does not need an SFT reselection.
     rl_groups = {group[i] for i in selected}
     reserved = Counter()
+    capped = set()
     for key in sorted(by_source, key=lambda k: priority[k]):
         src = ctx.sources[key]
         if src["kind"] != "sft":
@@ -291,6 +294,7 @@ def select(ctx):
                 selected.append(i)
                 continue
             if per_group[group[i]] >= src.get("max_qa_per_image", 1 << 30):
+                capped.add(i)
                 continue
             per_group[group[i]] += 1
             take.append(i)
@@ -331,8 +335,65 @@ def select(ctx):
         "question_text_matches": {"listed": len(text_matches), "excluded": sum(t["excluded"] for t in text_matches), "by_source_eval": dict(Counter(f"{t['source']}|{t['eval']}|{'excluded' if t['excluded'] else 'listed'}" for t in text_matches))},
     }
     write_json(out / "select.json", stats)
+    if trace:
+        write_trace(out / "trace", c, group, u, by_pixel, pairs, pair_metrics, candidates, hint_edges, excluded, limit_reason, winner, is_winner, blank_rl, selected, rl_groups, capped)
     log(f"  selected {len(selected)}; excluded {int(excluded.sum())}; duplicates {sum(duplicates.values())}; reserved for RL {sum(reserved.values())}")
     return stats
+
+
+def write_trace(out, c, group, u, by_pixel, pairs, pair_metrics, candidates, hint_edges, excluded, limit_reason, winner, is_winner, blank_rl, selected, rl_groups, capped):
+    """Selection trace (``select --trace``): the decision for every candidate and every edge that joined two images into a group.
+
+    candidates.parquet: record_id, kind, source, image_sha256, group_id, decision, duplicate_of. Decisions, in the order
+    select applies them: eval_excluded, a limit reason, duplicate, then selected, rl_quota, sft_reserved_for_rl,
+    sft_per_image_cap or sft_quota. edges.parquet: group_id, a, b (image sha256), via (pixel_sha256, near_duplicate
+    or group_hint), the hint, and the stage-2 metrics of near-duplicate pairs.
+    """
+    n = len(c["record_id"])
+    sel = set(selected)
+    decision, dup_of = [], []
+    for i in range(n):
+        d, dup = None, None
+        if excluded[i]:
+            d = "eval_excluded"
+        elif limit_reason[i]:
+            d = limit_reason[i]
+        elif not is_winner[i]:
+            d = "duplicate"
+            dup = c["record_id"][winner[dedup_key(c["kind"][i], group[i], c["question"][i], c["answer"][i])]]
+        elif i in sel:
+            d = "selected"
+        elif c["kind"][i] == "rl":
+            d = "rl_quota"
+        elif group[i] in rl_groups:
+            d = "sft_reserved_for_rl"
+        elif i in capped:
+            d = "sft_per_image_cap"
+        else:
+            d = "sft_quota"
+        decision.append(d)
+        dup_of.append(dup)
+    write_table(out / "candidates.parquet", pa.table({
+        "record_id": c["record_id"], "kind": c["kind"], "source": c["source"], "image_sha256": c["image_sha256"], "group_id": group,
+        "decision": decision, "duplicate_of": pa.array(dup_of, pa.string()), "held_image_blank": [i in blank_rl for i in range(n)],
+    }))
+    group_of_img = {}
+    for i in range(n):
+        group_of_img.setdefault(c["image_sha256"][i], group[i])
+    edges = []
+    for k, p in enumerate(u["pixel_sha256"]):
+        if by_pixel[p] != k:
+            edges.append((by_pixel[p], k, "pixel_sha256", None, None))
+    metrics = {pair: m for pair, m in zip(candidates, pair_metrics)}
+    for a, b in pairs:
+        edges.append((a, b, "near_duplicate", None, json.dumps(metrics[(a, b)], sort_keys=True, default=float)))
+    for a, b, h in hint_edges:
+        if a != b:
+            edges.append((a, b, "group_hint", h, None))
+    write_table(out / "edges.parquet", pa.table({
+        "group_id": [group_of_img[u["sha"][a]] for a, _, _, _, _ in edges], "a": [u["sha"][a] for a, _, _, _, _ in edges], "b": [u["sha"][b] for _, b, _, _, _ in edges],
+        "via": [e[2] for e in edges], "hint": pa.array([e[3] for e in edges], pa.string()), "metrics": pa.array([e[4] for e in edges], pa.string()),
+    }))
 
 
 def blank_thumb(thumb):

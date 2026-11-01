@@ -580,5 +580,31 @@ def test_blank_rl_images_are_held_as_pending():
     assert pipeline.hold_rows(table, set(), "image_blank") is table
 
 
+def test_select_trace_records_each_decision_and_the_edges_behind_groups(tmp_path):
+    # Images 0-1 share pixels, 1-2 are a confirmed near-duplicate pair, 3 joins 0 through a group hint: one group g0.
+    rids = ["rl", "rl_cut", "sft_res", "sft_dup", "sft_cap", "sft_q", "sft_ok", "sft_ev", "sft_lim", "sft_s1", "sft_s3"]
+    kind = ["rl", "rl"] + ["sft"] * 9
+    img = ["s0", "s9", "s2", "s2", "s4", "s4", "s5", "s6", "s7", "s1", "s3"]
+    c = {"record_id": rids, "kind": kind, "source": ["r", "r"] + ["s"] * 9, "image_sha256": img, "question": ["q"] * 3 + ["Q"] + ["a", "b", "q", "q", "q", "c", "d"], "answer": ["1"] * 11}
+    group = ["g0", "g9", "g0", "g0", "g4", "g4", "g5", "g6", "g7", "g0", "g0"]
+    u = {"sha": ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s9"], "pixel_sha256": ["p0", "p0", "p2", "p3", "p4", "p5", "p6", "p7", "p9"]}
+    by_pixel = {p: k for k, p in reversed(list(enumerate(u["pixel_sha256"])))}
+    candidates, metrics = [(1, 2), (4, 5)], [{"edge": 0.99}, {"edge": 0.2}]
+    winner = {pipeline.dedup_key(kind[i], group[i], c["question"][i], c["answer"][i]): i for i in (0, 1, 2, 4, 5, 6, 9, 10)}
+    is_winner = np.array([i in winner.values() for i in range(11)])
+    excluded = np.array([i == 7 for i in range(11)])
+    limit = [("limit_total_tokens_est" if i == 8 else None) for i in range(11)]
+    pipeline.write_trace(tmp_path, c, group, u, by_pixel, [(1, 2)], metrics, candidates, [(0, 3, "doc:x")], excluded, limit, winner, is_winner, set(), [0, 6], {"g0"}, {4})
+    rows = {r["record_id"]: r for r in pq.read_table(tmp_path / "candidates.parquet").to_pylist()}
+    assert {k: v["decision"] for k, v in rows.items()} == {
+        "rl": "selected", "rl_cut": "rl_quota", "sft_res": "sft_reserved_for_rl", "sft_dup": "duplicate", "sft_cap": "sft_per_image_cap",
+        "sft_q": "sft_quota", "sft_ok": "selected", "sft_ev": "eval_excluded", "sft_lim": "limit_total_tokens_est",
+        "sft_s1": "sft_reserved_for_rl", "sft_s3": "sft_reserved_for_rl"}
+    assert c["question"][3] == "Q" and rows["sft_dup"]["duplicate_of"] == "sft_res" and rows["sft_res"]["duplicate_of"] is None
+    edges = pq.read_table(tmp_path / "edges.parquet").to_pylist()
+    assert [(e["a"], e["b"], e["via"], e["group_id"]) for e in edges] == [("s0", "s1", "pixel_sha256", "g0"), ("s1", "s2", "near_duplicate", "g0"), ("s0", "s3", "group_hint", "g0")]
+    assert json.loads(edges[1]["metrics"]) == {"edge": 0.99} and edges[2]["hint"] == "doc:x"
+
+
 def test_temp_paths_are_unique():
     assert len({runtime.temp_path("/x/y.bin") for _ in range(100)}) == 100

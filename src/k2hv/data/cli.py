@@ -33,6 +33,7 @@ def main(argv=None):
     parser.add_argument("--target-root", help="materialize: absolute root that will hold images/ on the training machine")
     parser.add_argument("--out", default="docs/evidence/step05", help="evidence: output directory for the compact summary")
     parser.add_argument("--max-shards", type=int, help="scan: stop after this many shards (interruption testing)")
+    parser.add_argument("--trace", action="store_true", help="select: also write select/trace/{candidates,edges}.parquet (decision per candidate, edges that formed each group)")
     parser.add_argument("--reuse-validation", action="append", default=[], metavar="BUILD", help="validate: reuse results of an earlier build (e.g. full-v2) for unchanged rows under the same fingerprint")
     args = parser.parse_args(argv)
 
@@ -54,7 +55,7 @@ def main(argv=None):
         elif stage == "evals":
             build.eval_index(ctx)
         elif stage == "select":
-            pipeline.select(ctx)
+            pipeline.select(ctx, trace=args.trace)
         elif stage == "validate":
             pipeline.validate(ctx, args.reuse_validation)
         elif stage == "export":
