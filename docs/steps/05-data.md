@@ -50,7 +50,7 @@ Workers are spawned processes with one torch/OMP/MKL thread each: 14 scan worker
 
 The audit inspected Hub metadata, cards and a deterministic sample of every candidate, then a 1,000-example real-data pilot.
 
-**Terms policy.** This is a research project building on Baseten's work; future commercial use is not a requirement, so non-commercial terms do not exclude a source. A source is admitted only when an original statement from its creators permits research training use: card or README text, a licence file covering data distributed with it, the release archive's own licence, or the creators' own Hub `license:` declaration on their repository (since v3). A tag set by someone else, such as a mirror, or a code-repository licence alone is not a basis. Explicit upstream restrictions are recorded per source; upstream terms that cannot be found are recorded as missing, not as prohibitions. Permission to train is recorded separately from redistribution, and nothing is redistributed. The recipe holds each source's basis (`terms_note`), `redistribution` and, for pending sources, `missing_evidence`. The fetched documents and their hashes are in [`terms.json`](../evidence/step05/terms.json). Media origin is recorded for every source, but per-image rights of scraped or web images (ChartQA charts, for example) are not independently verified. FineVision redistributes the `fv_*` components and defers to each one's licence.
+**Terms policy.** This is a research project building on Baseten's work; future commercial use is not a requirement, so non-commercial terms do not exclude a source. A source is admitted only when an original statement from its creators permits research training use: card or README text, a licence file covering data distributed with it, the release archive's own licence, or the creators' own Hub `license:` declaration on their repository (since v3). A tag set by someone else, such as a mirror, or a code-repository licence alone is not a basis. Explicit upstream restrictions are recorded per source; upstream terms that cannot be found are recorded as missing, not as prohibitions. Permission to train is recorded separately from redistribution, and nothing is redistributed. The [private Hub archive](#private-archive-on-the-hub) is a backup only the account owner can read. The recipe holds each source's basis (`terms_note`), `redistribution` and, for pending sources, `missing_evidence`. The fetched documents and their hashes are in [`terms.json`](../evidence/step05/terms.json). Media origin is recorded for every source, but per-image rights of scraped or web images (ChartQA charts, for example) are not independently verified. FineVision redistributes the `fv_*` components and defers to each one's licence.
 
 Status: **include** (built and exported), **pending** (not built until a recorded gap closes: terms evidence or image integrity), **exclude** (audited and rejected for quality or fit). Rows inside an included source can also be pending, with `metadata.pending_reason`, in the `pending/` export buckets.
 
@@ -279,6 +279,47 @@ uv run python -m k2hv.data verify --profile full --data-root /path/to/copy --tar
 
 `verify` checks SHA256SUMS. It requires a materialized file for every portable part and nothing extra, and every index row to appear exactly once in its bucket's Miles files with the validated row hash. It checks each row's image file name against its `image_sha256`, the referenced images against `images.parquet`, and that each image re-hashes and decodes. It recomputes group sharing from the exported indices: any group across train/validation, pool/held-out or SFT/RL fails, and same-split sharing between `default` and `pending` is listed as permitted. The 50k sweep must be a subset of train. Miles's loader does not read `s3://`, so images must be on a local or mounted path at training time.
 
+### Private archive on the Hub
+
+full-v3 is archived in the private dataset repository [`immanuelpeter/Vision-PT-Data`](https://huggingface.co/datasets/immanuelpeter/Vision-PT-Data). Pin revision `eb4f5ada8bc4667dcb0e09b61167053766671344`. The archive holds:
+
+- the 31 export files of `exports/full-v3`, without `miles/`, which `materialize` regenerates;
+- every referenced image, 627,987 of them, in 20 deterministic tar shards (77.61 GB) with their original bytes and `images/<sha[:2]>/<sha>.<ext>` paths;
+- `images/SHARDS.json` and `images/image_checksums.tsv.gz`;
+- `provenance/` with the recipe, `BUILD.json`, the evidence JSON, the source inventory, the fetched terms documents, the build logs and a code snapshot;
+- `ARCHIVE_SHA256SUMS` over everything except itself and the card.
+
+Altogether that is 577 files and 78.07 GB. The card states the research-only policy and each source's terms and redistribution verdict. It does not give the mixture one licence. Several sources forbid redistribution, so the repository must stay private.
+
+The exports were built with code at `c01d7b5`. The code snapshot and the evidence come from `5a9f79a`, whose `src/` adds only the opt-in `select --trace`. The archive's history has five upload commits ending at `b78dc1b`, the evidence follow-up `5ffaa93`, and `eb4f5ad`, which corrects the build-commit labels in `BUILD.json` and the card. Payload files are identical across the last three.
+
+Restore with a token that can read private repositories:
+
+```bash
+REV=eb4f5ada8bc4667dcb0e09b61167053766671344
+hf download immanuelpeter/Vision-PT-Data --repo-type dataset --revision $REV --local-dir restore
+cd restore && sha256sum -c ARCHIVE_SHA256SUMS
+mkdir -p root/exports && for t in images/shards/*.tar; do tar -xf $t -C root; done && cp -r exports/full-v3 root/exports/
+# then, from this repository with third_party/miles at the pinned commit:
+uv run python -m k2hv.data materialize --profile full --data-root /abs/restore/root --target-root /abs/restore/root
+uv run python -m k2hv.data verify --profile full --data-root /abs/restore/root --target-root /abs/restore/root
+```
+
+The card also has a per-image checksum snippet.
+
+On 2026-11-01 the subagent restored revision `b78dc1b` from the Hub into a fresh directory with a fresh cache, without reading the local image store:
+
+- All 573 payload checksums matched, and the downloaded file set equalled the staged set.
+- The 20 shards extracted to 627,987 images with 0 checksum failures, and every exported image reference resolved.
+- All 31 export files were byte-identical to the local `full-v3`, and per-bucket row counts matched.
+- `materialize` exited 0. `verify` passed on 1,003,854 of 1,003,854 rows with 0 mismatches and 0 bad images.
+
+The two later revisions change only provenance files, the card and the sums. The LFS hashes of their payload files are the same.
+
+An authenticated API call reports `private: true`. Requests without a token to the repository API, the dataset page and file URLs at the pinned revision return 401.
+
+The account's private storage now holds 96.96 GB against the free plan's 100 GB. The user deleted `bdd100k-raw-images` to make room. The machine-local reports are `outputs/step05/hf-archive/verification-report.{json,md}` and `labelfix-report.json`. The staging copy and the packing and restore tools are under `outputs/step05/hf-archive/`.
+
 ### Step 6 dependency: lazy image loading
 
 Pinned Miles `Dataset.__init__` calls `process_vision_info` for every row and keeps each decoded image, about 3 MB per row for this data (2.6 TB for the v1 training split). `k2hv.lazy_data.LazyRolloutDataSource` replaces only the dataset and keeps pinned Miles batching, shuffling and checkpointing. See [step 6](06-sft.md#loading-the-step-5-data).
@@ -472,7 +513,7 @@ What drives the differences:
 | `exports/full/SHA256SUMS` (v1, preserved) | | `6d78bf8bd6a5b1a720ac9b552c5931094d1e7ea663f09ff829c0c2903531fd73` |
 | `images/` | 77.13 GB referenced by v3, 73.07 GB by v2 (one store for all builds) | per image, by name |
 
-These exist only on the CPU instance, and nothing was uploaded. The same holds for:
+The full-v3 exports and the images it references are also in the [private Hub archive](#private-archive-on-the-hub). The v2 and v1 exports, the images only they use, and the following exist only on the CPU instance:
 
 - `hf/` (verified source downloads), `media/` (pinned COCO annotations, URL cache), `evals/` and `work/{full,full-v2,full-v3,pilot-v2,pilot-v2r}`
 - `data/step05-resume/`
