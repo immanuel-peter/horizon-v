@@ -6,6 +6,7 @@ Stages (each resumable; rerunning skips work whose inputs are unchanged):
   evals       index evaluation images/questions for exclusion
   select      exclusion, grouping, deduplication, splits and quotas
   validate    run every selected row through the pinned Miles path and processor contract
+              (--reuse-validation BUILD reuses an earlier build's results for unchanged rows)
   export      write portable Parquet, manifests, checksums and reports
   materialize write Miles Parquet with absolute image paths under a data root
   verify      re-hash/decode every exported image and check exported rows match validated rows
@@ -32,6 +33,7 @@ def main(argv=None):
     parser.add_argument("--target-root", help="materialize: absolute root that will hold images/ on the training machine")
     parser.add_argument("--out", default="docs/evidence/step05", help="evidence: output directory for the compact summary")
     parser.add_argument("--max-shards", type=int, help="scan: stop after this many shards (interruption testing)")
+    parser.add_argument("--reuse-validation", action="append", default=[], metavar="BUILD", help="validate: reuse results of an earlier build (e.g. full-v2) for unchanged rows under the same fingerprint")
     args = parser.parse_args(argv)
 
     from . import build, pipeline
@@ -54,7 +56,7 @@ def main(argv=None):
         elif stage == "select":
             pipeline.select(ctx)
         elif stage == "validate":
-            pipeline.validate(ctx)
+            pipeline.validate(ctx, args.reuse_validation)
         elif stage == "export":
             pipeline.export(ctx)
         elif stage == "materialize":

@@ -396,39 +396,77 @@ def portable_hash(row):
     return contract.row_hash(row)
 
 
-def validate_chunk(args, chunk_path, done_path):
+def validate_chunk(args, chunk_path, done_path, kind, reused=()):
+    """Validate one chunk. ``reused`` holds earlier results, under the same kind fingerprint, for rows
+    whose record_id and portable hash are unchanged; only the remaining rows run the checker."""
     ctx = build.Context(*args)
     checker = contract.Checker(ctx.recipe["recipe"]["processor"], ctx.recipe["limits"])
     rows = list(checker.miles.read_file(str(chunk_path)))
-    results = []
+    known = {(r["record_id"], r["portable_hash"]): r for r in reused}
+    results, n_reused = [], 0
     for data in rows:
         meta = data["metadata"]
         rid = meta["record_id"]
+        prior = known.get((rid, portable_hash(data)))
+        if prior is not None:
+            results.append(prior)
+            n_reused += 1
+            continue
         try:
             res = checker.sft(data, meta["image_sha256"]) if "messages" in data else checker.rl(data, meta["image_sha256"])
             results.append({"record_id": rid, "ok": True, "reason": None, "portable_hash": portable_hash(data), **{k: res.get(k) for k in ("total_tokens", "image_tokens", "supervised_tokens", "prompt_tokens", "bos_tokens")}})
         except contract.ContractError as err:
             results.append({"record_id": rid, "ok": False, "reason": str(err), "portable_hash": portable_hash(data)})
-    schema = pa.schema([("record_id", pa.string()), ("ok", pa.bool_()), ("reason", pa.string()), ("portable_hash", pa.string()), ("total_tokens", pa.int32()), ("image_tokens", pa.int32()), ("supervised_tokens", pa.int32()), ("prompt_tokens", pa.int32()), ("bos_tokens", pa.int32())])
     out = Path(done_path).with_suffix(".parquet")
-    write_table(out, pa.Table.from_pylist(results, schema=schema))
-    marker = {"chunk": str(chunk_path), "chunk_sha256": runtime.file_sha256(chunk_path), "rows": len(results), "failures": sum(not r["ok"] for r in results), "fingerprint": _validate_fingerprint(ctx)}
+    write_table(out, pa.Table.from_pylist(results, schema=VALIDATE_SCHEMA))
+    marker = {"chunk": str(chunk_path), "chunk_sha256": runtime.file_sha256(chunk_path), "rows": len(results), "reused": n_reused, "failures": sum(not r["ok"] for r in results), "fingerprint": _validate_fingerprint(ctx, kind)}
     write_json(done_path, marker)
     return marker
 
 
-def _validate_fingerprint(ctx):
+VALIDATE_SCHEMA = pa.schema([("record_id", pa.string()), ("ok", pa.bool_()), ("reason", pa.string()), ("portable_hash", pa.string()), ("total_tokens", pa.int32()), ("image_tokens", pa.int32()), ("supervised_tokens", pa.int32()), ("prompt_tokens", pa.int32()), ("bos_tokens", pa.int32())])
+
+
+def _validate_fingerprint(ctx, kind):
+    # SFT rows never reach the RL scorer; RL rows run scoring.admit_row, so its code is part of their fingerprint.
     here = Path(__file__).parent
     code = {name: runtime.file_sha256(here / name) for name in ("contract.py", "images.py", "runtime.py")}
     code["sft_rollout.py"] = runtime.file_sha256(here.parent / "sft_rollout.py")
+    if kind == "rl":
+        code.update({"scoring.py": runtime.file_sha256(here / "scoring.py"), "reward.py": runtime.file_sha256(here.parent / "reward.py")})
     return digest({"limits": ctx.recipe["limits"], "processor": runtime.processor_fingerprint(ctx.recipe["recipe"]["processor"]), "code": code, "miles": runtime.MILES_COMMIT})
 
 
-def validate(ctx):
+def prior_validation(ctx, builds):
+    """Results from earlier builds' validate stages whose chunk fingerprint equals this build's for that kind."""
+    fingerprints = {kind: _validate_fingerprint(ctx, kind) for kind in ("rl", "sft")}
+    cache, stats = {}, {}
+    for name in builds:
+        vdir = ctx.root / "work" / name / "validate"
+        if not vdir.is_dir():
+            raise FileNotFoundError(f"--reuse-validation: no validate stage at {vdir}")
+        for done in sorted(vdir.glob("chunk-*.done.json")):
+            kind = done.name.split("-")[1]
+            marker = json.loads(done.read_text())
+            usable = marker.get("fingerprint") == fingerprints[kind]
+            stats.setdefault(f"{name}/{kind}", {"chunks": 0, "usable_chunks": 0})
+            stats[f"{name}/{kind}"]["chunks"] += 1
+            if not usable:
+                continue
+            stats[f"{name}/{kind}"]["usable_chunks"] += 1
+            for r in pq.read_table(done.with_suffix(".parquet")).to_pylist():
+                cache.setdefault(kind, {})[(r["record_id"], r["portable_hash"])] = r
+    return cache, stats
+
+
+def validate(ctx, reuse=()):
     selected = pq.read_table(ctx.work / "select" / "selected.parquet").to_pylist()
     vdir = ctx.work / "validate"
     jobs = []
-    fingerprint = _validate_fingerprint(ctx)
+    fingerprints = {kind: _validate_fingerprint(ctx, kind) for kind in ("rl", "sft")}
+    cache, stats = prior_validation(ctx, reuse) if reuse else ({}, {})
+    if reuse:
+        log(f"validate: reusable prior results {stats}")
     chunks = []
     for kind in ("rl", "sft"):
         rows = [r for r in selected if r["kind"] == kind]
@@ -442,25 +480,27 @@ def validate(ctx):
         results_path = done_path.with_suffix(".parquet")
         if done_path.exists() and results_path.exists():
             marker = json.loads(done_path.read_text())
-            if marker.get("fingerprint") == fingerprint and marker.get("content") == content and chunk_path.exists() and pq.ParquetFile(results_path).metadata.num_rows == len(rows) == marker.get("rows"):
+            if marker.get("fingerprint") == fingerprints[kind] and marker.get("content") == content and chunk_path.exists() and pq.ParquetFile(results_path).metadata.num_rows == len(rows) == marker.get("rows"):
                 continue
         write_table(chunk_path, table)
-        jobs.append((ctx.args, str(chunk_path), str(done_path), content))
+        known = cache.get(kind, {})
+        reused = [known[k] for k in ((r["metadata"]["record_id"], portable_hash(r)) for r in rows) if k in known]
+        jobs.append((ctx.args, str(chunk_path), str(done_path), content, kind, reused))
     current = {f"chunk-{kind}-{number:05d}" for kind, number, _ in chunks}
     for path in vdir.glob("chunk-*"):
         if path.name.split(".")[0] not in current:
             path.unlink()
     log(f"validate: {len(selected)} rows in {len(chunks)} chunks, {len(jobs)} to run")
     for marker in build._imap(_validate_job, jobs, ctx.recipe["workers"]["validate"]):
-        log(f"  {Path(marker['chunk']).name}: rows={marker['rows']} failures={marker['failures']}")
+        log(f"  {Path(marker['chunk']).name}: rows={marker['rows']} reused={marker.get('reused', 0)} failures={marker['failures']}")
     results = _read_dir(sorted(vdir.glob("chunk-*.done.parquet")))
     failures = Counter(r for r in results.column("reason").to_pylist() if r)
     log(f"  validated {results.num_rows}; failures {dict(failures)}")
     return results
 
 
-def _validate_job(args, chunk_path, done_path, content):
-    marker = validate_chunk(args, chunk_path, done_path)
+def _validate_job(args, chunk_path, done_path, content, kind, reused):
+    marker = validate_chunk(args, chunk_path, done_path, kind, reused)
     marker["content"] = content
     write_json(done_path, marker)
     return marker
@@ -851,7 +891,7 @@ def evidence(ctx, out):
         "eval_exclusions": {"by_category": sel["excluded"], "examples": dict(examples)},
         "evaluation_sets": {k: {kk: vv for kk, vv in v.items() if kk not in ("sha256",)} for k, v in quality["evaluation_sets"].items()},
         "preserved_splits": quality["preserved_splits"],
-        "validation": {"rows": validated.num_rows, "failures": dict(Counter(r for r in validated.column("reason").to_pylist() if r)), "bos_tokens": quality["bos_tokens"]},
+        "validation": {"rows": validated.num_rows, "failures": dict(Counter(r for r in validated.column("reason").to_pylist() if r)), "bos_tokens": quality["bos_tokens"], "reused_from_earlier_builds": {kind: sum(json.loads(p.read_text()).get("reused", 0) for p in (ctx.work / "validate").glob(f"chunk-{kind}-*.done.json")) for kind in ("rl", "sft")}},
         "pending": quality.get("pending", {}), "split_group_leakage": quality["split_group_leakage"], "shared_groups_same_split": quality.get("shared_groups_same_split", {}), "sweep_subset_of_train": quality["sweep_subset_of_train"],
         "verify": {k: verify_report.get(k) for k in ("files_checked", "bad_files", "rows", "index_rows", "missing_rows", "row_mismatches", "images_checked", "image_list_matches", "bad_image_count", "forbidden_group_sharing", "permitted_same_split_sharing", "sweep_subset_of_train", "passed")},
     }

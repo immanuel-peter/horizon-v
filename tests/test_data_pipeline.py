@@ -538,5 +538,33 @@ def test_scan_image_geometry_comes_from_the_processor(checker):
     assert build.processor_image_config(ctx) == checker.image_config
 
 
+@needs_miles
+def test_validation_reuses_only_unchanged_rows_under_the_same_fingerprint(tmp_path, monkeypatch):
+    rows = []
+    for k in range(3):
+        stored = images.prepare(png(photo(k)), tmp_path)
+        rows.append(pipeline.miles_row({"kind": "sft", "image_path": stored["image_path"], "question": "What is shown?", "answer": f"pattern {k}", "record_id": f"r{k}", "source": "s", "task": "t", "image_sha256": stored["image_sha256"]}, tmp_path))
+    chunk = tmp_path / "chunk-sft-00000.input.parquet"
+    pq.write_table(pa.Table.from_pylist(rows), chunk)
+    args = (str(RECIPE), str(tmp_path), "full")
+    fresh = pipeline.validate_chunk(args, chunk, tmp_path / "fresh.done.json", "sft")
+    first = pq.read_table(tmp_path / "fresh.done.parquet").to_pylist()
+    assert fresh["reused"] == 0 and all(r["ok"] for r in first)
+
+    sentinel = {**first[0], "total_tokens": 7}
+    stale = {**first[1], "portable_hash": "0" * 64, "total_tokens": 7}
+    marker = pipeline.validate_chunk(args, chunk, tmp_path / "again.done.json", "sft", [sentinel, stale])
+    again = pq.read_table(tmp_path / "again.done.parquet").to_pylist()
+    assert marker["reused"] == 1 and again[0] == sentinel, "a matching record_id and portable hash is reused as is"
+    assert again[1] == first[1] and again[2] == first[2], "a changed row is checked again"
+    assert marker["fingerprint"] == fresh["fingerprint"]
+
+    ctx = build.Context(*args)
+    sft, rl = pipeline._validate_fingerprint(ctx, "sft"), pipeline._validate_fingerprint(ctx, "rl")
+    real = runtime.file_sha256
+    monkeypatch.setattr(runtime, "file_sha256", lambda p: "changed" if Path(p).name == "reward.py" else real(p))
+    assert pipeline._validate_fingerprint(ctx, "sft") == sft and pipeline._validate_fingerprint(ctx, "rl") != rl, "only RL validation depends on the scorer"
+
+
 def test_temp_paths_are_unique():
     assert len({runtime.temp_path("/x/y.bin") for _ in range(100)}) == 100
