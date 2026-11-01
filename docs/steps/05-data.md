@@ -50,16 +50,17 @@ Workers are spawned processes with one torch/OMP/MKL thread each: 14 scan worker
 
 The audit inspected Hub metadata, cards and a deterministic sample of every candidate, then a 1,000-example real-data pilot.
 
-**Terms policy.** This is a research project building on Baseten's work; future commercial use is not a requirement, so non-commercial terms do not exclude a source. A source is admitted only when an original statement from its creators permits research training use: card or README text, a licence file covering data distributed with it, or the release archive's own licence. A Hub `license:` tag or a code-repository licence alone is not a basis. Permission to train is recorded separately from redistribution, and nothing is redistributed. The recipe holds each source's basis (`terms_note`), `redistribution` and, for pending sources, `missing_evidence`. The fetched documents and their hashes are in [`terms.json`](../evidence/step05/terms.json). Media origin is recorded for every source, but per-image rights of scraped or web images (ChartQA charts, for example) are not independently verified. FineVision redistributes the `fv_*` components and defers to each one's licence.
+**Terms policy.** This is a research project building on Baseten's work; future commercial use is not a requirement, so non-commercial terms do not exclude a source. A source is admitted only when an original statement from its creators permits research training use: card or README text, a licence file covering data distributed with it, the release archive's own licence, or the creators' own Hub `license:` declaration on their repository (since v3). A tag set by someone else, such as a mirror, or a code-repository licence alone is not a basis. Explicit upstream restrictions are recorded per source; upstream terms that cannot be found are recorded as missing, not as prohibitions. Permission to train is recorded separately from redistribution, and nothing is redistributed. The recipe holds each source's basis (`terms_note`), `redistribution` and, for pending sources, `missing_evidence`. The fetched documents and their hashes are in [`terms.json`](../evidence/step05/terms.json). Media origin is recorded for every source, but per-image rights of scraped or web images (ChartQA charts, for example) are not independently verified. FineVision redistributes the `fv_*` components and defers to each one's licence.
 
 Status: **include** (built and exported), **pending** (not built until a recorded gap closes: terms evidence or image integrity), **exclude** (audited and rejected for quality or fit). Rows inside an included source can also be pending, with `metadata.pending_reason`, in the `pending/` export buckets.
 
-| Terms decision (v2) | Sources |
+| Terms decision (v3) | Sources |
 |---|---|
+| Included, creators' Hub declaration (v3) | ViRL39K, VisualWebInstruct-verified and ThinkLite-VL-70k, all `license: mit` on their creators' repositories. Upstream restrictions, none of which bars research training: ScienceQA, IconQA and TabMWP CC BY-NC-SA 4.0, AI2D no redistribution, ChartQA GPL-3.0, LLaVA-OneVision academic use only ([below](#rl-sources-admitted-in-v3)) |
 | Included, original statement found | VQAv2 (CC BY 4.0, visualqa.org), VSR (Apache-2.0, project README; data in repo), TallyQA (Apache-2.0; QA zip in the licensed repo), CLEVR (CC BY 4.0), TextVQA (CC BY 4.0, creator's card), PlotQA (CC BY 4.0, README; v1 recorded MIT), CoSyn (ODC-BY), Nemotron COCO (OpenMDW-1.1), ChartVerse-RL (Apache-2.0), Geometry3K (MIT; data ships in the InterGPS repo) |
 | Included, previously add-on | ChartQA (GPL-3.0; data folder in the licensed repo), VisOnlyQA (GPL-3.0 `LICENSE.md`), IconQA (CC BY-NC-SA 4.0 README text; its badge says CC BY-SA) |
 | Included with conditions | AI2D: AI2's `license.txt` in `ai2d-all.zip` permits use by academic, non-profit or government-sponsored researchers, not by a for-profit enterprise, and grants no right to redistribute or publicly release the data. AI2's former dataset page and the AWS Open Data listing say CC BY-SA instead; the build follows the bundled licence ([below](#ai2d-terms)) |
-| Pending, terms unverified | Visual7W (toolkit MIT covers code; project page unreachable), ST-VQA, DocVQA and InfographicVQA (RRC download terms are behind registration; public pages state none), DVQA (no statement anywhere; GitHub NOASSERTION), ViRL39K, VisualWebInstruct-verified and ThinkLite-VL-70k (only `license: mit` Hub tags; repository licences cover code) |
+| Pending, terms unverified | Visual7W (toolkit MIT covers code; project page unreachable), ST-VQA, DocVQA and InfographicVQA (RRC download terms are behind registration; public pages state none), DVQA (no statement anywhere; GitHub NOASSERTION) |
 | Pending, integrity | PixMo-Count ([below](#pixmo-count)) |
 
 ### SFT candidates
@@ -128,22 +129,38 @@ Storage and redistribution are separate questions:
 
 Per-image rights in the scraped diagrams remain open whichever AI2 licence applies.
 
-**Finding AI2D in the exports.** Index rows (`index/*.parquet`) have `source == "fv_ai2d"` and `terms == "ai2-noncommercial"`, and portable and Miles rows have `metadata.source == "fv_ai2d"`. Full v2 has 4,277 AI2D rows: 4,245 in `default/sft/train` (247 of them in the sweep), 32 in `default/sft/validation`, and none in RL or pending buckets. They use 2,415 images (434.5 MB). No other source shares any of those images, so AI2D's images can be kept apart or left out as a set. `images.parquet` has no source column, so select AI2D images through the index:
+**Finding AI2D in the exports.** Index rows (`index/*.parquet`) have `source == "fv_ai2d"` and `terms == "ai2-noncommercial"`, and portable and Miles rows have `metadata.source == "fv_ai2d"`. Full v2 has 4,277 AI2D rows: 4,245 in `default/sft/train` (247 of them in the sweep), 32 in `default/sft/validation`, and none in RL or pending buckets. They use 2,415 images (434.5 MB). No other source shares any of those images, so AI2D's images can be kept apart or left out as a set. In v3, `fv_ai2d` has 4,057 rows (220 left SFT because their image groups now hold RL rows), and AI2D content also reaches RL through ViRL39K: 163 exported rows with `provenance.upstream_source` `ai2d` or `ai2dConverted`, 107 of them on an image byte-identical to an `fv_ai2d` image. VisualWebInstruct-verified includes AI2D images too but marks no row's image source. `images.parquet` has no source column, so select AI2D images through the index:
 
 ```python
 import pyarrow.parquet as pq, pyarrow.compute as pc, glob
-rows = [pq.read_table(f, columns=["source", "image_path"]) for f in glob.glob("exports/full-v2/index/*.parquet")]
+rows = [pq.read_table(f, columns=["source", "image_path"]) for f in glob.glob("exports/full-v3/index/*.parquet")]
 ai2d = sorted({p for t in rows for p in pc.filter(t, pc.equal(t["source"], "fv_ai2d"))["image_path"].to_pylist()})
 ```
+
+### RL sources admitted in v3
+
+ViRL39K, VisualWebInstruct-verified and ThinkLite-VL-70k were pending in v2 because each card's only terms are a `license: mit` metadata tag. Each dataset's creators set that tag on their own repository. TIGER-Lab published the first two, and ThinkLite's paper repository points to the `russwang` account for both the dataset and the models. Under the revised policy that declaration is the basis. It covers what the creators released. It cannot relicense data they took from elsewhere, so each upstream's terms are recorded separately ([terms evidence](../evidence/step05/terms.json)). The explicit upstream restrictions found all allow noncommercial research training. Missing upstream terms are recorded as missing.
+
+| Source | Explicit upstream restrictions | Upstream terms not found | Rows the terms attach to |
+|---|---|---|---|
+| ViRL39K | ScienceQA CC BY-NC-SA 4.0, "non-commercial research purposes only"; AI2D, AI2's licence (no redistribution); ChartQA GPL-3.0; LLaVA-OneVision-Data "academic research and education purpose" only | MMK12, K12, DVQA, GeoQA+ | Every row names its upstream in `provenance.upstream_source`. Exported default and pending rows: ScienceQA 668, ai2d 163, chartqa 141, MMK12 10,863, K12 499, dvqa 1,089, geoqa_plus 1,586. LLaVA-OneVision is listed on the card but not marked per row |
+| VisualWebInstruct-verified | Images from ScienceQA, AI2D and ChartQA carry those terms | Rights in the web images (found through Google Image Search), DocVQA, GeoQA+ | Rows have no image source; only image matching can attach a restriction to a row |
+| ThinkLite-VL-70k | ScienceQA, IconQA and TabMWP CC BY-NC-SA 4.0 | GeoQA, FigureQA data, OK-VQA | Rows have no source field; the paper lists the eight upstreams and their sizes |
+
+Redistribution is not cleared for any of the three. Nothing is redistributed.
+
+**Inspection.** I reviewed sampled prompts, images and targets from each source and checked targets against the images. A labelled triangle gives sin A = 7/25, and a fare table gives the 1,044 price difference, both as the targets say. One concrete problem turned up. ViRL39K's 1,302 `DeepScaleR` rows are text-only maths problems attached to 19 blank white images, one reused for 136 unrelated questions. No other RL source has a blank image. Select now holds RL rows whose thumbnail is constant as row-level pending, with `pending_reason: image_blank`, instead of training vision RL on them (1,297 after deduplication). 4,735 exported ThinkLite prompts and 945 ViRL39K prompts are in Chinese, mostly GeoQA-style geometry. The answer instruction stays English, and the targets are short and checkable.
+
+**Scorer.** Admission runs every target through `k2hv.reward` with correct, equivalent, wrong, near-wrong and unclosed-reasoning responses. Testing raw targets from the three sources found correct LaTeX answers the scorer rejected: `\$22.50`, `150\degree`, `1{,}574` and `28 in^2`. `normalize` now accepts these; no check on wrong answers was relaxed. Targets the scorer cannot verify stay out, for example `\dfrac{18}{5}\ \unit{}`, `0<x<5`, `200 mph`, `194.6 N.m`, `C) 64`, `(0, 0)` and sentences. Long decimals with no stated precision go to the existing pending rule (ViRL39K 17, VisualWebInstruct-verified 362).
 
 ### RL candidates
 
 | Source @ revision | Reference | Notes |
 |---|---|---|
-| [TIGER-Lab/ViRL39K](https://huggingface.co/datasets/TIGER-Lab/ViRL39K) `812ec61`, Hub tag MIT, **pending (terms)** | `answer` (boxed) | `category`, `source`, `qid` and both pass-rate fields kept in provenance only. Images from the verified `images.zip`; multi-image rows rejected. A trailing "Let's think step by step and output the final answer within \boxed{}." is replaced by the scorer format. |
-| [TIGER-Lab/VisualWebInstruct-verified](https://huggingface.co/datasets/TIGER-Lab/VisualWebInstruct-verified) `0e54d11`, Hub tag MIT, **pending (terms)** | `short_answer` | **97,295 rows in 95 files at this revision**, not the 973K in the card prose. Sub-questions (`idx` 3247.1, 3247.2) share a group. The reasoning `answer` is not read. |
+| [TIGER-Lab/ViRL39K](https://huggingface.co/datasets/TIGER-Lab/ViRL39K) `812ec61`, MIT (creators' declaration) | `answer` (boxed) | `category`, `source`, `qid` and both pass-rate fields kept in provenance only. Images from the verified `images.zip`; multi-image rows rejected. A trailing "Let's think step by step and output the final answer within \boxed{}." is replaced by the scorer format. |
+| [TIGER-Lab/VisualWebInstruct-verified](https://huggingface.co/datasets/TIGER-Lab/VisualWebInstruct-verified) `0e54d11`, MIT (creators' declaration) | `short_answer` | **97,295 rows in 95 files at this revision**, not the 973K in the card prose. Sub-questions (`idx` 3247.1, 3247.2) share a group. The reasoning `answer` is not read. |
 | [opendatalab/ChartVerse-RL-40K](https://huggingface.co/datasets/opendatalab/ChartVerse-RL-40K) `0b28d26`, Apache-2.0 | `reward_model.ground_truth` | The system prompt is dropped (recorded). Long-decimal references without a stated precision are pending. |
-| [russwang/ThinkLite-VL-70k](https://huggingface.co/datasets/russwang/ThinkLite-VL-70k) `5c86ea4`, Hub tag MIT, **pending (terms)** | `ground_truth` | No per-row upstream source. Items resemble FigureQA, TabMWP, Geometry3K and others that feed MathVista, so image and question matching is the only provenance control; the pilot found MathVista and MMBench duplicates. |
+| [russwang/ThinkLite-VL-70k](https://huggingface.co/datasets/russwang/ThinkLite-VL-70k) `5c86ea4`, MIT (creators' declaration) | `ground_truth` | No per-row upstream source. Items resemble FigureQA, TabMWP, Geometry3K and others that feed MathVista, so image and question matching is the only provenance control; the pilot found MathVista and MMBench duplicates. |
 | [hiyouga/geometry3k](https://huggingface.co/datasets/hiyouga/geometry3k) `fd21e53`, MIT (InterGPS release) | `answer` | `train` only; validation/test preserved. The pilot found two training images pixel-identical to MathVista testmini images (removed). |
 
 ## Row contracts
@@ -276,7 +293,68 @@ The pinned Miles multimodal RL rollout (`call_processor` in `miles/utils/process
 
 ## Build results
 
-### v2 (current)
+### v3 (current)
+
+Recipe version `v3` on 2026-11-01, built into `data/step05/{work,exports}/full-v3`. `full-v2` is unchanged. The scorer change made every scan fingerprint stale, so all 248 shards were rescanned in 57 minutes, and the final run reused that scan from a stopped attempt. Wall time of the final run: select 84 min, validate 14 min, export 1.5 min, materialize 10 s, verify 9.5 min. Validation reused v2's results for 871,781 SFT rows whose record id and content hash were unchanged (`validate --reuse-validation full-v2`); every RL row was validated fresh. Logs: `outputs/step05/full-v3-build.log` and the stopped attempts `full-v3-build.attempt{1,2}.log`, `full-v3-scan.attempt1.log`. Summaries: [`full-v3.json`](../evidence/step05/full-v3.json) and the per-source accounting [`rl-v3.json`](../evidence/step05/rl-v3.json) from `tools/step05/rl_v3_report.py`.
+
+| Stage | Records |
+|---|---|
+| Candidates after text and image rules (20 included sources) | 2,299,805 over 718,621 unique images, 591,256 groups |
+| Excluded for evaluation overlap | 7,237 (MMBench dev 3,876, MathVista testmini 1,853, ChartQA test 1,259, POPE 227, TextVQA val 19, MMMU val 2, DocVQA val 1) |
+| Exact QA duplicates | 44,655 |
+| SFT candidates in RL image groups (reserved for RL) | 12,943 |
+| RL rows held because the image is blank | 1,297 |
+| Selected and validated | 1,019,427; 0 contract failures |
+| Exported after quotas | 953,854 rows (1,003,854 index rows with the sweep), 627,987 images (77.13 GB) |
+
+| Bucket | Rows | Images | SFT total tokens or RL prompt tokens, p50 / p99 / max | Supervised p50 / p99 / max |
+|---|---|---|---|---|
+| `default/sft/train` | 799,209 | 502,121 | 516 / 1,084 / 1,141 | 2 / 14 / 101 |
+| `default/sft/validation` | 8,075 | 5,113 | 517 / 1,087 / 1,139 | 2 / 15 / 60 |
+| `default/sft/sweep50k` (subset of train) | 50,000 | 48,648 | 516 / 1,087 / 1,139 | 2 / 14 / 44 |
+| `default/rl/pool` | 122,896 | 100,064 | 200 / 1,145 / 1,505 | |
+| `default/rl/heldout` | 6,650 | 5,451 | 202 / 1,149 / 1,391 | |
+| `pending/sft/train` | 238 | 238 | 392 / 550 / 571 | 2 / 2 / 2 |
+| `pending/sft/validation` | 3 | 3 | | |
+| `pending/rl/pool` | 16,004 | 14,539 | 1,089 / 1,122 / 1,423 | |
+| `pending/rl/heldout` | 779 | 776 | | |
+
+Per new source (losses in order; full detail in `rl-v3.json`):
+
+| | ViRL39K | VisualWebInstruct-verified | ThinkLite-VL-70k |
+|---|---|---|---|
+| Source rows | 38,870 | 97,295 | 69,997 |
+| Rejected at scan | 7,317: multi-image 2,289, free-form answer 2,334, options not parsed 1,793, yes/no 424, unparseable expression 380, multivariable 56, number format 24, choice unmatched 6, image too small 4, scorer accepts a wrong answer 7 | 55,225: free-form 28,567, multi-image 17,202, unparseable 4,157, yes/no 1,740, options not parsed 1,255, choice unmatched 1,044, multivariable 981, reserved marker 235, number format 20, scorer accepts wrong 16, scientific 5, scorer rejects reference 3 | 24,225: free-form 13,016, yes/no 11,161, choice unmatched 35, options not parsed 8, empty 3, unparseable 2 |
+| Evaluation overlap excluded | 345 (MMBench 233, MathVista 96, ChartQA test 16) | 4 | 3,473 (MMBench 2,789, MathVista 684) |
+| Duplicates | 1,278 | 2,373 | 1,182 |
+| Held pending | 1,314 (blank image 1,297, no stated precision 17) | 362 (no stated precision) | 0 |
+| Exported default pool / held-out | 27,143 / 1,473 | 37,322 / 2,009 | 38,964 / 2,153 |
+| Default selectors | math 19,692, choice 8,873, decimal 51 | math 37,981, decimal 1,021, choice 329 | math 22,597, choice 18,199, decimal 321 |
+
+No row failed the length limits. Every exported row passed the processor contract and target re-admission.
+
+- **RL.** 129,546 default rows (122,896 pool, 6,650 held-out), up from 20,998: ThinkLite 41,117, VisualWebInstruct-verified 39,331, ViRL39K 28,616, ChartVerse-RL 18,972, Geometry3K 1,510. Selectors: `k2hv_math_v1` 100,638, `k2hv_choice_v1` 27,401, `k2hv_decimal_v1` 1,507. By task: maths and science reasoning 69,733, web STEM 39,331, charts 18,972, geometry 1,510. ViRL39K categories in the default buckets: grade-school geometry 9,674, other grade-school maths 9,350, tables/diagrams/charts 4,700, grade-school science 3,262, spatial 1,529, broader STEM 802, social science 496, commonsense 117.
+- **Geometry3K.** 516 of v2's Geometry3K rows are now ThinkLite rows: ThinkLite contains the same problems, every one has a ThinkLite twin with the same normalized question and answer, and deduplication keeps the source listed first. Another 39 Geometry3K rows moved between pool and held-out, with unchanged content, because merging with ThinkLite's copies of their images changed their group.
+- **Pending.** The ChartVerse long-decimal rows are byte-identical to v2 (15,107). New pending rows: 1,297 `image_blank` and 379 `no_stated_precision` from the new sources. Nemotron spatial pending: 241 (one moved with an image group reserved for RL).
+- **SFT.** 807,525 rows against v2's 812,260. 8,641 v2 rows left SFT because their image groups now hold RL rows: 7,524 share their v2 group with an exported RL row; for the other 1,117, 768 of their 777 images are within phash distance 2 of a selected RL image and the remaining 9 within 4 to 6, which fits groups merged through the new images. Quota-limited sources refilled 3,906 rows (IconQA 2,090, VQAv2 1,127, TallyQA 570, CLEVR 106, VisOnlyQA 13). The 803,619 rows in both builds are identical in content and bucket. Losses by source: IconQA 5,821 (ThinkLite carries IconQA images), VQAv2 1,127, ChartQA 727, TallyQA 570, AI2D 220, CLEVR 106, Nemotron 44, VisOnlyQA 13, VSR 12, TextVQA 1.
+
+**Checks.**
+
+| Check | Scope | Result |
+|---|---|---|
+| Miles normalization, `prepare_sample`, processor contract, one BOS | 1,019,427 selected rows (871,781 SFT results reused from v2) | 0 failures |
+| RL target re-admission through `k2hv.reward` | every selected RL row | 0 failures |
+| Files against SHA256SUMS; materialized file set against portable parts | 27 files | complete, 0 bad |
+| Each index row once in its bucket's Miles files with the validated hash | 1,003,854 rows | 0 missing, 0 mismatches |
+| Images re-hashed and decoded; referenced set equals `images.parquet` | 627,987 | 0 bad, equal |
+| Group sharing across train/validation, pool/held-out or SFT/RL | all buckets | none |
+| Same-split sharing between `default` and `pending` (permitted) | | SFT train 197, validation 3; RL pool 277, held-out 13 |
+| Sweep is a subset of train | 50,000 | true |
+| Tests | 278 passed, 1 skipped | |
+
+RL difficulty calibration on the GPU still waits for the SFT checkpoint ([below](#rl-prompt-selection-after-sft)).
+
+### v2
 
 Recipe version `v2` on 2026-11-01 (n2d-standard-16, 16 vCPU, 62 GiB), seed 20261031, built into `data/step05/{work,exports}/full-v2`. Wall time: scan 56 min, evals 4 s (reused), select 61 min, validate 104 min, export 1 min, materialize 8 s, verify 9 min. Log: `outputs/step05/full-v2-build.log`; progress log: `outputs/step05/progress.log`. Summary: [`full-v2.json`](../evidence/step05/full-v2.json), pilot [`pilot-v2.json`](../evidence/step05/pilot-v2.json).
 
@@ -361,26 +439,30 @@ What drives the differences:
 
 | Path (under `data/step05/`) | Size | sha256 |
 |---|---|---|
-| `exports/full-v2/SHA256SUMS` (27 Parquet files) | 483 MB export tree | `d12c0a06e5ff2a13fe1458f31b80a21195b3d7c13f248dba014ec60e2cb40a73` |
+| `exports/full-v3/SHA256SUMS` (27 Parquet files) | 524 MB export tree | `35adeee86e8f6963d6e3af844da71f1de31edf0a45bc16537ac7fa50ebac468c` |
+| `exports/full-v3/manifest.json` | | `8c40c9fc79da44cc591c2799bc1967896496cd296337b4be092f00d5217e9a92` |
+| `exports/full-v3/images.parquet` | | `97b05072e4e4ab01d791406b96b29817535ae61081b93b704d7ec18b15302ccc` |
+| `exports/full-v2/SHA256SUMS` (v2, preserved) | 483 MB export tree | `d12c0a06e5ff2a13fe1458f31b80a21195b3d7c13f248dba014ec60e2cb40a73` |
 | `exports/full-v2/manifest.json` | | `e8a6f8a90d498d677cde32e786e1bacd51648fd7a13a43cff5a0e7fb1b9d732d` |
 | `exports/full-v2/images.parquet` | | `02538c8fefec0af304f2f176fd86335471091eb87d7c89f563de7565fed0b529` |
 | `exports/pilot-v2/SHA256SUMS` | | `6f6cd126950302131510b04df17cdccb82013eefe833712da818aa4a097eb5a6` |
 | `exports/full/SHA256SUMS` (v1, preserved) | | `6d78bf8bd6a5b1a720ac9b552c5931094d1e7ea663f09ff829c0c2903531fd73` |
-| `images/` | 73.07 GB referenced by v2 (one store for v1 and v2) | per image, by name |
+| `images/` | 77.13 GB referenced by v3, 73.07 GB by v2 (one store for all builds) | per image, by name |
 
 These exist only on the CPU instance, and nothing was uploaded. The same holds for:
 
-- `hf/` (verified source downloads), `media/` (pinned COCO annotations, URL cache), `evals/` and `work/{full,full-v2,pilot-v2,pilot-v2r}`
+- `hf/` (verified source downloads), `media/` (pinned COCO annotations, URL cache), `evals/` and `work/{full,full-v2,full-v3,pilot-v2,pilot-v2r}`
 - `data/step05-resume/`
-- `outputs/step05/`: logs, inspection and exclusion sheets, terms documents, PixMo checks
+- `outputs/step05/`: logs, inspection and exclusion sheets, terms documents (`terms/`, including `terms/ai2d` and `terms/rl-v3`), PixMo checks
 - the `third_party/` checkouts
 
-To use the data elsewhere, copy `images/` and `exports/full-v2/` and run `materialize` and `verify` as [above](#outputs-and-rematerialization). To rebuild, follow [Setup](#setup) and run `build --profile full`. A fresh build reproduces these bytes while the pinned Hub revisions, the COCO train2017 zip (ETag-pinned) and the COCO annotations zip (sha256-pinned) stay available.
+To use the data elsewhere, copy `images/` and `exports/full-v3/` and run `materialize` and `verify` as [above](#outputs-and-rematerialization). To rebuild, follow [Setup](#setup) and run `build --profile full`. A fresh build reproduces these bytes while the pinned Hub revisions, the COCO train2017 zip (ETag-pinned) and the COCO annotations zip (sha256-pinned) stay available.
 
 ### Known limitations
 
 - Cropped copies of evaluation images are not detected; re-encoded, resized and recolored copies are.
-- The admitted RL pool is small (20,998 rows, chart and geometry only) until the pending RL sources' terms are resolved or other sources are added.
+- RL coverage is maths, science, web STEM, charts and geometry (129,546 default rows). Most targets are numbers, expressions or option letters; RL has no free-form, yes/no or open-text targets because the scorer cannot verify them. Difficulty is not calibrated until the SFT checkpoint exists.
+- Upstream terms that could not be found (MMK12, K12, DVQA, GeoQA, FigureQA data, OK-VQA, web images in VisualWebInstruct) are recorded as missing; rows from VisualWebInstruct-verified and ThinkLite carry no upstream source, so upstream restrictions can be traced to their rows only by image matching.
 - Per-image rights of scraped media (ChartQA charts) and textbook diagrams (Geometry3K) are not verified; only the dataset release terms are.
 - AI2D is admitted under its bundled academic, non-profit licence, which grants no redistribution. AI2 also labelled it CC BY-SA, and which terms govern is unresolved ([AI2D terms](#ai2d-terms)). Its rows are tagged `fv_ai2d` so they can be held back from anything shared.
 - The fixed BOS path, the lazy loader and the `k2hv.reward` scorers have CPU evidence only; each needs its first GPU run (steps 6 and 8).
@@ -389,7 +471,7 @@ To use the data elsewhere, copy `images/` and `exports/full-v2/` and run `materi
 
 This GPU-dependent stage waits for the [SFT checkpoint](06-sft.md). Follow IFM's protocol from RL360 (`src/agent360/harbor/miles/calibration.py`):
 
-1. Take a 10–20k-prompt subset of `default/rl/pool` (19,961 prompts in v2).
+1. Take a 10–20k-prompt subset of `default/rl/pool` (122,896 prompts in v3).
 2. Sample the SFT checkpoint 16 times per prompt, at the RL temperature, image budget and reasoning effort used for training and evaluation.
 3. Keep prompts with a pass rate between 20% and 40%.
 

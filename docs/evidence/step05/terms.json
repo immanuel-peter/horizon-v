@@ -1,6 +1,6 @@
 {
- "policy": "Admit when an original statement by the dataset creators (card or README text, a licence file covering data distributed with it, or the release archive's licence) permits research training use. Hub tags and code-repository licences alone are not a basis. Permission to train is recorded separately from redistribution; nothing is redistributed. NC terms are not a reason to exclude. Media origin is recorded; per-image rights of scraped or web media are not independently verified.",
- "retrieved": "2026-10-31/2026-11-01 from the step 5 CPU host; files under outputs/step05/terms/ (machine-local)",
+ "policy": "Admit when an original statement by the dataset creators permits research training use: card or README text, a licence file covering data distributed with it, the release archive's licence, or the creator's own Hub licence declaration (card metadata on the creator's repository). A tag set by someone else (a mirror) or a code-repository licence alone is not a basis. Explicit upstream restrictions are recorded; upstream terms that cannot be found are recorded as missing, not as prohibitions. Permission to train is recorded separately from redistribution; nothing is redistributed. NC terms are not a reason to exclude. Media origin is recorded; per-image rights of scraped or web media are not independently verified.",
+ "retrieved": "2026-10-31/2026-11-01 from the step 5 CPU host; files under outputs/step05/terms/ (machine-local); rl_virl39k, rl_vwi_verified and rl_thinklite rechecked 2026-11-01 (files under outputs/step05/terms/rl-v3/)",
  "sources": {
   "fv_vqav2": {
    "status": "include",
@@ -324,46 +324,146 @@
    ]
   },
   "rl_virl39k": {
-   "status": "pending",
-   "terms": "unverified",
-   "basis_and_media": "none found. Media: images from existing datasets with their own terms",
-   "redistribution": "unknown",
-   "missing_evidence": "a dataset terms statement: the card has only a 'license: mit' Hub tag; TIGER-AI-Lab/VL-Rethinker's Apache-2.0 LICENSE covers code and the data is not in that repository",
+   "status": "include",
+   "terms": "mit",
+   "basis_and_media": "Creator's Hub declaration: TIGER-Lab/ViRL39K card metadata 'license: mit' on TIGER-Lab's own repository, covering the released questions, answers and images.zip; the card has no prose terms. Upstreams by the per-row source field (provenance.upstream_source): ScienceQA and ScienceQAConverted, CC BY-NC-SA 4.0 and 'non-commercial research purposes only'; ai2d, AI2's licence (academic non-profit use, no redistribution); chartqa, GPL-3.0; MMMath (THU-KEG/MM_Math), M3CoT and DeepScaleR, MIT; R1OneVision, Apache-2.0; MMK12, MMK12Converted, K12, dvqa and geoqa_plus, no terms found (missing, not a restriction); Processed, collected by the creators. The card also lists LLaVA-OneVision-Data, which allows 'academic research and education purpose' only; the source field does not mark which rows came from it. Media: images from these datasets and newly collected ones",
+   "redistribution": "not cleared: the MIT declaration cannot relicense upstream data. ScienceQA rows are NC-SA, ai2d rows may not be redistributed, chartqa rows are GPL-3.0, LLaVA-OneVision-derived rows are academic-only, and several upstreams state no terms",
+   "missing_evidence": null,
+   "previous": "pending in v2: only a 'license: mit' Hub tag",
    "documents": [
     {
      "document": "huggingface.co/datasets/TIGER-Lab/ViRL39K@812ec617dea4bc8a4e751663b88e4ebb7de4d00e README.md",
-     "sha256": "082d2e7c1127baf845f5bacbe7bace5f2c9136a5bb16a10bf100a1c3ea793032"
-    },
-    {
-     "document": "https://raw.githubusercontent.com/TIGER-AI-Lab/VL-Rethinker/main/README.md",
-     "sha256": "20fee71e18808c54ef1703e94ade060e9370e12b103caaa64282ff3aa2be3fd5"
-    },
-    {
-     "document": "https://raw.githubusercontent.com/TIGER-AI-Lab/VL-Rethinker/main/LICENSE",
-     "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+     "sha256": "082d2e7c1127baf845f5bacbe7bace5f2c9136a5bb16a10bf100a1c3ea793032",
+     "license_metadata": "mit"
     }
-   ]
+   ],
+   "upstream_by_source_field": {
+    "ScienceQA, ScienceQAConverted": {
+     "document": "https://raw.githubusercontent.com/lupantech/ScienceQA/main/README.md",
+     "sha256": "281397769efd1a3aad6ad12a065e4344025525acd4e973f9d8a72a2994649580",
+     "quote": "The ScienceQA dataset is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License",
+     "restriction": "non-commercial, share-alike; the paper also says 'available for non-commercial research purposes only'",
+     "note": "the mirror derek-thomas/ScienceQA tags cc-by-sa-4.0, which its own card text contradicts; the mirror tag is not used"
+    },
+    "ai2d, ai2dConverted": {
+     "document": "docs/evidence/step05/ai2d-terms.json",
+     "restriction": "academic non-profit use; no redistribution"
+    },
+    "chartqa": {
+     "document": "see fv_chartqa",
+     "restriction": "GPL-3.0"
+    },
+    "MMMath": {
+     "document": "huggingface.co/datasets/THU-KEG/MM_Math@7d4cfaabd7597b3495f6ad14a242ec92fc0e0d4d README.md",
+     "sha256": "bd64af59feea85bd87f321968c3836328a87d1f101f54294e113405aa580622f",
+     "license_metadata": "mit"
+    },
+    "M3CoT, M3CoTConverted": {
+     "document": "huggingface.co/datasets/LightChen2333/M3CoT@48cf35001d595a6b0290c82c897a4b4563390821 README.md",
+     "sha256": "25ad38becdb629e70ecce54d5347acd68ad29028f8d08d40f62c2402c0f0962c",
+     "license_metadata": "mit"
+    },
+    "DeepScaleR": {
+     "document": "huggingface.co/datasets/agentica-org/DeepScaleR-Preview-Dataset@b6ae8c60f5c1f2b594e2140b91c49c9ad0949e29 README.md",
+     "sha256": "164470e328cbc11467ee031547161ab1c0340460bcb1512cf7b87bf2913e8e91",
+     "license_metadata": "mit"
+    },
+    "R1OneVision, R1OneVisionConverted": {
+     "document": "huggingface.co/datasets/Fancy-MLLM/R1-Onevision@904e96cb76d92ae40746e84c6b9809eb839937fd README.md",
+     "sha256": "874098a21d533a7d459c14b412fd54ef0ff6de3a6944a57396fafb481b5f677b",
+     "license_metadata": "apache-2.0"
+    },
+    "MMK12, MMK12Converted": {
+     "document": "huggingface.co/datasets/FanqingM/MMK12@372a609268ea79b5e78d90ab173e02c37b486163 README.md",
+     "sha256": "f852298304c89b0d27c900feb67931577148d01e70de87459724c2fbefc2e791",
+     "missing": "no licence metadata or text"
+    },
+    "K12": {
+     "missing": "no upstream named; terms not found"
+    },
+    "dvqa": {
+     "missing": "no statement anywhere (see fv_dvqa)"
+    },
+    "geoqa_plus, geoqa_plusConverted": {
+     "document": "https://github.com/chen-judge/GeoQA README.md (repository licence: none)",
+     "sha256": "4cb521bb199eabcc274456145002aac82487b0a69bb616aed55a7225e11ec0f3",
+     "missing": "no licence"
+    },
+    "Processed": {
+     "note": "collected by the ViRL39K creators; covered by their declaration"
+    }
+   },
+   "upstream_not_marked_per_row": {
+    "LLaVA-OneVision-Data": {
+     "document": "huggingface.co/datasets/lmms-lab/LLaVA-OneVision-Data@7ca5e5bf8b2006d5dfa0549756198474f0897f63 README.md",
+     "sha256": "65b66d3f9ca48eed22fd03c9d4c3625ab2555a0e639d3e7295805660d2ffe102",
+     "quote": "We only allow the use of this dataset for academic research and education purpose.",
+     "restriction": "academic research and education only"
+    },
+    "MV-MATH": {
+     "document": "huggingface.co/datasets/PeijieWang/MV-MATH@b22144b7d9315ce30c7ee8ce1bbaaa7b52fa8674 README.md",
+     "sha256": "d890cd1c0b1baa190df96122f77b045dcd1d6847ccad5f5b9d70db3f4786c99a",
+     "license_metadata": "mit",
+     "note": "multi-image; such rows are rejected"
+    }
+   }
   },
   "rl_vwi_verified": {
-   "status": "pending",
-   "terms": "unverified",
-   "basis_and_media": "none found. Media: web images found through Google Image search, no stated terms",
-   "redistribution": "unknown",
-   "missing_evidence": "a dataset terms statement: the card has only a 'license: mit' Hub tag; the GitHub MIT LICENSE covers the pipeline code",
+   "status": "include",
+   "terms": "mit",
+   "basis_and_media": "Creator's Hub declaration: TIGER-Lab/VisualWebInstruct-verified card metadata 'license: mit' on TIGER-Lab's own repository, covering the released QA pairs and images; no prose terms. The parent TIGER-Lab/VisualWebInstruct declares 'license: apache-2.0'. Media, per the parent card: web images found through Google Image Search (118,576 of the parent's images) and images from coco, chartqa, ai2d, geoqa+, sqa (ScienceQA), vg, docvqa, gqa, ocr_vqa and textvqa. Rows carry no image source, so upstream restrictions (ScienceQA CC BY-NC-SA research only, AI2D no redistribution, ChartQA GPL-3.0) attach to rows only through image matching; rights in the web images are not stated",
+   "redistribution": "not cleared: the MIT declaration cannot relicense web images or upstream data with their own terms (ScienceQA NC-SA, AI2D no redistribution, ChartQA GPL-3.0), and rows carry no image source",
+   "missing_evidence": null,
+   "previous": "pending in v2: only a 'license: mit' Hub tag",
    "documents": [
     {
      "document": "huggingface.co/datasets/TIGER-Lab/VisualWebInstruct-verified@0e54d1161f62daabb2a13346949b02bb8df5b836 README.md",
-     "sha256": "63592069fcc1ac12f95d7152a0ff60b75133d014a05a430a7314721bf662dd9e"
+     "sha256": "63592069fcc1ac12f95d7152a0ff60b75133d014a05a430a7314721bf662dd9e",
+     "license_metadata": "mit"
     },
     {
-     "document": "https://raw.githubusercontent.com/TIGER-AI-Lab/VisualWebInstruct/main/README.md",
-     "sha256": "2f1e3db11766d2ca4a778ee96e171c4e9ac8166dcb3901c3555d9f2ea440fcd9"
-    },
-    {
-     "document": "https://raw.githubusercontent.com/TIGER-AI-Lab/VisualWebInstruct/main/LICENSE",
-     "sha256": "7d15115a511d194240025223473a15775115bb14a8bfe00b63ee94c343c29942"
+     "document": "huggingface.co/datasets/TIGER-Lab/VisualWebInstruct@f6997e4e42160ca6607889980ca60e1175dfcc73 README.md",
+     "sha256": "7bb0e31424360db53c5aeefaa34cce201b07e2a1af0ad77c95bc5eb5830cca05",
+     "license_metadata": "apache-2.0"
     }
-   ]
+   ],
+   "image_sources_per_parent_card": {
+    "visualwebinstruct (web, Google Image Search)": 118576,
+    "coco": 32606,
+    "chartqa": 17008,
+    "ai2d": 11397,
+    "geoqa+": 11364,
+    "sqa": 5650,
+    "vg": 4767,
+    "docvqa": 3978,
+    "gqa": 3529,
+    "ocr_vqa": 4448,
+    "textvqa": 1200,
+    "others": 2635
+   },
+   "upstream_restrictions": {
+    "ScienceQA (sqa)": {
+     "document": "https://raw.githubusercontent.com/lupantech/ScienceQA/main/README.md",
+     "sha256": "281397769efd1a3aad6ad12a065e4344025525acd4e973f9d8a72a2994649580",
+     "quote": "The ScienceQA dataset is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License",
+     "restriction": "non-commercial, share-alike; the paper also says 'available for non-commercial research purposes only'",
+     "note": "the mirror derek-thomas/ScienceQA tags cc-by-sa-4.0, which its own card text contradicts; the mirror tag is not used"
+    },
+    "AI2D": {
+     "document": "docs/evidence/step05/ai2d-terms.json",
+     "restriction": "academic non-profit use; no redistribution"
+    },
+    "ChartQA": {
+     "document": "see fv_chartqa",
+     "restriction": "GPL-3.0"
+    }
+   },
+   "upstream_missing": [
+    "web image rights",
+    "DocVQA (RRC terms behind registration)",
+    "GeoQA+"
+   ],
+   "rows_identifiable": "no per-row image source; only through image matching"
   },
   "rl_chartverse": {
    "status": "include",
@@ -379,20 +479,70 @@
    ]
   },
   "rl_thinklite": {
-   "status": "pending",
-   "terms": "unverified",
-   "basis_and_media": "none found. Media: images from unnamed upstream datasets (no per-row source)",
-   "redistribution": "unknown",
-   "missing_evidence": "a dataset terms statement: the card is only a 'license: mit' Hub tag and si0wang/ThinkLite-VL has no licence",
+   "status": "include",
+   "terms": "mit",
+   "basis_and_media": "Creator's Hub declaration: russwang/ThinkLite-VL-70k card metadata 'license: mit'; the paper's repository si0wang/ThinkLite-VL links this dataset and the authors' models under the same account. The card has no other text and the repository has no licence. Upstreams per the paper (arXiv 2504.07934, Figure 3): Geometry3K (MIT), GeoQA (no licence found), Geos (Apache-2.0 repository), FigureQA (code MIT, data terms not found), ScienceQA, IconQA and TabMWP (CC BY-NC-SA 4.0), OK-VQA (no terms found; COCO images). Rows carry no source field",
+   "redistribution": "not cleared: ScienceQA, IconQA and TabMWP data are NC-SA, several upstreams state no terms, and rows carry no source field",
+   "missing_evidence": null,
+   "previous": "pending in v2: only a 'license: mit' Hub tag",
    "documents": [
     {
      "document": "huggingface.co/datasets/russwang/ThinkLite-VL-70k@5c86ea41d624e27e53002af47b8cf4538aa2c88f README.md",
-     "sha256": "5c1b3fd193f37b9dcdd947a12e566189f1c9d2664f4e5e95548e6a4b9fc7adab"
+     "sha256": "5c1b3fd193f37b9dcdd947a12e566189f1c9d2664f4e5e95548e6a4b9fc7adab",
+     "license_metadata": "mit"
     },
     {
-     "document": "GitHub API repos/si0wang/ThinkLite-VL license = none; raw README.md at main and master returned 404"
+     "document": "GitHub si0wang/ThinkLite-VL README (links russwang/ThinkLite-VL-70k and russwang/ThinkLite-VL-7B); repository licence: none",
+     "sha256": "7ee2419ce6b892af3070f7bb67199a32b74611fa57f5cf9b681cc8463eec4fdd"
+    },
+    {
+     "document": "arXiv 2504.07934v1, Figure 3 (data sources and sizes)",
+     "sha256": "c517e6bb906515eb0fc5c4e4d5af067cf291926c9176063dbbdf1ae473f9bbae"
     }
-   ]
+   ],
+   "upstream_per_paper": {
+    "Geometry3K (3,001)": {
+     "terms": "MIT, see rl_geometry3k"
+    },
+    "GeoQA (5,010)": {
+     "document": "https://github.com/chen-judge/GeoQA README.md (repository licence: none)",
+     "sha256": "4cb521bb199eabcc274456145002aac82487b0a69bb616aed55a7225e11ec0f3",
+     "missing": "no licence"
+    },
+    "Geos (66)": {
+     "document": "https://github.com/seominjoon/geosolver (repository licence Apache-2.0)",
+     "sha256": "79e78a152437c63de78ed10f1f5a051f01c10b8c40975e4befc5339f678ca807"
+    },
+    "FigureQA (10,000)": {
+     "document": "https://github.com/Maluuba/FigureQA LICENSE.txt ('FigureQA Code', MIT); Microsoft download page id=100635 shows no data licence",
+     "sha256": "8c039030dce6e816428c6694b08aae2d6587d1cecaed15a63ad4f59b4dd6ba5c",
+     "missing": "data terms"
+    },
+    "ScienceQA (10,332)": {
+     "document": "https://raw.githubusercontent.com/lupantech/ScienceQA/main/README.md",
+     "sha256": "281397769efd1a3aad6ad12a065e4344025525acd4e973f9d8a72a2994649580",
+     "quote": "The ScienceQA dataset is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License",
+     "restriction": "non-commercial, share-alike; the paper also says 'available for non-commercial research purposes only'",
+     "note": "the mirror derek-thomas/ScienceQA tags cc-by-sa-4.0, which its own card text contradicts; the mirror tag is not used"
+    },
+    "OK-VQA (9,009)": {
+     "document": "https://okvqa.allenai.org/",
+     "sha256": "b40116d03f831f883a142cf742bfc7a4cdea3dc173237ca1bc71a20cfb3812a5",
+     "missing": "no terms stated; images are COCO"
+    },
+    "IconQA (10,000)": {
+     "document": "https://github.com/lupantech/IconQA README.md",
+     "sha256": "8d6b29d38a73464e665ca5500c97c78923d3a1e4fa5af561a8b654d1b987d25f",
+     "restriction": "CC BY-NC-SA 4.0 (README text; its badge says CC BY-SA)"
+    },
+    "TabMWP (22,579)": {
+     "document": "https://github.com/lupantech/PromptPG README.md",
+     "sha256": "dd61c99cca31e38ac48341f8daabe5b834187f76c37ca44ca5f57ff35f32a340",
+     "quote": "The TabMWP dataset is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License",
+     "restriction": "non-commercial, share-alike"
+    }
+   },
+   "rows_identifiable": "no per-row source field"
   },
   "rl_geometry3k": {
    "status": "include",
