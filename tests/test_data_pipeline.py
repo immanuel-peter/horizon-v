@@ -222,14 +222,19 @@ def test_dedup_key_needs_image_identity_and_split_follows_group():
 # ------------------------------------------------------------------- RL scoring
 
 
-@needs_rl360
 @pytest.mark.parametrize("problem,reference,answer_type,target,selector", [
     ("<image>\nFind x.", "\\boxed{2016}", "numeric", "2016", scoring.MATH),
     ("<image>\nPerimeter?", "\\boxed{20 cm}", "numeric", "20", scoring.MATH),
     ("<image>\nAngle?", "60°", "numeric", "60", scoring.MATH),
     ("<image>\nCost?", "$1,234", "numeric", "1234", scoring.MATH),
-    ("<image>\nShare?", "35.294117647058826", "numeric_long_decimal", "35.294117647058826", scoring.PENDING_NUMERIC),
+    ("<image>\nRate?", "20%", "numeric", "20", scoring.MATH),
+    ("<image>\nShare?", "35.294117647058826", "numeric_long_decimal", "35.294117647058826", scoring.PENDING_DECIMAL),
+    ("<image>\nRMS? Provide the answer rounded to four decimal places.", "0.4082", "numeric_stated_precision", "0.4082", scoring.DECIMAL),
+    ("<image>\nShare? Round to two decimal places.", "35.294117647058826", "numeric_long_decimal", "35.294117647058826", scoring.PENDING_DECIMAL),
     ("<image>\nFind b.", "2 \\sqrt { 22 }", "symbolic", "2 \\sqrt { 22 }", scoring.MATH),
+    ("<image>\nVolume?", "\\(\\frac{112}{3} \\pi \\) cubic units", "symbolic", "\\frac{112}{3} \\pi", scoring.MATH),
+    ("<image>\nRatio?", "\\boxed{\\(\\frac{3}{5}\\)}", "symbolic", "\\frac{3}{5}", scoring.MATH),
+    ("<image>\nSide?", "\\(5\\sqrt{3}\\)", "symbolic", "5\\sqrt{3}", scoring.MATH),
     ("<image>\nWhich?\nA. cat\nB. dog", "B", "choice", "B", scoring.CHOICE),
     ("<image>\nWhich?\n(A) cat\n(B) dog", "dog", "choice", "B", scoring.CHOICE),
 ])
@@ -237,30 +242,43 @@ def test_rl_targets_are_classified_and_admitted(problem, reference, answer_type,
     info = scoring.classify(problem, reference)
     assert (info["answer_type"], info["target"], info["selector"]) == (answer_type, target, selector)
     assert scoring.admit(problem, info) is None
+    assert not any(d in (info["target"] or "") for d in ("\\(", "\\)", "\\[", "$")), "math delimiters are removed from targets"
 
 
-@needs_rl360
-@pytest.mark.parametrize("reference,reason", [("Yes", "answer_yes_no"), ("5.48e+04", "answer_scientific"), ("Consecutive interior angles are supplementary.", "answer_free_form"), ("", "answer_empty")])
+def test_long_decimal_precision_rules():
+    assert scoring.stated_decimals("Round your answer to 4 decimal places.") == 4
+    assert scoring.stated_decimals("to the nearest tenth") == 1 and scoring.stated_decimals("Round the answer to the nearest 0.0001 mass unit.") == 4
+    assert scoring.stated_decimals("Give three significant figures, two decimal places.") is None
+    assert scoring.stated_decimals("What is the average?") is None
+    info = scoring.classify("<image>\nAverage?", "683.3333333333334")
+    assert info["selector"] == scoring.PENDING_DECIMAL and info["pending"] == "no_stated_precision"
+
+
+@pytest.mark.parametrize("reference,reason", [("Yes", "answer_yes_no"), ("5.48e+04", "answer_scientific"), ("Consecutive interior angles are supplementary.", "answer_free_form"), ("", "answer_empty"), ("\\frac{2x}{3y}", "answer_multivariable_expression")])
 def test_unscorable_rl_targets_are_excluded(reference, reason):
     assert scoring.classify("<image>\nQ?", reference)["reason"] == reason
     assert scoring.classify("<image>\nWhich one?", "C")["reason"] == "choice_options_unparsed"
     assert scoring.classify("<image>\nWhich?\nA. cat\nB. dog", "fish")["reason"] == "choice_unmatched"
 
 
+def test_admission_catches_a_scorer_that_misses_equivalent_forms(monkeypatch):
+    from k2hv import reward
+
+    info = scoring.classify("<image>\nFind b.", "\\frac{3}{2}")
+    assert scoring.admit("<image>\nFind b.", info) is None
+    monkeypatch.setattr(reward, "to_sympy", lambda s: (_ for _ in ()).throw(reward.ScoreError("off")))
+    assert scoring.admit("<image>\nFind b.", {**info, "answer_type": "numeric", "target": "1.5"}) == "scorer_rejects_reference"
+
+
 @needs_rl360
-def test_pinned_scorer_behavior_is_characterized():
-    ok = scoring.scorer_correct
-    assert ok(scoring.MATH, "Answer: 1.5", "1.5") and ok(scoring.MATH, "Answer: \\boxed{1.5}", "1.5") and ok(scoring.MATH, "Answer: 1.5 cm", "1.5")
-    assert not ok(scoring.MATH, "\\boxed{1.5}", "1.5"), "math_dapo reads only the Answer: line"
-    assert not ok(scoring.MATH, "Answer: 1.50", "1.5") and not ok(scoring.MATH, "Answer: 3/2", "1.5"), "no numeric equivalence"
-    assert not ok(scoring.MATH, "Answer: 20%", "20"), "percent signs are not normalized"
-    assert not ok(scoring.MATH, "Answer: 2.5", "1.5")
-    for response in ("Answer: B", "Answer: (B)", "\\boxed{B}", "B", "The answer is B.", "Answer: b"):
-        assert ok(scoring.CHOICE, response, "B"), response
-    assert not ok(scoring.CHOICE, "Answer: C", "B")
-    assert ok(scoring.PENDING_NUMERIC, "Answer: 35.29", "35.294117647058826") and not ok(scoring.PENDING_NUMERIC, "Answer: 36", "35.294117647058826")
-    with pytest.raises(ValueError, match="Unsupported"):
-        ok("geo3k", "Answer: 1", "1")
+def test_pinned_math_dapo_behavior_is_characterized():
+    """Why the k2hv selectors exist: the published RL360 math_dapo compares strings and reads any Answer line."""
+    rl = runtime.rl360()
+    ok = lambda r, t: bool(rl.math_dapo.compute_score(r, t)["acc"])  # noqa: E731
+    assert ok("Answer: 1.5", "1.5") and ok("Answer: \\boxed{1.5}", "1.5") and ok("Answer: 1.5 cm", "1.5")
+    assert not ok("\\boxed{1.5}", "1.5") and not ok("Answer: 1.50", "1.5") and not ok("Answer: 3/2", "1.5") and not ok("Answer: 20%", "20")
+    assert not ok("Answer: \\frac{3}{5}", "\\(\\frac{3}{5}\\)"), "a delimited v1 target only matches the delimited string"
+    assert ok("<ifm|think>Answer: 4", "4"), "math_dapo credits an Answer line inside unclosed reasoning"
 
 
 def test_rl_prompt_replaces_source_format_instructions():
@@ -352,7 +370,7 @@ def test_rl_contract(tmp_path, checker):
     from k2hv.data import contract
 
     stored = images.prepare(png(chart([5, 9, 3])), tmp_path)
-    row = {"problem": "<image>\nHow many bars?\n\n" + scoring.MATH_SUFFIX, "answer": "3", "images": [str(tmp_path / stored["image_path"])], "metadata": {"data_source": "math_dapo"}}
+    row = {"problem": "<image>\nHow many bars?\n\n" + scoring.MATH_SUFFIX, "answer": "3", "images": [str(tmp_path / stored["image_path"])], "metadata": {"data_source": scoring.MATH, "answer_type": "numeric"}}
     res = checker.rl(row, stored["image_sha256"])
     assert res["image_tokens"] == images.image_tokens(480, 320, checker.image_config)[0] and res["prompt_tokens"] > res["image_tokens"]
     with pytest.raises(contract.ContractError, match="row_selector"):

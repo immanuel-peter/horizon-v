@@ -20,7 +20,7 @@ git clone --filter=blob:none https://github.com/ifm-ai/RL360 third_party/rl360 &
 
 ### Why the Miles code is loaded selectively
 
-Importing `miles.utils.data` or `miles.utils.processing_utils.load_processor` pulls in SGLang through the rollout and chat-template packages. `k2hv.data.runtime` instead checks that `third_party/miles` is at the pinned commit, verifies the sha256 of `miles/utils/{data,processing_utils,types}.py`, and executes the pinned `_build_messages` and `read_file` source extracted from `data.py`, the pinned `process_vision_info`, and `Sample`. `load_processor` reduces to `AutoProcessor.from_pretrained(path, trust_remote_code=True)` for this checkpoint. `qwen_vl_utils` imports torchvision only for its video readers; a stub exists only during that import, so transformers still sees no torchvision. RL360's `math_dapo` and `supergpqa` scorer modules run verbatim from the pinned checkout, with their process-based timeout decorator replaced by identity.
+Importing `miles.utils.data` or `miles.utils.processing_utils.load_processor` pulls in SGLang through the rollout and chat-template packages. `k2hv.data.runtime` instead checks that `third_party/miles` is at the pinned commit, verifies the sha256 of `miles/utils/{data,processing_utils,types}.py`, and executes the pinned `_build_messages` and `read_file` source extracted from `data.py`, the pinned `process_vision_info`, and `Sample`. `load_processor` reduces to `AutoProcessor.from_pretrained(path, trust_remote_code=True)` for this checkpoint. `qwen_vl_utils` imports torchvision only for its video readers; a stub exists only during that import, so transformers still sees no torchvision. RL360's `math_dapo` and `supergpqa` modules are loaded from the pinned checkout only to characterize them in tests.
 
 ## Stages
 
@@ -119,19 +119,42 @@ Text rules, applied before any image is fetched: no empty fields; no `<image>`, 
 
 ```json
 {
-  "problem": "<image>\nFind x.\n\nSolve the problem. The last line of your response must be of the form \"Answer: X\" (without quotes), where X is the final answer as a number or expression, without units.",
+  "problem": "<image>\nFind x.\n\nSolve the problem. After your reasoning, end your response with a line of the form \"Answer: X\" (without quotes), where X is the final answer as a number or expression, without units.",
   "answer": "17.1",
   "images": ["/data/k2hv/images/…"],
-  "metadata": {"data_source": "math_dapo", "dataset": "hiyouga/geometry3k", "source": "rl_geometry3k", "upstream_id": "train:12", "reference": "17.1", "answer_type": "numeric", "task": "geometry", "record_id": "…", "image_sha256": "…"}
+  "metadata": {"data_source": "k2hv_math_v1", "dataset": "hiyouga/geometry3k", "source": "rl_geometry3k", "upstream_id": "train:12", "reference": "17.1", "answer_type": "numeric", "task": "geometry", "record_id": "…", "image_sha256": "…"}
 }
 ```
 
-`metadata.data_source` is only the scorer selector; `dataset`, `source`, `upstream_id` and the original `reference` are separate. The pinned scorers set the admission rules:
+`metadata.data_source` is only the scorer selector. `dataset`, `source`, `upstream_id` and the raw `reference` (the source label before canonicalization) are separate. `k2hv_decimal_v1` rows also carry `answer_decimals`.
 
-- RL360 `math_dapo` (Minerva path) reads only the last `Answer: …` line within the final 300 characters and compares strings after its normalization. A bare `\boxed{1.5}` scores wrong; `1.50`, `3/2` and `20%` do not match `1.5`/`20`; units it strips (`cm`, `degrees`) do match. The earlier example prompt ("Put the final answer in \boxed{}") would therefore score every correct answer given only in a box as wrong. The RL prompt replaces any source format sentence mentioning a box with the "Answer: X" instruction.
-- RL360 `stem__supergpqa` extracts one option letter from `<answer>`, a box, an "answer:" line or the bare output; the target must be a letter A–J.
+The selectors are implemented in [`src/k2hv/reward.py`](../../src/k2hv/reward.py), which states the response contract. In short:
 
-Classification: references with one letter matching parsed options, or text matching exactly one option, become `stem__supergpqa` letters. Plain numbers (thousands separators, currency, `%`, `°` and common units removed into a canonical target) and short symbolic answers (`\frac`, `\sqrt`, π, powers) become `math_dapo`. Numbers with more than three decimals go to the separate `rl_pending_numeric` pool, which needs the 1% relative-tolerance rule in `k2hv.data.scoring.numeric_close` registered as a selector in step 8 before use. Yes/no, scientific-notation, free-form text and unparseable choices are excluded. A row is admitted only if the pinned scorer accepts `Answer: <target>` and rejects a perturbed wrong answer. Publisher verification and pass-rate fields are not treated as scorer compatibility. `tests/test_data_pipeline.py` characterizes each scorer on equivalent and wrong answers, units, tolerances and choice formats. Reward integration, close-tag handling and timeouts remain step 8 work.
+- Only the text after the closing think tag for the run's reasoning effort is scored (`</ifm|think>`, `</ifm|think_fast>`, `</ifm|think_faster>`). A missing, repeated or mismatched close tag scores 0 as a format failure, so an `Answer:` line inside unfinished reasoning earns nothing.
+- The final answer is the last `Answer:` line after that tag, or else the last `\boxed{}`.
+- `k2hv_math_v1`: equal after notation normalization (delimiters, `\text{}`, `\dfrac`, degrees, `%`, trailing units on numeric answers), or exactly equal as sympy expressions built by a whitelist parser (never `eval`). `3/2`, `\frac32`, `1.50` and `\boxed{1.5}` match `1.5`; `0.33` does not match `\frac13`.
+- `k2hv_choice_v1`: the option letter.
+- `k2hv_decimal_v1`: a number that rounds, half up, to the target at the decimal places the question states.
+- Aborted or failed rollouts and scorer exceptions return `score: None` (infrastructure), not 0. An unknown selector raises.
+
+These replace RL360 `math_dapo` and `stem__supergpqa` for this data rather than changing what those names mean. The pinned `math_dapo` compares strings: it rejects `3/2`, `1.50`, `20%` and boxed-only answers, and credits an `Answer:` line inside unclosed reasoning (characterized in `tests/test_data_pipeline.py`).
+
+Classification and admission (`k2hv.data.scoring`):
+
+- References are unboxed and stripped of math delimiters (`$…$`, `\(…\)`, `\[…\]`). v1 kept `\( \)` in 1,150 targets, which only the delimited string matched; the raw label stays in `metadata.reference`.
+- One letter matching parsed options, or text matching exactly one option, becomes a `k2hv_choice_v1` letter.
+- Numbers (separators, currency, `%`, degrees and units removed) become `k2hv_math_v1`. If the question states a precision ("round to four decimal places", "nearest tenth", "nearest 0.01") and the reference is written at exactly that precision, the row uses `k2hv_decimal_v1`.
+- Numbers with more than three decimals and no matching stated precision go to `rl_pending_decimal` with `data_source: pending_decimal_precision`. No defensible rule exists for them: a blanket 1% tolerance accepts 689.5 for 683.33. They are not trainable until a source- or question-specific rule exists.
+- Expressions with `\frac`, `\sqrt`, π or powers become `k2hv_math_v1` if the parser reads them and they have at most one variable.
+- Yes/no, scientific notation, free text, multi-variable formulas, coordinate pairs and unparseable expressions are excluded with a reason.
+
+A row is admitted only if its selector, run through `k2hv.reward.score`:
+
+- accepts the target in all three think-tag forms, boxed, after explanatory text, and in equivalent notations (for example `a/b`, `\frac{a}{b}`, trailing zero, sympy's own text and LaTeX forms);
+- rejects wrong and near-wrong values (±1, ×1.5+1, ±one unit in the last written place);
+- gives no credit to the target written inside unclosed reasoning.
+
+`validate` re-runs this admission on every exported RL row.
 
 Every RL prompt is also rendered with the image-aware template (`add_generation_prompt=True`) and processed; prompts above 1,536 tokens are rejected. Step 8 must still check Miles's own RL chat-template path.
 

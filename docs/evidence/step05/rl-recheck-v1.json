@@ -1,0 +1,347 @@
+{
+ "rows": 141308,
+ "wall_seconds": 6.5,
+ "max_row_seconds": 0.501,
+ "old_delimited_targets": 1150,
+ "new_delimited_targets": 0,
+ "old_selector": {
+  "stem__supergpqa": 27402,
+  "math_dapo": 98420,
+  "pending_numeric_tolerance": 15486
+ },
+ "new_selector": {
+  "k2hv_choice_v1": 27402,
+  "k2hv_math_v1": 95733,
+  "None": 1327,
+  "k2hv_decimal_v1": 1401,
+  "pending_decimal_precision": 15445
+ },
+ "transitions": {
+  "stem__supergpqa -> k2hv_choice_v1": 27402,
+  "math_dapo -> k2hv_math_v1": 95733,
+  "math_dapo -> rejected:answer_unparseable_expression": 515,
+  "math_dapo -> k2hv_decimal_v1": 1344,
+  "math_dapo -> rejected:answer_multivariable_expression": 775,
+  "math_dapo -> rejected:scorer_accepts_wrong": 18,
+  "math_dapo -> pending_decimal_precision": 16,
+  "math_dapo -> rejected:answer_free_form": 17,
+  "math_dapo -> rejected:scorer_rejects_reference": 2,
+  "pending_numeric_tolerance -> pending_decimal_precision": 15429,
+  "pending_numeric_tolerance -> k2hv_decimal_v1": 57
+ },
+ "new_pending_reasons": {
+  "no_stated_precision": 15445
+ },
+ "target_changed": 3726,
+ "by_source": {
+  "rl_chartverse": {
+   "k2hv_math_v1": 18929,
+   "k2hv_decimal_v1": 42,
+   "answer_unparseable_expression": 1,
+   "pending_decimal_precision": 15105
+  },
+  "rl_geometry3k": {
+   "k2hv_math_v1": 1438,
+   "k2hv_decimal_v1": 72
+  },
+  "rl_thinklite": {
+   "k2hv_math_v1": 22586,
+   "k2hv_choice_v1": 18199,
+   "k2hv_decimal_v1": 321,
+   "answer_unparseable_expression": 1
+  },
+  "rl_virl39k": {
+   "k2hv_choice_v1": 8874,
+   "k2hv_math_v1": 20571,
+   "answer_multivariable_expression": 38,
+   "k2hv_decimal_v1": 65,
+   "answer_unparseable_expression": 215,
+   "scorer_accepts_wrong": 7,
+   "answer_free_form": 7,
+   "pending_decimal_precision": 16
+  },
+  "rl_vwi_verified": {
+   "k2hv_math_v1": 32209,
+   "answer_unparseable_expression": 298,
+   "k2hv_choice_v1": 329,
+   "k2hv_decimal_v1": 901,
+   "answer_multivariable_expression": 737,
+   "pending_decimal_precision": 324,
+   "scorer_accepts_wrong": 11,
+   "answer_free_form": 10,
+   "scorer_rejects_reference": 2
+  }
+ },
+ "examples": {
+  "answer_unparseable_expression": [
+   {
+    "record_id": "rl_vwi_verified:batch_0004_of_0022/train-00001-of-00005.parquet:129:0",
+    "reference": "(-2/7, -20/7)",
+    "old_target": "(-2/7, -20/7)",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0009_of_0022/train-00000-of-00005.parquet:75:0",
+    "reference": "(-2/3, 0)",
+    "old_target": "(-2/3, 0)",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0009_of_0022/train-00002-of-00005.parquet:231:0",
+    "reference": "49\\pi \\, \\text{sq. cm}",
+    "old_target": "49\\pi \\, \\text{sq. cm}",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:28277:0",
+    "reference": "\\boxed{2^{2019}-1}",
+    "old_target": "2^{2019}-1",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:27328:0",
+    "reference": "\\boxed{{{2}^{n-2}}\\left( n+1 \\right)}",
+    "old_target": "{{2}^{n-2}}\\left( n+1 \\right)",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:29441:0",
+    "reference": "\\boxed{{{\\left( \\frac{3}{2} \\right)}^{2017}}}",
+    "old_target": "{{\\left( \\frac{3}{2} \\right)}^{2017}}",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   }
+  ],
+  "target_changed": [
+   {
+    "record_id": "rl_vwi_verified:batch_0013_of_0022/train-00000-of-00004.parquet:711:0",
+    "reference": "\u221a31 m",
+    "old_target": "\u221a31 m",
+    "target": "\u221a31",
+    "old_selector": "math_dapo",
+    "selector": "k2hv_math_v1"
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0017_of_0022/train-00002-of-00005.parquet:268:0",
+    "reference": "\\(\\frac{112}{3} \\pi \\) cubic units",
+    "old_target": "\\(\\frac{112}{3} \\pi \\) cubic units",
+    "target": "\\frac{112}{3} \\pi",
+    "old_selector": "math_dapo",
+    "selector": "k2hv_math_v1"
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:30097:0",
+    "reference": "\\boxed{10^\\circ}",
+    "old_target": "10^\\circ",
+    "target": "10",
+    "old_selector": "math_dapo",
+    "selector": "k2hv_math_v1"
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0010_of_0022/train-00000-of-00005.parquet:693:0",
+    "reference": "32^\\circ",
+    "old_target": "32^\\circ",
+    "target": "32",
+    "old_selector": "math_dapo",
+    "selector": "k2hv_math_v1"
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:26321:0",
+    "reference": "\\boxed{65^\\circ}",
+    "old_target": "65^\\circ",
+    "target": "65",
+    "old_selector": "math_dapo",
+    "selector": "k2hv_math_v1"
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0005_of_0022/train-00000-of-00005.parquet:511:0",
+    "reference": "70^\\circ",
+    "old_target": "70^\\circ",
+    "target": "70",
+    "old_selector": "math_dapo",
+    "selector": "k2hv_math_v1"
+   }
+  ],
+  "answer_multivariable_expression": [
+   {
+    "record_id": "rl_vwi_verified:batch_0021_of_0022/train-00002-of-00004.parquet:581:0",
+    "reference": "10 rad / s",
+    "old_target": "10 rad / s",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0020_of_0022/train-00001-of-00004.parquet:516:0",
+    "reference": "2.4 g/c (cw)",
+    "old_target": "2.4 g/c (cw)",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:33032:0",
+    "reference": "\\boxed{mn-\\dfrac{\\pi m^{2}}{4}}",
+    "old_target": "mn-\\frac{\\pi m^{2}}{4}",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0015_of_0022/train-00000-of-00004.parquet:1040:0",
+    "reference": "\\frac{3bh}{2}",
+    "old_target": "\\frac{3bh}{2}",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0011_of_0022/train-00004-of-00005.parquet:920:0",
+    "reference": "\u221a 3 m / s",
+    "old_target": "\u221a 3 m / s",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:34762:0",
+    "reference": "\\boxed{\\(\\frac{b^2}{a}\\)}",
+    "old_target": "\\(\\frac{b^2}{a}\\)",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   }
+  ],
+  "scorer_accepts_wrong": [
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:35171:0",
+    "reference": "\\boxed{0/4}",
+    "old_target": "0/4",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0018_of_0022/train-00004-of-00006.parquet:511:0",
+    "reference": "p0 / 8",
+    "old_target": "p0 / 8",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0009_of_0022/train-00001-of-00005.parquet:464:0",
+    "reference": "0 kg m/s",
+    "old_target": "0 kg m/s",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:35336:0",
+    "reference": "\\boxed{0/4}",
+    "old_target": "0/4",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:35183:0",
+    "reference": "\\boxed{0/4}",
+    "old_target": "0/4",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0013_of_0022/train-00000-of-00004.parquet:944:0",
+    "reference": "0 km/hr",
+    "old_target": "0 km/hr",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   }
+  ],
+  "answer_free_form": [
+   {
+    "record_id": "rl_virl39k:39Krelease.parquet:24696:0",
+    "reference": "\\boxed{270{}^\\circ - 3\\beta}",
+    "old_target": "270{}^\\circ - 3\\beta",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0011_of_0022/train-00002-of-00005.parquet:915:0",
+    "reference": "\\(126^\\circ\\small.\\)",
+    "old_target": "\\(126^\\circ\\small.\\)",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0015_of_0022/train-00002-of-00004.parquet:372:0",
+    "reference": "$x \\approx 33^\\circ$",
+    "old_target": "x \\approx 33^\\circ",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0015_of_0022/train-00002-of-00004.parquet:686:0",
+    "reference": "(53.2, -60.4) m/s",
+    "old_target": "(53.2, -60.4) m/s",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0001_of_0022/train-00001-of-00004.parquet:117:0",
+    "reference": "\\( 2\\theta \\approx 38.94^\\circ \\)",
+    "old_target": "\\( 2\\theta \\approx 38.94^\\circ \\)",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0009_of_0022/train-00004-of-00005.parquet:168:0",
+    "reference": "\\( 2x + 40^\\circ \\)",
+    "old_target": "\\( 2x + 40^\\circ \\)",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   }
+  ],
+  "scorer_rejects_reference": [
+   {
+    "record_id": "rl_vwi_verified:batch_0020_of_0022/train-00000-of-00004.parquet:727:0",
+    "reference": "2.27 x 10^39",
+    "old_target": "2.27 x 10^39",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   },
+   {
+    "record_id": "rl_vwi_verified:batch_0017_of_0022/train-00004-of-00005.parquet:681:0",
+    "reference": "(0.1)^50",
+    "old_target": "(0.1)^50",
+    "target": null,
+    "old_selector": "math_dapo",
+    "selector": null
+   }
+  ]
+ },
+ "what": "k2hv.data.scoring classify+admit (new selectors) re-run on every v1 exported RL row from its raw reference; v1 used math_dapo/stem__supergpqa",
+ "command": "uv run python tools/step05/rl_recheck.py data/step05/exports/full outputs/step05/rl/v1_recheck.json"
+}

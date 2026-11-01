@@ -238,6 +238,9 @@ def scan_shard(args, key, shard):
                 reason, a_type, selector, a_orig = info.get("reason"), info.get("answer_type"), info.get("selector"), str(t["reference"])
                 if info.get("mapped_from"):
                     t["provenance"]["choice_mapped_from"] = info["mapped_from"]
+                for k in ("answer_decimals", "pending", "unit"):
+                    if info.get(k) is not None:
+                        t["provenance"][k] = info[k]
             reason = row.get("reject") or reason
             if reason:
                 reject(rid, reason, q, a or a_orig)

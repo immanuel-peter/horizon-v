@@ -373,7 +373,10 @@ def miles_row(r, root):
     image = str(Path(root) / r["image_path"]) if root is not None else r["image_path"]
     if r["kind"] == "sft":
         return {"messages": [{"role": "user", "content": "<image>\n" + r["question"], "think": None}, {"role": "assistant", "content": r["answer"], "think": ""}], "images": [image], "metadata": {"record_id": r["record_id"], "source": r["source"], "task": r["task"], "image_sha256": r["image_sha256"]}}
-    return {"problem": r["question"], "answer": r["answer"], "images": [image], "metadata": {"data_source": r["selector"], "record_id": r["record_id"], "source": r["source"], "dataset": r["dataset"], "upstream_id": r["upstream_id"], "reference": r["answer_orig"], "answer_type": r["answer_type"], "task": r["task"], "image_sha256": r["image_sha256"]}}
+    meta = {"data_source": r["selector"], "record_id": r["record_id"], "source": r["source"], "dataset": r["dataset"], "upstream_id": r["upstream_id"], "reference": r["answer_orig"], "answer_type": r["answer_type"], "task": r["task"], "image_sha256": r["image_sha256"]}
+    if r["selector"] == scoring.DECIMAL:
+        meta["answer_decimals"] = json.loads(r["provenance"])["answer_decimals"]
+    return {"problem": r["question"], "answer": r["answer"], "images": [image], "metadata": meta}
 
 
 def portable_hash(row):
@@ -481,7 +484,7 @@ def export(ctx):
         variant = {"include": "default", "addon": "addon", "pending": "pending", "exclude": "excluded"}[r["status"]]
         if r["kind"] == "sft":
             return f"{variant}/sft/{r['split']}"
-        pool = "rl_pending_numeric" if r["selector"] == scoring.PENDING_NUMERIC else "rl"
+        pool = "rl_pending_decimal" if r["selector"] == scoring.PENDING_DECIMAL else "rl"
         return f"{variant}/{pool}/{r['split']}"
 
     groups = defaultdict(list)

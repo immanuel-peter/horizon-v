@@ -5,7 +5,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from . import images, runtime
+from .. import reward
+from . import images, runtime, scoring
 
 
 class ContractError(ValueError):
@@ -117,8 +118,13 @@ class Checker:
         problem, paths, meta = data.get("problem"), list(data.get("images") or []), data.get("metadata") or {}
         if not isinstance(problem, str) or problem.count("<image>") != 1 or len(paths) != 1:
             raise ContractError("row_image_marker_count")
-        if meta.get("data_source") not in ("math_dapo", "stem__supergpqa", "pending_numeric_tolerance"):
+        selector = meta.get("data_source")
+        if selector not in (*reward.SELECTORS, scoring.PENDING_DECIMAL):
             raise ContractError("row_selector")
+        if selector == reward.DECIMAL and not isinstance(meta.get("answer_decimals"), int):
+            raise ContractError("row_answer_decimals")
+        if selector in reward.SELECTORS and scoring.admit_row(data) is not None:
+            raise ContractError("row_target_scorer")
         if not isinstance(data.get("answer"), str) or not data["answer"]:
             raise ContractError("row_answer")
         if not all(Path(p).is_file() for p in paths):

@@ -1,41 +1,85 @@
-"""RL target classification and admission against the pinned RL360 scorers.
+"""RL target classification and admission against the k2hv final-answer scorers.
 
-``math_dapo`` (Minerva path) reads the last ``Answer: ...`` line and compares normalized
-strings exactly; it has no numeric tolerance and ignores a bare ``\\boxed{}``.
-``stem__supergpqa`` extracts one option letter A-J. A row is admitted only if the pinned
-scorer accepts its canonical correct response and rejects a wrong one.
+Targets are scored by ``k2hv.reward`` (selectors ``k2hv_math_v1``, ``k2hv_choice_v1``,
+``k2hv_decimal_v1``); see that module for the response contract. A row is admitted only if the
+selected scorer accepts the canonical correct response in every think-tag form and in equivalent
+notations, rejects wrong and near-wrong values, and gives no credit to an answer inside unclosed
+reasoning. Long decimals without a stated precision stay pending: no defensible tolerance exists.
 """
 
-import math
 import re
 
-from . import runtime, text
+from .. import reward
+from . import text
 
-MATH = "math_dapo"
-CHOICE = "stem__supergpqa"
-PENDING_NUMERIC = "pending_numeric_tolerance"
+MATH = reward.MATH
+CHOICE = reward.CHOICE
+DECIMAL = reward.DECIMAL
+PENDING_DECIMAL = "pending_decimal_precision"
 
-MATH_SUFFIX = 'Solve the problem. The last line of your response must be of the form "Answer: X" (without quotes), where X is the final answer as a number or expression, without units.'
-CHOICE_SUFFIX = 'Choose the correct option. The last line of your response must be of the form "Answer: X" (without quotes), where X is the letter of the correct option.'
+MATH_SUFFIX = 'Solve the problem. After your reasoning, end your response with a line of the form "Answer: X" (without quotes), where X is the final answer as a number or expression, without units.'
+CHOICE_SUFFIX = 'Choose the correct option. After your reasoning, end your response with a line of the form "Answer: X" (without quotes), where X is the letter of the correct option.'
 
 OPTION = re.compile(r"(?m)^\s*(?:\(([A-J])\)|([A-J])[.):：])\s*(\S.*)$")
 INLINE_OPTION = re.compile(r"\(([A-J])\)\s*([^()\n]+?)(?=\s*\([A-J]\)|$)")
-BOXED = re.compile(r"^\\boxed\{(.*)\}$", re.S)
 UNIT = re.compile(r"^(?P<num>[-+]?[\d,]*\.?\d+)\s*(?P<unit>%|°|degrees?|cm|mm|m|km|kg|g|units?|inches|in|feet|ft|meters?|cm\^?2|cm²|m²|m\^2|square units|sq\.? units|dollars?|cents?|hours?|minutes?|seconds?|s|years?|days?)?\.?$", re.I)
 CURRENCY = re.compile(r"^[$€£¥]\s*(?P<num>[-+]?[\d,]*\.?\d+)$")
 SCIENTIFIC = re.compile(r"^[-+]?\d+(\.\d+)?[eE][-+]?\d+$")
-SYMBOLIC = re.compile(r"^[-+]?[0-9a-z\\{}^()+\-*/.,π√ ]{1,40}$")
-SYMBOLIC_HINT = re.compile(r"\\frac|\\dfrac|\\sqrt|\\pi|π|√|\^|/")
+SYMBOLIC_HINT = re.compile(r"\\frac|\\sqrt|\\pi|π|√|\^|/")
 YES_NO = {"yes", "no", "true", "false"}
+WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+PRECISION = [
+    (re.compile(r"(?i)\b(\d|one|two|three|four|five|six)\s+decimal\s+places?\b"), None),
+    (re.compile(r"(?i)\bnearest\s+(?:whole\s+number|integer)\b"), 0),
+    (re.compile(r"(?i)\bnearest\s+tenth\b"), 1),
+    (re.compile(r"(?i)\bnearest\s+hundredth\b"), 2),
+    (re.compile(r"(?i)\bnearest\s+thousandth\b"), 3),
+    (re.compile(r"(?i)\bnearest\s+0\.(0*)1\b"), "zeros"),
+]
+SIGNIFICANT = re.compile(r"(?i)significant\s+(figures|digits)")
+
+
+def _outer_boxed(ref):
+    if not ref.startswith("\\boxed"):
+        return None
+    i = ref.find("{")
+    if i < 0 or ref[6:i].strip():
+        return None
+    depth = 0
+    for j in range(i, len(ref)):
+        depth += {"{": 1, "}": -1}.get(ref[j], 0)
+        if depth == 0:
+            return ref[i + 1 : j].strip() if j == len(ref) - 1 else None
+    return None
 
 
 def unbox(reference):
-    reference = reference.strip()
-    m = BOXED.match(reference)
-    reference = m.group(1).strip() if m else reference
-    if reference.startswith("$") and reference.endswith("$") and len(reference) > 1:
-        reference = reference.strip("$").strip()
-    return reference.rstrip(".").strip() if not text.is_number(reference) else reference
+    """Reference without an outer \\boxed{}, math delimiters ($, \\( \\), \\[ \\]) or a trailing period."""
+    ref = reference.strip()
+    while True:
+        prev = ref
+        inner = _outer_boxed(ref)
+        ref = reward.strip_delimiters(inner if inner is not None else ref)
+        if ref == prev:
+            break
+    return ref.rstrip(".").strip() if not text.is_number(ref) else ref
+
+
+def stated_decimals(problem):
+    """Decimal places the question asks for, or None. Significant-figure requests are not a decimal rule."""
+    if SIGNIFICANT.search(problem):
+        return None
+    found = set()
+    for pattern, value in PRECISION:
+        for m in pattern.finditer(problem):
+            if value is None:
+                g = m.group(1).lower()
+                found.add(WORDS.get(g, int(g) if g.isdigit() else -1))
+            elif value == "zeros":
+                found.add(len(m.group(1)) + 1)
+            else:
+                found.add(value)
+    return found.pop() if len(found) == 1 else None
 
 
 def options(problem):
@@ -64,14 +108,15 @@ def canonical_number(core):
 
 
 def classify(problem, reference, max_decimals=3):
-    """Return dict(answer_type, target, selector, reason) for an RL reference answer."""
+    """Return dict(answer_type, target, selector, reason[, answer_decimals]) for an RL reference answer."""
     ref = unbox(reference)
     opts = options(problem)
     letter = text.mc_letter(ref)
     if opts:
         if letter and letter in opts:
             return {"answer_type": "choice", "target": letter, "selector": CHOICE, "reason": None}
-        matches = [k for k, v in opts.items() if text.key(v) == text.key(ref)]
+        raw = (_outer_boxed(reference.strip()) or reference.strip()).rstrip(".")
+        matches = [k for k, v in opts.items() if text.key(v) in (text.key(ref), text.key(raw))]
         if len(matches) == 1:
             return {"answer_type": "choice", "target": matches[0], "selector": CHOICE, "reason": None, "mapped_from": ref}
         return {"answer_type": "choice", "target": None, "selector": None, "reason": "choice_unmatched"}
@@ -83,68 +128,106 @@ def classify(problem, reference, max_decimals=3):
         return {"answer_type": "yes_no", "target": None, "selector": None, "reason": "answer_yes_no"}
     if SCIENTIFIC.match(ref):
         return {"answer_type": "numeric_scientific", "target": None, "selector": None, "reason": "answer_scientific"}
-    m = UNIT.match(ref) or CURRENCY.match(ref)
+    plain = reward.normalize(ref)
+    m = UNIT.match(ref) or CURRENCY.match(ref) or re.fullmatch(r"(?P<num>[-+]?[\d,]*\.?\d+)", plain)
     if m:
         core = m.group("num")
         if not re.match(r"^[-+]?(\d{1,3}(,\d{3})+|\d*)(\.\d+)?$", core):
             return {"answer_type": "numeric", "target": None, "selector": None, "reason": "answer_number_format"}
         target = canonical_number(core)
-        unit = (m.groupdict().get("unit") or ("$" if ref.lstrip().startswith(("$", "€", "£", "¥")) else "")) or None
+        unit = m.groupdict().get("unit") or None
+        stated = stated_decimals(problem)
+        written = core.replace(",", "").lstrip("+")
+        if stated is not None and text.decimals(written) == stated:
+            # The reference is written at exactly the precision the question asks for.
+            return {"answer_type": "numeric_stated_precision", "target": written, "selector": DECIMAL, "reason": None, "unit": unit, "answer_decimals": stated}
         if text.decimals(target) > max_decimals:
-            return {"answer_type": "numeric_long_decimal", "target": target, "selector": PENDING_NUMERIC, "reason": None, "unit": unit}
+            return {"answer_type": "numeric_long_decimal", "target": target, "selector": PENDING_DECIMAL, "reason": None, "unit": unit,
+                    "pending": "precision_mismatch" if stated is not None else "no_stated_precision"}
         return {"answer_type": "numeric", "target": target, "selector": MATH, "reason": None, "unit": unit}
-    if SYMBOLIC.match(ref) and SYMBOLIC_HINT.search(ref) and any(c.isdigit() or c in "π√" or "\\pi" in ref for c in ref):
-        return {"answer_type": "symbolic", "target": ref.replace("\\dfrac", "\\frac"), "selector": MATH, "reason": None}
+    target = reward.normalize(ref)
+    if SYMBOLIC_HINT.search(target) and any(c.isdigit() or c in "π√" for c in target.replace("\\pi", "π")):
+        try:
+            expr = reward.to_sympy(target)
+        except reward.ScoreError:
+            return {"answer_type": "symbolic", "target": None, "selector": None, "reason": "answer_unparseable_expression"}
+        if len(expr.free_symbols) > 1:
+            return {"answer_type": "symbolic", "target": None, "selector": None, "reason": "answer_multivariable_expression"}
+        return {"answer_type": "symbolic", "target": target, "selector": MATH, "reason": None}
     return {"answer_type": "free_form", "target": None, "selector": None, "reason": "answer_free_form"}
 
 
-def wrong(target, answer_type, opts=None):
-    if answer_type == "choice":
-        return next(k for k in sorted(opts or "ABCD") if k != target)
-    if answer_type in ("numeric", "numeric_long_decimal"):
-        value = float(target)
-        return canonical_number(repr(value + 1 if value == int(value) else value * 1.5 + 1))
-    return target + "+1"
+def _number_variants(target):
+    """Wrong and near-wrong values for a numeric target: +1, *1.5+1, and one unit in the last place each way."""
+    from decimal import Decimal
+
+    d = Decimal(target)
+    ulp = Decimal(1).scaleb(d.as_tuple().exponent)
+    out = []
+    for v in (d + 1, d * Decimal("1.5") + 1, d * 2 + 3, d + ulp, d - ulp):
+        if v != d and str(v) not in out:
+            out.append(str(v))
+    return out
 
 
-def scorer_correct(selector, response, target):
-    rl = runtime.rl360()
-    if selector == MATH:
-        return bool(rl.math_dapo.compute_score(response, target)["acc"])
+def responses(target, info, opts=None):
+    """(correct responses, wrong responses, unclosed-reasoning responses) used for admission."""
+    tags = {"high": "</ifm|think>", "medium": "</ifm|think_fast>", "low": "</ifm|think_faster>"}
+    forms = [target, f"\\boxed{{{target}}}"]
+    selector = info["selector"]
+    if selector == MATH and info["answer_type"] == "symbolic":
+        import sympy
+
+        expr = reward.to_sympy(target)
+        forms += [str(expr).replace("**", "^"), sympy.latex(expr)]
+    elif selector == MATH:
+        from fractions import Fraction
+
+        frac = Fraction(target)
+        forms += [f"{target}0" if "." in target else f"{target}.0"]
+        if frac.denominator != 1:
+            forms += [f"{frac.numerator}/{frac.denominator}", f"\\frac{{{frac.numerator}}}{{{frac.denominator}}}"]
+        if info.get("unit") in ("%", "°", "cm", "m", "units"):
+            forms.append(f"{target}{info['unit']}")
     if selector == CHOICE:
-        return bool(rl.supergpqa.compute_score(response, target)["acc"])
-    if selector == PENDING_NUMERIC:
-        return numeric_close(response, target)
-    raise ValueError(f"Unsupported data_source selector: {selector!r}")
+        bad = [k for k in sorted(opts or "ABCD") if k != target][:2]
+        forms += [f"({target})", f"{target}. {(opts or {}).get(target, '')}".strip()]
+    elif selector == MATH and info["answer_type"] == "symbolic":
+        bad = [f"{target}+1", f"2({target})"]
+    else:
+        bad = _number_variants(target)
+    correct = [(f"Reasoning.{tags[e]}Answer: {f}", e) for e in tags for f in forms[:1]] + [(f"Reasoning.</ifm|think>Answer: {f}", "high") for f in forms[1:]]
+    correct.append((f"Reasoning.</ifm|think>The result follows.\n\\boxed{{{target}}}", "high"))
+    wrong = [(f"Reasoning.</ifm|think>Answer: {b}", "high") for b in bad]
+    wrong.append((f"Reasoning. Answer: {target}</ifm|think>Answer: {bad[0]}", "high"))
+    unclosed = [(f"Reasoning. Answer: {target}", "high"), (f"Reasoning.</ifm|think_fast>Answer: {target}", "high")]
+    return correct, wrong, unclosed
 
 
 def admit(problem, info):
-    """Check the canonical correct and a wrong response with the selected scorer."""
+    """Run the selected scorer on correct, equivalent, wrong, near-wrong and unclosed-reasoning responses; return a failure reason or None."""
     target, selector = info["target"], info["selector"]
-    if scorer_correct(selector, f"Answer: {target}", target) is not True:
-        return "scorer_rejects_reference"
-    if scorer_correct(selector, f"Answer: {wrong(target, info['answer_type'], options(problem))}", target) is not False:
-        return "scorer_accepts_wrong"
+    if selector == PENDING_DECIMAL:
+        return None
+    meta = {"answer_decimals": info.get("answer_decimals")}
+    correct, wrong, unclosed = responses(target, info, options(problem))
+    for response, effort in correct:
+        if reward.score(selector, response, target, meta, effort)["score"] != 1.0:
+            return "scorer_rejects_reference"
+    for response, effort in wrong:
+        if reward.score(selector, response, target, meta, effort)["score"] != 0.0:
+            return "scorer_accepts_wrong"
+    for response, effort in unclosed:
+        if reward.score(selector, response, target, meta, effort)["outcome"] not in ("format_unclosed_think", "format_wrong_think_tag"):
+            return "scorer_credits_unclosed_reasoning"
     return None
 
 
-ANSWER_LINE = re.compile(r"(?i)Answer\s*:\s*([^\n]+)")
-FLOAT = re.compile(r"[-+]?(\d+(,\d{3})*(\.\d*)?|\.\d+)([eE][-+]?\d+)?")
-
-
-def numeric_close(response, reference, rel_tol=0.01):
-    """Tolerance rule for long-decimal references: last ``Answer:`` value within 1% relative error.
-
-    Not an RL360 scorer. Step 8 must register a selector implementing this rule before these rows train.
-    """
-    found = ANSWER_LINE.findall(response[-300:])
-    if not found:
-        return False
-    m = FLOAT.search(found[-1].replace("\\boxed{", ""))
-    if not m:
-        return False
-    pred, ref = float(m.group(0).replace(",", "")), float(reference)
-    return math.isclose(pred, ref, rel_tol=rel_tol, abs_tol=1e-9)
+def admit_row(data):
+    """Re-run admission on an exported RL row (problem, answer, metadata)."""
+    meta = data["metadata"]
+    info = {"target": data["answer"], "selector": meta["data_source"], "answer_type": meta["answer_type"], "answer_decimals": meta.get("answer_decimals")}
+    return admit(data["problem"], info)
 
 
 def strip_format(problem):
