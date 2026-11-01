@@ -42,7 +42,9 @@ END_TOKENS = ("<|ifm|im_end|>", "<|ifm|endoftext|>")
 ANSWER_LINE = re.compile(r"(?im)^[ \t>*_#]*(?:final\s+)?answer\s*[:：]\s*(.*?)\s*$")
 CHOICE_LETTER = re.compile(r"^\(?\s*([A-J])\s*\)?(?:[.:)：,]|\s|$)")
 
-UNITS = ("square units", "sq units", "sq. units", "cubic units", "units", "unit", "square centimeters", "square meters", "square feet", "square inches",
+UNITS = ("square units", "sq units", "sq. units", "cubic units", "units", "unit", "square centimeters", "square meters", "square feet", "square inches", "square yards",
+         "square miles", "square kilometers", "square millimeters", "cubic centimeters", "cubic meters", "cubic inches", "cubic feet",
+         "sq in", "sq ft", "sq. in", "sq. ft", "in^2", "in^3", "in²", "in³", "ft^2", "ft^3", "ft²", "ft³", "yd^2", "mm^2", "km^2", "ft", "yd",
          "centimeters", "centimetres", "meters", "metres", "kilometers", "millimeters", "inches", "inch", "feet", "foot", "yards", "miles", "cm^2", "cm^3",
          "m^2", "m^3", "cm²", "cm³", "m²", "m³", "cm", "mm", "km", "m", "kg", "g", "degrees", "degree", "deg", "dollars", "dollar", "cents", "hours", "hour",
          "minutes", "minute", "seconds", "second", "years", "year", "days", "day", "percent", "people", "students", "items", "points", "times",
@@ -111,14 +113,14 @@ def strip_delimiters(s):
 
 def normalize(s):
     """Notation-only normalization shared by targets and predictions."""
-    s = strip_delimiters(s)
+    s = strip_delimiters(s.replace("\\$", ""))
     boxed = last_boxed(s)
     if boxed is not None and s.startswith("\\boxed"):
         s = boxed
     s = re.sub(r"\\(?:text|mathrm|textbf|mbox|operatorname)\s*\{([^{}]*)\}", r"\1", s)
     s = re.sub(r"\\(?:left|right|displaystyle|,|;|!|:|quad|qquad)", " ", s)
     s = re.sub(r"\\[dt]frac", r"\\frac", s)
-    s = s.replace("^\\circ", "").replace("^{\\circ}", "").replace("°", "").replace("\\%", "").replace("%", "")
+    s = s.replace("^\\circ", "").replace("^{\\circ}", "").replace("\\degree", "").replace("°", "").replace("\\%", "").replace("%", "")
     s = s.replace("−", "-").replace("×", "*").replace("·", "*").replace("\\cdot", "*").replace("\\times", "*")
     s = s.strip().rstrip(".").strip()
     if "=" in s:
@@ -129,6 +131,7 @@ def normalize(s):
         if stripped == s or not stripped or stripped[-1] in "+-*/^(=" or re.search(r"[A-Za-z]", re.sub(r"\\[A-Za-z]+", "", stripped)):
             break
         s = stripped
+    s = s.replace("{,}", ",")
     if re.fullmatch(r"[-+]?\d{1,3}(,\d{3})+(\.\d+)?", s):
         s = s.replace(",", "")
     return s

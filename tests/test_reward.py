@@ -144,3 +144,56 @@ def test_miles_entry_point_separates_format_and_infrastructure_failures(monkeypa
     out = run(sample(done("4", "think_fast")))
     assert out["score"] is None and out["outcome"] == "infra_scorer_RuntimeError"
     assert [r["score"] for r in run([sample(done("1", "think_fast"), label="1", source=C), sample(done("B", "think_fast"), label="B", source=C)])] == [0.0, 1.0]
+
+
+# Raw targets taken from TIGER-Lab/ViRL39K, russwang/ThinkLite-VL-70k and TIGER-Lab/VisualWebInstruct-verified,
+# classified the way admission does, then scored against correct, equivalent, wrong and near-wrong answers.
+REAL_TARGETS = [
+    ("\\boxed{\\frac{5\\pi }{4}}", ["\\frac{5\\pi}{4}", "5π/4", "1.25\\pi"], ["\\frac{4\\pi}{5}", "\\frac{5\\pi}{3}", "3.93"]),
+    ("\\boxed{y=\\frac{3}{4}x-\\frac{3}{4}}", ["y = \\frac{3}{4}x - \\frac{3}{4}", "\\frac{3x-3}{4}", "0.75x-0.75"], ["\\frac{3}{4}x+\\frac{3}{4}", "\\frac{3}{4}x"]),
+    ("1,574", ["1574", "1,574", "\\boxed{1574}", "1{,}574", "1\\,574"], ["1,575", "157.4", "1{,}575"]),
+    ("24 \\sqrt { 3 }", ["24\\sqrt{3}", "\\sqrt{1728}"], ["24\\sqrt{2}", "41.57"]),
+    ("2π", ["2\\pi", "2π"], ["\\pi", "6.28"]),
+    ("150°", ["150^\\circ", "150 degrees", "150", "150\\degree"], ["15", "30°", "151\\degree"]),
+    ("$22.50", ["22.50", "22.5", "\\$22.5", "$22.50", "\\boxed{\\$22.50}", "\\text{\\$}22.50", "22.50 dollars"], ["22.05", "2250", "\\$22.05"]),
+    ("-20.35 J", ["-20.35", "-20.35 J"], ["20.35", "-20.3"]),
+    ("28 square inches", ["28", "28 square inches", "28 in^2", "28 \\text{in}^2", "28 sq in"], ["56", "27", "27 in^2"]),
+]
+
+
+@pytest.mark.parametrize("reference,right,wrong", REAL_TARGETS)
+def test_real_rl_targets(reference, right, wrong):
+    from k2hv.data import scoring
+
+    info = scoring.classify("<image>\nFind the value.", reference)
+    assert info["selector"] == M and info["reason"] is None, info
+    label = info["target"]
+    for a in right:
+        assert s(M, done(a), label)["score"] == 1.0, a
+        assert s(M, done(a, "think_faster"), label, effort="low")["score"] == 1.0, a
+    for a in wrong:
+        assert s(M, done(a), label)["score"] == 0.0, a
+    assert s(M, f"So the answer is {right[0]}. Answer: {right[0]}", label)["outcome"] == "format_unclosed_think"
+    assert s(M, f"Answer: {right[0]}</ifm|think>", label)["outcome"] == "format_missing_answer"
+    assert s(M, "Work.</ifm|think>Answer: \\boxed{", label)["score"] == 0.0
+
+
+def test_real_choice_target():
+    from k2hv.data import scoring
+
+    problem = "<image>\nWhich shape has the largest area?\nA. the circle\nB. the square\nC. the triangle"
+    info = scoring.classify(problem, "\\boxed{B}")
+    assert info["selector"] == C and info["target"] == "B"
+    for a in ("B", "(B)", "\\boxed{B}", "B. the square"):
+        assert s(C, done(a), "B")["score"] == 1.0, a
+    for a in ("C", "A. the circle"):
+        assert s(C, done(a), "B")["score"] == 0.0, a
+    assert s(C, "B", "B")["outcome"] == "format_unclosed_think"
+
+
+@pytest.mark.parametrize("reference", ["\\boxed{\\dfrac{18}{5}\\ \\unit{}}", "\\boxed{0<x<5}", "200 mph", "12:30 P.M.", "194.6 N.m", "90° - A/2", "C) 64", "(0, 0)", "pi(2*sqrt(e) - 3)", "Answer: 6 \\, \\text{cm}^2"])
+def test_real_targets_the_scorer_cannot_verify_are_not_admitted(reference):
+    from k2hv.data import scoring
+
+    info = scoring.classify("<image>\nFind the value.", reference)
+    assert info["selector"] is None and info["reason"], info
