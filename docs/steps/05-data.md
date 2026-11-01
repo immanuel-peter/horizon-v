@@ -48,16 +48,28 @@ Workers are spawned processes with one torch/OMP/MKL thread each: 14 scan worker
 
 ## Sources
 
-The audit inspected Hub metadata, cards and a deterministic sample of every candidate, then a 1,000-example real-data pilot. "Terms" is the Hub metadata license where one exists. Licenses marked *secondary* come from the license tables of the Bee paper ([arXiv 2510.13795](https://arxiv.org/abs/2510.13795)) or a CVPRW 2025 supplemental and were not verified against the original projects. FineVision, The Cauldron and the RL sources state that component licenses apply.
+The audit inspected Hub metadata, cards and a deterministic sample of every candidate, then a 1,000-example real-data pilot.
 
-Status: **include** (default export), **addon** (built, validated and exported separately; terms need a decision), **pending** (audited, blocked on a decision), **exclude** (audited, not built).
+**Terms policy.** This is a research project building on Baseten's work; future commercial use is not a requirement, so non-commercial terms do not exclude a source. A source is admitted only when an original statement from its creators permits research training use: card or README text, a licence file covering data distributed with it, or the release archive's own licence. A Hub `license:` tag or a code-repository licence alone is not a basis. Permission to train is recorded separately from redistribution, and nothing is redistributed. The recipe holds each source's basis (`terms_note`), `redistribution` and, for pending sources, `missing_evidence`. The fetched documents and their hashes are in [`terms.json`](../evidence/step05/terms.json). Media origin is recorded for every source, but per-image rights of scraped or web images (ChartQA charts, for example) are not independently verified. FineVision redistributes the `fv_*` components and defers to each one's licence.
+
+Status: **include** (built and exported), **pending** (not built until a recorded gap closes: terms evidence or image integrity), **exclude** (audited and rejected for quality or fit). Rows inside an included source can also be pending, with `metadata.pending_reason`, in the `pending/` export buckets.
+
+| Terms decision (v2) | Sources |
+|---|---|
+| Included, original statement found | VQAv2 (CC BY 4.0, visualqa.org), VSR (Apache-2.0, project README; data in repo), TallyQA (Apache-2.0; QA zip in the licensed repo), CLEVR (CC BY 4.0), TextVQA (CC BY 4.0, creator's card), PlotQA (CC BY 4.0, README; v1 recorded MIT), CoSyn (ODC-BY), Nemotron COCO (OpenMDW-1.1), ChartVerse-RL (Apache-2.0), Geometry3K (MIT; data ships in the InterGPS repo) |
+| Included, previously add-on | ChartQA (GPL-3.0; data folder in the licensed repo), VisOnlyQA (GPL-3.0 `LICENSE.md`), IconQA (CC BY-NC-SA 4.0 README text; its badge says CC BY-SA) |
+| Included with conditions | AI2D: AI2's `license.txt` in `ai2d-all.zip` permits use by academic, non-profit or government-sponsored researchers, not by a for-profit enterprise, and grants no right to redistribute or publicly release the data |
+| Pending, terms unverified | Visual7W (toolkit MIT covers code; project page unreachable), ST-VQA, DocVQA and InfographicVQA (RRC download terms are behind registration; public pages state none), DVQA (no statement anywhere; GitHub NOASSERTION), ViRL39K, VisualWebInstruct-verified and ThinkLite-VL-70k (only `license: mit` Hub tags; repository licences cover code) |
+| Pending, integrity | PixMo-Count ([below](#pixmo-count)) |
 
 ### SFT candidates
 
 | Source @ revision | Component | Status | Evidence |
 |---|---|---|---|
-| [HuggingFaceM4/FineVision](https://huggingface.co/datasets/HuggingFaceM4/FineVision) `3c380a7` | `vqav2`, `visual7w`, `vsr`, `tallyqa`, `clevr` (13 of 22 files), `textvqa`, `st_vqa`, `docvqa`, `infographic_vqa`, `ai2d_merged`, `plotqa` (6 of 18 files) | include | Single image; independent questions bundled per image; short explicit answers. No upstream IDs (`images[].path` is null), so identity is the image hash. Every row is from the Cauldron `train` packaging, which does not prove original-split hygiene; the overlap stage checks images against the evaluation sets directly. |
-| | `dvqa` (3 of 10 files), `iconqa`, `chartqa` | addon | DVQA CC BY-NC 4.0 (secondary; another paper says CC BY 4.0), IconQA CC BY-NC-SA 4.0 (secondary), ChartQA GPL-3.0 (HuggingFaceM4/ChartQA metadata). |
+| [HuggingFaceM4/FineVision](https://huggingface.co/datasets/HuggingFaceM4/FineVision) `3c380a7` | `vqav2`, `vsr`, `tallyqa`, `clevr` (13 of 22 files), `textvqa`, `ai2d_merged`, `plotqa` (6 of 18 files) | include | Single image; independent questions bundled per image; short explicit answers. No upstream IDs (`images[].path` is null), so identity is the image hash. Every row is from the Cauldron `train` packaging, which does not prove original-split hygiene; the overlap stage checks images against the evaluation sets directly. |
+| | `iconqa`, `chartqa` | include | Admitted in v2 on their original statements (see the terms table). |
+| | `dvqa` (3 of 10 files) | pending | No licence statement located. |
+| | `visual7w`, `st_vqa`, `docvqa`, `infographic_vqa` | pending | Included in v1; terms unverified (see the terms table). |
 | | `ocrvqa` | exclude | Labels come from Amazon metadata: titles include series text absent from the cover, and "Is this a *category* book?" uses store categories. |
 | | `a_okvqa`, `aokvqa` | exclude | Two copies of A-OKVQA inside FineVision; answers mix rationales ("Answer: … Rationale: …") with choices. |
 | | `cocoqa`, `tqa`, `scienceqa`, `figureqa` | exclude | Caption-generated ungrammatical questions; answers with appended commentary ("The correct answer is B. 6. This relates to…"); knowledge questions with low visual dependency (also MathVista sources); yes/no only (ThinkLite covers FigureQA for RL). |
@@ -66,11 +78,11 @@ Status: **include** (default export), **addon** (built, validated and exported s
 | [opendatalab/ChartVerse-SFT-600K](https://huggingface.co/datasets/opendatalab/ChartVerse-SFT-600K) `07b1576`, Apache-2.0 | | exclude | The explicit `answer` is a computed result: 30% of pilot answers have unrounded decimals (`136.1013215859031`), and inspected integer answers are multi-condition computations over dense charts at the token cap. With empty thinking these targets teach guessing. ChartVerse-RL is used instead, which also avoids SFT/RL overlap within the family. 259 GB. |
 | [HuggingFaceM4/the_cauldron](https://huggingface.co/datasets/HuggingFaceM4/the_cauldron) `847a98a` | | exclude | Row counts and text formatting equal FineVision's (vqav2 82,772; chartqa 18,265); FineVision adds ratings. Alternative packaging, not extra examples. |
 | [liuhaotian/LLaVA-Instruct-150K](https://huggingface.co/datasets/liuhaotian/LLaVA-Instruct-150K) `9d451dc` (mix665k) | | exclude | JSON conversations referencing COCO/GQA/OCR-VQA/TextVQA/VG images that are not bundled; its VQA parts duplicate FineVision components and the rest are long conversational answers. |
-| [allenai/pixmo-count](https://huggingface.co/datasets/allenai/pixmo-count) `ebf51cf`, ODC-BY | train | **pending** | 0 of 923 sampled URLs return bytes matching the supplied `image_sha256` (846 mismatched, 41 gone; size variants and decoded-pixel hashes also fail). Counts are detector-derived; the question would be a fixed template. Validation/test preserved. |
+| [allenai/pixmo-count](https://huggingface.co/datasets/allenai/pixmo-count) `ebf51cf`, ODC-BY | train | **pending** | No fetched image matches its published `image_sha256` ([PixMo-Count](#pixmo-count)). Counts are detector-derived; the question would be a fixed template. Validation/test preserved. |
 | [allenai/pixmo-ask-model-anything](https://huggingface.co/datasets/allenai/pixmo-ask-model-anything) `739ffd8`, ODC-BY | | exclude | 44 of 1,079 sampled pairs pass the short-answer rules, and those are mostly emoji games, refusals and sentence answers. 98% of sampled URLs were available; 18 hashes mismatched. |
 | [HuggingFaceM4/Docmatix](https://huggingface.co/datasets/HuggingFaceM4/Docmatix) `0725b65`, MIT | | exclude | 58% of sampled turns are on multi-page documents; single-page answers are LLM-written sentences restating the question. No document IDs. 982 GB. |
-| [ryokamoi/VisOnlyQA_Train](https://huggingface.co/datasets/ryokamoi/VisOnlyQA_Train) `10d6012`, GPL-3.0 | all 7 tasks | addon | Relicensed to GPL-3.0 (bases: CLEVR/SuperCLEVR BSD, synthetic geometry). Training images are CLEVR train, SuperCLEVR and synthetic geometry; the evaluation repositories are not read. The pilot found one image pixel-identical to a MathVista testmini image. |
-| [nvidia/Nemotron-Image-Training-v3.5](https://huggingface.co/datasets/nvidia/Nemotron-Image-Training-v3.5) `70b27e0`, OpenMDW-1.1 | `coco_count_spatial_qa` | include | Counting and above/below choices from COCO annotations. Images are read from COCO `train2017.zip` with HTTP range requests (ETag `62ff7d7f…-2306`; zip CRC checked; COCO's TLS certificate does not match its hostname, so this is plain HTTP). train2017 contains val2014 images, and the pilot found two pixel-identical POPE images. Some counted instances are too small to see at the model's resolution. |
+| [ryokamoi/VisOnlyQA_Train](https://huggingface.co/datasets/ryokamoi/VisOnlyQA_Train) `10d6012`, GPL-3.0 | all 7 tasks | include | Relicensed to GPL-3.0 (bases: CLEVR/SuperCLEVR BSD, synthetic geometry). Training images are CLEVR train, SuperCLEVR and synthetic geometry; the evaluation repositories are not read. The pilot found one image pixel-identical to a MathVista testmini image. |
+| [nvidia/Nemotron-Image-Training-v3.5](https://huggingface.co/datasets/nvidia/Nemotron-Image-Training-v3.5) `70b27e0`, OpenMDW-1.1 | `coco_count_spatial_qa` | include | Counting and above/below choices from COCO annotations. Images are read from COCO `train2017.zip` with HTTP range requests (ETag `62ff7d7f…-2306`; zip CRC checked; COCO's TLS certificate does not match its hostname, so this is plain HTTP). train2017 contains val2014 images, and the pilot found two pixel-identical POPE images. Some counted instances are too small to see at the model's resolution. Spatial labels: see [below](#nemotron-coco-spatial-labels). |
 | | `pixmo_count_qa` | exclude | Alternative packaging of allenai/pixmo-count, same unverifiable hashes. |
 | | `chartverse_perception_qa` | pending | Short perception answers, but images must be extracted from opendatalab/ChartVerse-SFT-1.8M; not retrieved for this build. |
 | | `chartnet_qa_*`, `chartverse_reasoning_*`, `babyvision`, `deepvision`, `vision_language_reasoning` | exclude | Reasoning-trace targets; the final answers presuppose the reasoning. |
@@ -78,15 +90,23 @@ Status: **include** (default export), **addon** (built, validated and exported s
 | | `arxiv_chart_qa_*` | exclude | Needs arXiv source archives plus PDF/PostScript rendering. |
 | | detection, grounding, pointing, video, multi-image subsets | exclude | Outside this build's single-image QA objective. |
 
+### Nemotron COCO spatial labels
+
+NVIDIA's card describes this subset only as a "public rule-based-conversion" of COCO and documents no rule. Against the pinned COCO 2017 instance boxes (`[media.coco_instances_train2017]`), every single-instance spatial label agrees with a comparison of box centers in the image plane, including when the boxes overlap on the asked axis (a held racket, a worn tie). That is an observed convention, not a documented one, and overlap alone is not treated as an error. When a named category has several instances, the row is kept only if every subject/reference pair gives the labelled answer. Otherwise the intended objects cannot be identified from the image, and the row goes to the `pending` bucket with `pending_reason: spatial_instance_dependent`. Of the 4,777 spatial questions in the source, 4,534 are kept and 243 are pending; none contradict the boxes. A row that contradicts every pair would be rejected. Counting questions are unchanged. Nothing here shows that this subset caused or explains Nemotron's spatial results.
+
+### PixMo-Count
+
+The card's own check is `sha256(requests.get(image_url).content) == image_sha256`, and Molmo's downloader does the same. The v1 pilot's 923 samples gave 830 hash mismatches, 29 gone (404/410), 64 rate-limited (429) and 0 matches. Earlier text that said "846 mismatched, 41 gone" was wrong. A bounded recheck of 60 evenly spaced train rows with the card's exact snippet returned 59 JPEGs and one 404, with no matches. Flickr serves the same bytes on refetch (12 of 12) and with browser or JPEG-only `Accept` headers (12 of 12). 36 of the 59 responses carry a 2019 `Last-Modified` date. Hashes of decoded pixels and of the URL do not match either. That rules out client headers and refetch drift as causes. Two explanations remain hypotheses: the published hashes came from a different representation at crawl time, or Flickr regenerated its size derivatives without changing `Last-Modified`. Hash checks are not waived, so the source stays pending until Ai2's original bytes or a reproducing hash definition is available ([evidence](../evidence/step05/pixmo-count.json)). Coverage from other counting data does not settle this.
+
 ### RL candidates
 
 | Source @ revision | Reference | Notes |
 |---|---|---|
-| [TIGER-Lab/ViRL39K](https://huggingface.co/datasets/TIGER-Lab/ViRL39K) `812ec61`, MIT | `answer` (boxed) | `category`, `source`, `qid` and both pass-rate fields kept in provenance only. Images from the verified `images.zip`; multi-image rows rejected. A trailing "Let's think step by step and output the final answer within \boxed{}." is replaced by the scorer format. |
-| [TIGER-Lab/VisualWebInstruct-verified](https://huggingface.co/datasets/TIGER-Lab/VisualWebInstruct-verified) `0e54d11`, MIT | `short_answer` | **97,295 rows in 95 files at this revision**, not the 973K in the card prose. Sub-questions (`idx` 3247.1, 3247.2) share a group. The reasoning `answer` is not read. |
-| [opendatalab/ChartVerse-RL-40K](https://huggingface.co/datasets/opendatalab/ChartVerse-RL-40K) `0b28d26`, Apache-2.0 | `reward_model.ground_truth` | The system prompt is dropped (recorded). Long-decimal references go to the pending numeric pool. |
-| [russwang/ThinkLite-VL-70k](https://huggingface.co/datasets/russwang/ThinkLite-VL-70k) `5c86ea4`, MIT | `ground_truth` | No per-row upstream source. Items resemble FigureQA, TabMWP, Geometry3K and others that feed MathVista, so image and question matching is the only provenance control; the pilot found MathVista and MMBench duplicates. |
-| [hiyouga/geometry3k](https://huggingface.co/datasets/hiyouga/geometry3k) `fd21e53`, MIT | `answer` | `train` only; validation/test preserved. The pilot found two training images pixel-identical to MathVista testmini images (removed). |
+| [TIGER-Lab/ViRL39K](https://huggingface.co/datasets/TIGER-Lab/ViRL39K) `812ec61`, Hub tag MIT, **pending (terms)** | `answer` (boxed) | `category`, `source`, `qid` and both pass-rate fields kept in provenance only. Images from the verified `images.zip`; multi-image rows rejected. A trailing "Let's think step by step and output the final answer within \boxed{}." is replaced by the scorer format. |
+| [TIGER-Lab/VisualWebInstruct-verified](https://huggingface.co/datasets/TIGER-Lab/VisualWebInstruct-verified) `0e54d11`, Hub tag MIT, **pending (terms)** | `short_answer` | **97,295 rows in 95 files at this revision**, not the 973K in the card prose. Sub-questions (`idx` 3247.1, 3247.2) share a group. The reasoning `answer` is not read. |
+| [opendatalab/ChartVerse-RL-40K](https://huggingface.co/datasets/opendatalab/ChartVerse-RL-40K) `0b28d26`, Apache-2.0 | `reward_model.ground_truth` | The system prompt is dropped (recorded). Long-decimal references without a stated precision are pending. |
+| [russwang/ThinkLite-VL-70k](https://huggingface.co/datasets/russwang/ThinkLite-VL-70k) `5c86ea4`, Hub tag MIT, **pending (terms)** | `ground_truth` | No per-row upstream source. Items resemble FigureQA, TabMWP, Geometry3K and others that feed MathVista, so image and question matching is the only provenance control; the pilot found MathVista and MMBench duplicates. |
+| [hiyouga/geometry3k](https://huggingface.co/datasets/hiyouga/geometry3k) `fd21e53`, MIT (InterGPS release) | `answer` | `train` only; validation/test preserved. The pilot found two training images pixel-identical to MathVista testmini images (removed). |
 
 ## Row contracts
 
@@ -183,26 +203,26 @@ The stage-2 thresholds come from inspecting every pilot pair (sheets via `inspec
 ```text
 images/<sha[:2]>/<sha>.<ext>   content-addressed original bytes (P/LA transparency composited on white, recorded)
 evals/                         evaluation images (exclusion index only)
-exports/<profile>/
+exports/<build>/               <build> = <profile>-<recipe version>, e.g. full-v2; v1 builds used <profile>
   portable/<variant>/<split>/part-*.parquet   rows with relative images/… paths
   miles/…                                     same rows with absolute paths (materialize)
   index/*.parquet              per-row provenance: source/revision/file/row/turn, upstream id, terms, group, split, token counts, row hash
   images.parquet               sha256, path, bytes and size of every referenced image
   manifest.json, SHA256SUMS, reports/{quality,verify}.json
-work/                          scan candidates/rejects, selection, validation results (resumable state)
-hf/, media/, inventory/        verified source downloads and listings
+work/<build>/                  scan candidates/rejects, selection, validation results (resumable state)
+hf/, media/, inventory/        verified source downloads, pinned media (COCO annotations) and listings
 ```
 
-Variants: `default/sft/{train,validation,sweep50k}`, `default/rl/{pool,heldout}`, `default/rl_pending_numeric/{pool,heldout}`, `addon/sft/{train,validation}`. The sweep is the first 50,000 default training rows in `sha256(seed:sweep:record_id)` order: a documented subset of train, never validation.
+Buckets: `default/sft/{train,validation,sweep50k}`, `default/rl/{pool,heldout}`, and `pending/sft/{train,validation}`, `pending/rl/{pool,heldout}` for rows inside included sources that are not yet trainable (`metadata.pending_reason`). Pending rows keep the same group-level splits and reserve their image groups from SFT, so admitting them later needs no reselection. They are outside quotas and must not be trained until their reason is resolved. The sweep is the first 50,000 default training rows in `sha256(seed:sweep:record_id)` order: a documented subset of train, never validation.
 
-To use the data on another machine, copy `images/` and `exports/<profile>/` (rsync or object storage), then:
+A recipe version builds into new `work/<build>` and `exports/<build>` directories, so earlier builds stay as they were. Export rewrites its own `portable/`, `index/` and `miles/` from scratch. To use the data on another machine, copy `images/` and `exports/<build>/` (rsync or object storage), then:
 
 ```bash
 uv run python -m k2hv.data materialize --profile full --data-root /path/to/copy --target-root /data/k2hv
 uv run python -m k2hv.data verify --profile full --data-root /path/to/copy --target-root /data/k2hv
 ```
 
-`verify` checks SHA256SUMS, re-hashes and decodes every referenced image, and checks that each Miles row hashes to its validated portable row. Miles's loader does not read `s3://`, so images must be on a local or mounted path at training time.
+`verify` checks SHA256SUMS. It requires a materialized file for every portable part and nothing extra, and every index row to appear exactly once in its bucket's Miles files with the validated row hash. It checks each row's image file name against its `image_sha256`, the referenced images against `images.parquet`, and that each image re-hashes and decodes. It recomputes group sharing from the exported indices: any group across train/validation, pool/held-out or SFT/RL fails, and same-split sharing between `default` and `pending` is listed as permitted. The 50k sweep must be a subset of train. Miles's loader does not read `s3://`, so images must be on a local or mounted path at training time.
 
 ### Step 6 dependency: lazy image loading
 

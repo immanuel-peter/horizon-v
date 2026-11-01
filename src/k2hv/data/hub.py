@@ -8,13 +8,13 @@ from pathlib import Path
 
 from huggingface_hub import HfApi, HfFileSystem, hf_hub_download
 
-from .runtime import file_sha256
+from .runtime import file_sha256, temp_path
 
 
 def atomic_write_text(path, text):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp = temp_path(path)
     tmp.write_text(text)
     os.replace(tmp, path)
 
@@ -102,7 +102,7 @@ def fetch_url(root, url, expected_sha256=None, timeout=20, max_bytes=50 << 20, a
             reason = "url_hash_mismatch"
             break
         cache.parent.mkdir(parents=True, exist_ok=True)
-        tmp = cache.with_name(f".{cache.name}.{os.getpid()}.tmp")
+        tmp = temp_path(cache)
         tmp.write_bytes(data)
         os.replace(tmp, cache)
         return data
@@ -110,6 +110,38 @@ def fetch_url(root, url, expected_sha256=None, timeout=20, max_bytes=50 << 20, a
         failure.parent.mkdir(parents=True, exist_ok=True)
         failure.write_text(reason)
     raise UrlError(reason)
+
+
+def pinned_file(root, spec):
+    """Download a pinned URL once into the data root, verify its sha256, and optionally extract one zip member."""
+    import zipfile
+
+    import requests
+
+    root = Path(root) / "media" / "pinned"
+    archive = root / f"{spec['sha256']}-{Path(spec['url']).name}"
+    if not archive.exists() or file_sha256(archive) != spec["sha256"]:
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        tmp = temp_path(archive)
+        with requests.get(spec["url"], stream=True, timeout=60) as r:
+            r.raise_for_status()
+            with open(tmp, "wb") as f:
+                for chunk in r.iter_content(1 << 20):
+                    f.write(chunk)
+        if file_sha256(tmp) != spec["sha256"]:
+            tmp.unlink()
+            raise RuntimeError(f"{spec['url']} does not match the pinned sha256")
+        os.replace(tmp, archive)
+    if not spec.get("member"):
+        return archive
+    out = root / spec["sha256"] / spec["member"]
+    if not out.exists():
+        out.parent.mkdir(parents=True, exist_ok=True)
+        tmp = temp_path(out)
+        with zipfile.ZipFile(archive) as z, open(tmp, "wb") as f:
+            f.write(z.read(spec["member"]))
+        os.replace(tmp, out)
+    return out
 
 
 class HttpRangeFile:

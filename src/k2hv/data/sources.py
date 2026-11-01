@@ -9,6 +9,8 @@ import hashlib
 import json
 import re
 import zipfile
+from collections import defaultdict
+from pathlib import Path
 
 import pyarrow.parquet as pq
 
@@ -203,6 +205,69 @@ class VisOnlyQA:
             yield {"row": i, "upstream_id": r["id"], "image": (r["decoded_image"] or {}).get("bytes"), "reject": reject, "turns": [{"turn": 0, "question": r["prompt_no_reasoning"], "answer": r["answer"], "provenance": {"task": r["task_category"]}}], "orig_split": "train", "group_hint": "visonlyqa-image:" + stem, "external_ids": [f"{r['source'].lower()}:{stem}"], "provenance": {"source": r["source"], "image_category": r["image_category"]}}
 
 
+SPATIAL = [
+    re.compile(r"where is the (?P<a>.+?) positioned relative to the (?P<b>.+?)\?", re.I),
+    re.compile(r"spatial relationship of the (?P<a>.+?) relative to the (?P<b>.+?)\?", re.I),
+    re.compile(r"where is the (?P<a>.+?) in relation to the (?P<b>.+?) in this image\?", re.I),
+    re.compile(r"is the (?P<a>.+?) to the (?:left or right|above or below) of the (?P<b>.+?)\?", re.I),
+]
+SPATIAL_WORDS = {"above": ("y", 0), "below": ("y", 1), "left": ("x", 0), "right": ("x", 1)}
+CHOICE_OPTION = re.compile(r"\(([A-F])\)\s*(\S[^\n|]*)")
+
+
+class CocoInstances:
+    """COCO train2017 instance boxes by image id and category name (pinned annotations)."""
+
+    def __init__(self, path):
+        coco = json.loads(Path(path).read_text())
+        names = {c["id"]: c["name"] for c in coco["categories"]}
+        self.names = set(names.values())
+        self.boxes = defaultdict(lambda: defaultdict(list))
+        for a in coco["annotations"]:
+            self.boxes[a["image_id"]][names[a["category_id"]]].append(a["bbox"])
+
+    def category(self, word):
+        word = word.strip().lower()
+        if word in self.names:
+            return word
+        if word in ("people", "persons"):
+            return "person"
+        return word[:-1] if word.endswith("s") and word[:-1] in self.names else None
+
+
+def spatial_status(coco, image_id, question, answer):
+    """Pending reason for a Nemotron spatial question, "contradicts" for a label against every box pair, or None to keep.
+
+    Observed convention (not documented by NVIDIA): single-instance labels equal a comparison of COCO
+    box centers in the image plane. Rows are kept when every subject/reference instance pair gives the
+    labelled answer by that rule; otherwise the intended instances cannot be identified from the image.
+    """
+    m = next((p.search(question) for p in SPATIAL if p.search(question)), None)
+    if not m:
+        return "spatial_question_unparsed"
+    options = dict(CHOICE_OPTION.findall(question))
+    word = options.get(answer.strip().strip("()").strip(), "").strip().lower()
+    if word not in SPATIAL_WORDS:
+        return "spatial_answer_unparsed"
+    axis, side = SPATIAL_WORDS[word]
+    a, b = coco.category(m.group("a")), coco.category(m.group("b"))
+    boxes = coco.boxes.get(image_id, {})
+    A, B = boxes.get(a, []), boxes.get(b, [])
+    if not a or not b or not A or not B:
+        return "spatial_objects_not_annotated"
+    k = 1 if axis == "y" else 0
+    votes = set()
+    for p in A:
+        for q in B:
+            ca, cb = p[k] + p[k + 2] / 2, q[k] + q[k + 2] / 2
+            votes.add(None if ca == cb else int(ca > cb))
+    if votes == {side}:
+        return None
+    if len(A) == 1 and len(B) == 1:
+        return "spatial_label_contradicts_boxes" if votes == {1 - side} else "spatial_center_tie"
+    return "spatial_instance_dependent"
+
+
 class NemotronCoco:
     dataset = "nemotron_coco"
     path = "coco_count_spatial_qa/coco_count_spatial_qa.jsonl"
@@ -213,6 +278,7 @@ class NemotronCoco:
     def rows(self, ctx, src, shard):
         ds = ctx.datasets[self.dataset]
         path = hub.download(ctx.root, ds["repo"], ds["revision"], self.path)
+        coco = CocoInstances(hub.pinned_file(ctx.root, ctx.recipe["media"]["coco_instances_train2017"]))
         with open(path) as f:
             for i, line in enumerate(f):
                 if i % shard["stride"]:
@@ -225,7 +291,15 @@ class NemotronCoco:
                 answer = re.sub(r"^<think>\s*</think>", "", answer).strip()
                 reject = None if len(images) == 1 and len(texts) == 1 and len(r["messages"]) == 2 else "multi_image_or_turn"
                 m = COCO_FILE.search(images[0] if images else "")
-                yield {"row": i, "upstream_id": r["id"], "image": ("zip", "coco_train2017", images[0]) if images else None, "reject": reject, "turns": [{"turn": 0, "question": texts[0] if texts else "", "answer": answer, "provenance": {}}], "orig_split": "train", "group_hint": None, "external_ids": [f"coco:{int(m.group(1))}"] if m else []}
+                turn = {"turn": 0, "question": texts[0] if texts else "", "answer": answer, "provenance": {}}
+                q = turn["question"].lower()
+                if m and not (q.strip().startswith("count") or "how many" in q):
+                    status = spatial_status(coco, int(m.group(1)), turn["question"], answer)
+                    if status == "spatial_label_contradicts_boxes":
+                        reject = reject or status
+                    elif status:
+                        turn["pending_reason"] = status
+                yield {"row": i, "upstream_id": r["id"], "image": ("zip", "coco_train2017", images[0]) if images else None, "reject": reject, "turns": [turn], "orig_split": "train", "group_hint": None, "external_ids": [f"coco:{int(m.group(1))}"] if m else []}
 
 
 # ------------------------------------------------------------------- RL adapters

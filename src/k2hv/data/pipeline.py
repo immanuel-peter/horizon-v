@@ -6,6 +6,7 @@ import json
 import math
 import os
 import platform
+import shutil
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -258,11 +259,15 @@ def select(ctx):
             by_source[c["source"][i]].append(i)
     oversample = 1.0 if ctx.pilot else ctx.recipe["split"]["oversample"]
     selected = []
+    # Row-level pending rows (inside an included source) bypass quotas; rows of a pending source follow its quota.
+    pending = {i for i in range(n) if c["status"][i] == "pending" and ctx.sources[c["source"][i]]["status"] != "pending"}
     for key in sorted(by_source, key=lambda k: priority[k]):
         if ctx.sources[key]["kind"] != "rl":
             continue
-        pool = sorted(by_source[key], key=lambda i: ranks[i])
+        pool = sorted((i for i in by_source[key] if i not in pending), key=lambda i: ranks[i])
         selected.extend(pool[: math.ceil(quota(ctx, ctx.sources[key]) * (oversample if not ctx.pilot else 1.5))])
+        selected.extend(sorted((i for i in by_source[key] if i in pending), key=lambda i: ranks[i]))
+    # Pending RL rows reserve their groups too, so admitting them later does not need an SFT reselection.
     rl_groups = {group[i] for i in selected}
     reserved = Counter()
     for key in sorted(by_source, key=lambda k: priority[k]):
@@ -275,6 +280,9 @@ def select(ctx):
         for i in sorted(by_source[key], key=lambda i: ranks[i]):
             if group[i] in rl_groups:
                 reserved[key] += 1
+                continue
+            if i in pending:
+                selected.append(i)
                 continue
             if per_group[group[i]] >= src.get("max_qa_per_image", 1 << 30):
                 continue
@@ -371,11 +379,13 @@ def image_matches(ctx, u, e, cfg):
 
 def miles_row(r, root):
     image = str(Path(root) / r["image_path"]) if root is not None else r["image_path"]
+    # Same metadata keys on every row of a kind, so Parquet round trips do not add nulls and change row hashes.
+    pending = {"pending_reason": json.loads(r["provenance"])["pending_reason"] if r.get("status") == "pending" else None}
     if r["kind"] == "sft":
-        return {"messages": [{"role": "user", "content": "<image>\n" + r["question"], "think": None}, {"role": "assistant", "content": r["answer"], "think": ""}], "images": [image], "metadata": {"record_id": r["record_id"], "source": r["source"], "task": r["task"], "image_sha256": r["image_sha256"]}}
+        return {"messages": [{"role": "user", "content": "<image>\n" + r["question"], "think": None}, {"role": "assistant", "content": r["answer"], "think": ""}], "images": [image], "metadata": {"record_id": r["record_id"], "source": r["source"], "task": r["task"], "image_sha256": r["image_sha256"], **pending}}
     meta = {"data_source": r["selector"], "record_id": r["record_id"], "source": r["source"], "dataset": r["dataset"], "upstream_id": r["upstream_id"], "reference": r["answer_orig"], "answer_type": r["answer_type"], "task": r["task"], "image_sha256": r["image_sha256"]}
-    if r["selector"] == scoring.DECIMAL:
-        meta["answer_decimals"] = json.loads(r["provenance"])["answer_decimals"]
+    meta["answer_decimals"] = json.loads(r["provenance"])["answer_decimals"] if r["selector"] == scoring.DECIMAL else None
+    meta.update(pending)
     return {"problem": r["question"], "answer": r["answer"], "images": [image], "metadata": meta}
 
 
@@ -429,12 +439,17 @@ def validate(ctx):
         rows = [miles_row(r, ctx.root) for r in chunk]
         table = pa.Table.from_pylist(rows)
         content = digest([portable_hash(r) for r in rows])
-        if done_path.exists():
+        results_path = done_path.with_suffix(".parquet")
+        if done_path.exists() and results_path.exists():
             marker = json.loads(done_path.read_text())
-            if marker.get("fingerprint") == fingerprint and marker.get("content") == content and chunk_path.exists():
+            if marker.get("fingerprint") == fingerprint and marker.get("content") == content and chunk_path.exists() and pq.ParquetFile(results_path).metadata.num_rows == len(rows) == marker.get("rows"):
                 continue
         write_table(chunk_path, table)
         jobs.append((ctx.args, str(chunk_path), str(done_path), content))
+    current = {f"chunk-{kind}-{number:05d}" for kind, number, _ in chunks}
+    for path in vdir.glob("chunk-*"):
+        if path.name.split(".")[0] not in current:
+            path.unlink()
     log(f"validate: {len(selected)} rows in {len(chunks)} chunks, {len(jobs)} to run")
     for marker in build._imap(_validate_job, jobs, ctx.recipe["workers"]["validate"]):
         log(f"  {Path(marker['chunk']).name}: rows={marker['rows']} failures={marker['failures']}")
@@ -475,17 +490,17 @@ def export(ctx):
     final = []
     for key, rows in by_source.items():
         rows.sort(key=lambda r: r["rank"])
-        final.extend(rows[: quota(ctx, ctx.sources[key])])
+        row_pending = [r for r in rows if r["status"] == "pending" and ctx.sources[key]["status"] != "pending"]
+        admitted = [r for r in rows if r not in row_pending]
+        final.extend(admitted[: quota(ctx, ctx.sources[key])])
+        final.extend(row_pending)
     final.sort(key=lambda r: (r["kind"], r["rank"]))
     for r in final:
         r.update({k: val[r["record_id"]][k] for k in ("total_tokens", "image_tokens", "supervised_tokens", "prompt_tokens", "bos_tokens", "portable_hash")})
 
     def bucket(r):
         variant = {"include": "default", "addon": "addon", "pending": "pending", "exclude": "excluded"}[r["status"]]
-        if r["kind"] == "sft":
-            return f"{variant}/sft/{r['split']}"
-        pool = "rl_pending_decimal" if r["selector"] == scoring.PENDING_DECIMAL else "rl"
-        return f"{variant}/{pool}/{r['split']}"
+        return f"{variant}/{r['kind']}/{r['split']}"
 
     groups = defaultdict(list)
     for r in final:
@@ -494,7 +509,10 @@ def export(ctx):
     sweep_n = ctx.recipe["split"]["sweep_size"] if not ctx.pilot else min(200, len(train))
     groups["default/sft/sweep50k" if not ctx.pilot else "default/sft/sweep"] = sorted(train[:sweep_n], key=lambda r: (r["kind"], r["rank"]))
 
-    edir = ctx.root / "exports" / ctx.profile_name
+    edir = ctx.export_dir
+    for stale in ("portable", "index", "miles"):
+        if (edir / stale).exists():
+            shutil.rmtree(edir / stale)
     files = {}
     index_cols = ["record_id", "source", "task", "terms", "dataset", "revision", "file", "row", "turn", "upstream_id", "orig_split", "answer_orig", "answer_type", "selector", "image_sha256", "image_path", "width", "height", "group_id", "split", "rank", "total_tokens", "image_tokens", "supervised_tokens", "prompt_tokens", "bos_tokens", "portable_hash", "provenance"]
     index_schema = pa.Table.from_pylist([{k: r[k] for k in index_cols} for r in final]).schema  # one schema for SFT and RL buckets so index/ reads as one dataset
@@ -530,6 +548,20 @@ def export(ctx):
     for name, rows in sorted(groups.items()):
         log(f"  {name}: {len(rows)}")
     return manifest
+
+
+def pending_summary(final):
+    """Pending rows inside included sources, by source and reason, with a few examples each."""
+    out = defaultdict(lambda: {"rows": 0, "examples": []})
+    for r in final:
+        if r["status"] != "pending":
+            continue
+        reason = json.loads(r["provenance"])["pending_reason"]
+        item = out[f"{r['source']}|{reason}"]
+        item["rows"] += 1
+        if len(item["examples"]) < 3:
+            item["examples"].append({"record_id": r["record_id"], "image_sha256": r["image_sha256"], "question": r["question"][:300], "answer": r["answer"], "split": r["split"]})
+    return dict(sorted(out.items()))
 
 
 def _split_role(name):
@@ -581,7 +613,7 @@ def quality_report(ctx, sel, val, final, groups):
     evals = {json.loads(p.read_text())["eval"]: {k: v for k, v in json.loads(p.read_text()).items() if k not in ("fingerprint",)} for p in sorted((ctx.root / "work" / "evals").glob("*.done.json"))}
     return {
         "profile": ctx.profile_name, "per_source": per_source, "exports": exports,
-        "split_group_leakage": leak, "shared_groups_same_split": same_split, "sweep_subset_of_train": all(r["record_id"] in train_ids for r in sweep),
+        "pending": pending_summary(final), "split_group_leakage": leak, "shared_groups_same_split": same_split, "sweep_subset_of_train": all(r["record_id"] in train_ids for r in sweep),
         "selection": select_stats, "evaluation_sets": evals, "preserved_splits": build.preserved_splits(ctx),
         "bos_tokens": dict(Counter(str(r["bos_tokens"]) for r in final if r["kind"] == "sft")),
     }
@@ -593,8 +625,8 @@ def build_manifest(ctx, files, image_rows, report):
     from importlib.metadata import version
 
     return {
-        "recipe": {"path": str(ctx.recipe_path), "sha256": hashlib.sha256(ctx.recipe_bytes).hexdigest(), "profile": ctx.profile_name, "seed": ctx.recipe["recipe"]["seed"], "limits": ctx.recipe["limits"], "split": ctx.recipe["split"]},
-        "sources": {k: {"status": v["status"], "kind": v["kind"], "dataset": ctx.datasets[sources.ADAPTERS[v["adapter"]].dataset], "config": v.get("config"), "terms": v["terms"], "terms_note": v["terms_note"]} for k, v in ctx.sources.items()},
+        "recipe": {"path": str(ctx.recipe_path), "sha256": hashlib.sha256(ctx.recipe_bytes).hexdigest(), "profile": ctx.profile_name, "build": ctx.build_name, "seed": ctx.recipe["recipe"]["seed"], "limits": ctx.recipe["limits"], "split": ctx.recipe["split"]},
+        "sources": {k: {"status": v["status"], "kind": v["kind"], "dataset": ctx.datasets[sources.ADAPTERS[v["adapter"]].dataset], "config": v.get("config"), "terms": v["terms"], "terms_note": v["terms_note"], "redistribution": v.get("redistribution")} for k, v in ctx.sources.items()},
         "evals": ctx.recipe["evals"],
         "runtime": {"miles_commit": runtime.MILES_COMMIT, "miles_sources": runtime.MILES_SOURCES, "rl360_commit": runtime.RL360_COMMIT, "rl360_sources": runtime.RL360_SOURCES, "qwen_vl_utils": runtime.QWEN_VL_UTILS, "transformers": transformers.__version__, "pillow": version("pillow"), "pyarrow": version("pyarrow"), "numpy": version("numpy"), "python": platform.python_version()},
         "processor": {"path": ctx.recipe["recipe"]["processor"], "files": runtime.processor_fingerprint(ctx.recipe["recipe"]["processor"])},
@@ -610,7 +642,7 @@ def build_manifest(ctx, files, image_rows, report):
 def materialize(ctx, target_root):
     """Write Miles Parquet whose image paths are absolute under target_root (which must contain images/)."""
     target_root = Path(target_root).resolve()
-    edir = ctx.root / "exports" / ctx.profile_name
+    edir = ctx.export_dir
     out = {}
     for path in sorted((edir / "portable").rglob("*.parquet")):
         table = pq.read_table(path)
@@ -623,34 +655,69 @@ def materialize(ctx, target_root):
     log(f"materialize: {len(out)} files with image root {target_root}")
 
 
+def split_checks(index_rows):
+    """Group separation over exported index rows {bucket, record_id, group_id}: returns (forbidden, permitted, sweep_subset)."""
+    groups = defaultdict(set)
+    for r in index_rows:
+        if "sweep" not in r["bucket"]:
+            groups[r["bucket"]].add(r["group_id"])
+    forbidden, permitted = {}, {}
+    names = sorted(groups)
+    for i, a in enumerate(names):
+        for b in names[i + 1 :]:
+            shared = groups[a] & groups[b]
+            if shared:
+                (permitted if _split_role(a) == _split_role(b) else forbidden)[f"{a} & {b}"] = len(shared)
+    train = {r["record_id"] for r in index_rows if r["bucket"] == "default/sft/train"}
+    sweep = [r["record_id"] for r in index_rows if "sweep" in r["bucket"]]
+    return forbidden, permitted, all(x in train for x in sweep)
+
+
 def verify(ctx, target_root):
-    """Every exported image re-hashed and decoded; every Miles row equals the row that passed validation."""
+    """Every exported file, row, row-to-image mapping and image is checked against the export manifest and validation."""
     target_root = Path(target_root).resolve()
-    edir = ctx.root / "exports" / ctx.profile_name
+    edir = ctx.export_dir
     miles = runtime.miles()
+    manifest = json.loads((edir / "manifest.json").read_text())
     sums = {line.split("  ", 1)[1]: line.split("  ", 1)[0] for line in (edir / "SHA256SUMS").read_text().splitlines()}
-    bad_files = [k for k, v in sums.items() if runtime.file_sha256(edir / k) != v]
-    expected = {}
+    bad_files = [k for k, v in sums.items() if not (edir / k).exists() or runtime.file_sha256(edir / k) != v]
+    portable = {k for k in manifest["files"] if k.startswith("portable/")}
+    materialized = {str(p.relative_to(edir)) for p in (edir / "miles").rglob("*.parquet")}
+    bad_files += [f"missing materialized {k}" for k in sorted({"miles/" + k[len("portable/") :] for k in portable} - materialized)]
+    bad_files += [f"unexpected materialized {k}" for k in sorted(materialized - {"miles/" + k[len("portable/") :] for k in portable})]
+    expected, index_rows = {}, []
     for path in sorted((edir / "index").glob("*.parquet")):
-        for r in pq.read_table(path, columns=["record_id", "portable_hash"]).to_pylist():
-            expected[r["record_id"]] = r["portable_hash"]
-    rows, mismatched, paths = 0, [], set()
+        bucket = path.stem.replace("__", "/")
+        for r in pq.read_table(path, columns=["record_id", "portable_hash", "group_id", "image_sha256"]).to_pylist():
+            expected[(bucket, r["record_id"])] = (r["portable_hash"], r["image_sha256"])
+            index_rows.append({**r, "bucket": bucket})
+    seen, mismatched, paths = set(), [], set()
     for path in sorted((edir / "miles").rglob("*.parquet")):
+        bucket = str(path.parent.relative_to(edir / "miles"))
         for data in miles.read_file(str(path)):
-            rows += 1
-            if portable_hash(data) != expected.get(data["metadata"]["record_id"]):
-                mismatched.append(data["metadata"]["record_id"])
+            key = (bucket, data["metadata"]["record_id"])
+            want = expected.get(key)
+            if want is None or key in seen or portable_hash(data) != want[0] or data["metadata"].get("image_sha256") != want[1]:
+                mismatched.append(key[1])
+            seen.add(key)
             for p in data["images"]:
-                if not p.startswith(str(target_root) + "/"):
-                    mismatched.append(data["metadata"]["record_id"])
+                if want is None or not p.startswith(str(target_root) + "/") or Path(p).name.split(".")[0] != want[1]:
+                    mismatched.append(key[1])
                 paths.add(p)
+    missing_rows = [k[1] for k in expected if k not in seen]
+    listed = set(pq.read_table(edir / "images.parquet", columns=["path"]).column("path").to_pylist())
+    referenced = {p[len(str(target_root)) + 1 :] for p in paths}
     jobs = sorted(paths)
     bad_images = []
     for res in build._imap(_verify_images, [(jobs[k : k + 5000],) for k in range(0, len(jobs), 5000)], ctx.recipe["workers"]["validate"]):
         bad_images.extend(res)
-    report = {"target_root": str(target_root), "files_checked": len(sums), "bad_files": bad_files, "rows": rows, "row_mismatches": len(mismatched), "mismatch_examples": mismatched[:20], "images_checked": len(jobs), "bad_images": bad_images[:50], "bad_image_count": len(bad_images), "passed": not bad_files and not mismatched and not bad_images}
+    forbidden, permitted, sweep_ok = split_checks(index_rows)
+    report = {"target_root": str(target_root), "files_checked": len(sums), "bad_files": bad_files, "rows": len(seen), "index_rows": len(expected), "missing_rows": len(missing_rows),
+              "row_mismatches": len(mismatched), "mismatch_examples": mismatched[:20], "images_checked": len(jobs), "image_list_matches": referenced == listed,
+              "bad_images": bad_images[:50], "bad_image_count": len(bad_images), "forbidden_group_sharing": forbidden, "permitted_same_split_sharing": permitted, "sweep_subset_of_train": sweep_ok}
+    report["passed"] = not bad_files and not mismatched and not missing_rows and not bad_images and report["image_list_matches"] and not forbidden and sweep_ok
     write_json(edir / "reports" / "verify.json", report)
-    log(f"verify: rows={rows} mismatches={len(mismatched)} images={len(jobs)} bad_images={len(bad_images)} bad_files={len(bad_files)} passed={report['passed']}")
+    log(f"verify: rows={len(seen)}/{len(expected)} mismatches={len(mismatched)} images={len(jobs)} bad_images={len(bad_images)} bad_files={len(bad_files)} forbidden_sharing={forbidden} sweep_subset={sweep_ok} passed={report['passed']}")
     return report["passed"]
 
 
@@ -673,9 +740,9 @@ def _verify_images(paths):
 
 def inspect(ctx, per_source=4, out=None):
     """HTML sheet of exact model-input images (inverted pixel_values) and decoded supervision."""
-    out = Path(out or Path("outputs/step05") / ctx.profile_name / "inspect")
+    out = Path(out or Path("outputs/step05") / ctx.build_name / "inspect")
     (out / "img").mkdir(parents=True, exist_ok=True)
-    edir = ctx.root / "exports" / ctx.profile_name
+    edir = ctx.export_dir
     checker = contract.Checker(ctx.recipe["recipe"]["processor"], ctx.recipe["limits"])
     tok = checker.processor.tokenizer
     cards = []
@@ -715,7 +782,7 @@ def exclusion_sheets(ctx, per_category=12, out=None):
     """Side-by-side candidate/evaluation pairs for each (source, eval, method, status) category."""
     from PIL import Image, ImageDraw
 
-    out = Path(out or Path("outputs/step05") / ctx.profile_name / "exclusions")
+    out = Path(out or Path("outputs/step05") / ctx.build_name / "exclusions")
     out.mkdir(parents=True, exist_ok=True)
     rows = pq.read_table(ctx.work / "select" / "exclusions.parquet").to_pylist()
     cats = defaultdict(list)
@@ -748,7 +815,7 @@ def exclusion_sheets(ctx, per_category=12, out=None):
 
 def evidence(ctx, out):
     """Compact, path-free summary of a profile's reports for docs/evidence/step05."""
-    edir = ctx.root / "exports" / ctx.profile_name
+    edir = ctx.export_dir
     quality = json.loads((edir / "reports" / "quality.json").read_text())
     manifest = json.loads((edir / "manifest.json").read_text())
     verify_report = json.loads((edir / "reports" / "verify.json").read_text())
@@ -785,10 +852,10 @@ def evidence(ctx, out):
         "evaluation_sets": {k: {kk: vv for kk, vv in v.items() if kk not in ("sha256",)} for k, v in quality["evaluation_sets"].items()},
         "preserved_splits": quality["preserved_splits"],
         "validation": {"rows": validated.num_rows, "failures": dict(Counter(r for r in validated.column("reason").to_pylist() if r)), "bos_tokens": quality["bos_tokens"]},
-        "split_group_leakage": quality["split_group_leakage"], "shared_groups_same_split": quality.get("shared_groups_same_split", {}), "sweep_subset_of_train": quality["sweep_subset_of_train"],
-        "verify": {k: verify_report[k] for k in ("files_checked", "bad_files", "rows", "row_mismatches", "images_checked", "bad_image_count", "passed")},
+        "pending": quality.get("pending", {}), "split_group_leakage": quality["split_group_leakage"], "shared_groups_same_split": quality.get("shared_groups_same_split", {}), "sweep_subset_of_train": quality["sweep_subset_of_train"],
+        "verify": {k: verify_report.get(k) for k in ("files_checked", "bad_files", "rows", "index_rows", "missing_rows", "row_mismatches", "images_checked", "image_list_matches", "bad_image_count", "forbidden_group_sharing", "permitted_same_split_sharing", "sweep_subset_of_train", "passed")},
     }
     out = Path(out)
-    write_json(out / f"{ctx.profile_name}.json", summary)
-    log(f"evidence -> {out / (ctx.profile_name + '.json')}")
+    write_json(out / f"{ctx.build_name}.json", summary)
+    log(f"evidence -> {out / (ctx.build_name + '.json')}")
     return summary

@@ -177,6 +177,15 @@ def rl360():
     return types.SimpleNamespace(root=root, **modules)
 
 
+def temp_path(path):
+    """Unique sibling temporary path for an atomic write (unique per process, thread and call)."""
+    import threading
+    import uuid
+
+    path = Path(path)
+    return path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex[:8]}.tmp")
+
+
 def file_sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:

@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageOps
 
+from . import runtime
+
 Image.MAX_IMAGE_PIXELS = 200_000_000
 FORMATS = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp", "GIF": "gif", "BMP": "bmp", "TIFF": "tiff", "MPO": "jpg"}
 MODES = {"RGB", "RGBA", "L", "LA", "P", "PA", "CMYK", "1", "YCbCr"}
@@ -136,7 +138,7 @@ def write_asset(root, data, ext):
     path = Path(root) / rel
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        tmp = runtime.temp_path(path)
         tmp.write_bytes(data)
         os.replace(tmp, path)
     return sha, rel

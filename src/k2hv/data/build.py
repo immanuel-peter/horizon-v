@@ -40,7 +40,7 @@ def digest(obj):
 def write_table(path, table):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp = runtime.temp_path(path)
     pq.write_table(table, tmp, compression="zstd", row_group_size=4096)
     os.replace(tmp, path)
 
@@ -63,7 +63,11 @@ class Context:
         self.profile = self.recipe["profiles"][profile]
         self.pilot = profile == "pilot"
         self.datasets = self.recipe["datasets"]
-        self.work = self.root / "work" / profile
+        version = self.recipe["recipe"].get("version")
+        # Each recipe version builds into its own work/ and exports/ directories; earlier builds stay untouched.
+        self.build_name = profile if version in (None, 1) else f"{profile}-{version}"  # version 1 predates versioned directories
+        self.work = self.root / "work" / self.build_name
+        self.export_dir = self.root / "exports" / self.build_name
         statuses = set(self.profile["statuses"])
         self.sources = {k: v for k, v in self.recipe["sources"].items() if v["status"] in statuses}
 
@@ -74,15 +78,15 @@ class Context:
     def source_fingerprint(self, key):
         src = self.sources[key]
         ds = self.datasets[sources.ADAPTERS[src["adapter"]].dataset]
-        return digest({"source": src, "dataset": ds, "rules": self.recipe["rules"], "profile": self.profile, "code": code_fingerprint()})
+        return digest({"source": src, "dataset": ds, "rules": self.recipe["rules"], "profile": self.profile, "image_config": processor_image_config(self), "media": self.recipe.get("media", {}), "code": code_fingerprint()})
 
 
-SCAN_VERSION = 2  # bump when scan_shard/sft_turn/rl_turn change their output
+SCAN_VERSION = 3
 
 
 def code_fingerprint():
     here = Path(__file__).parent
-    files = ("sources.py", "images.py", "text.py", "scoring.py")
+    files = ("sources.py", "images.py", "text.py", "scoring.py", "build.py", "../reward.py")
     return digest({"scan_version": SCAN_VERSION, **{name: hashlib.sha256((here / name).read_bytes()).hexdigest() for name in files}})
 
 
@@ -94,6 +98,12 @@ def shard_id(shard):
     if shard.get("row_groups") is not None:
         name += "__rg" + "-".join(map(str, shard["row_groups"]))
     return name
+
+
+def processor_image_config(ctx):
+    """Patch geometry from the recipe processor's preprocessor_config.json; the token budget is the recipe limit."""
+    cfg = json.loads((Path(ctx.recipe["recipe"]["processor"]) / "preprocessor_config.json").read_text())
+    return {**{k: cfg[k] for k in ("patch_size", "merge_size", "temporal_patch_size", "min_image_tokens")}, "max_image_tokens": ctx.recipe["limits"]["max_image_tokens"]}
 
 
 def plan_scan(ctx):
@@ -170,7 +180,7 @@ def scan_shard(args, key, shard):
     ds = ctx.datasets[adapter.dataset]
     rules = {**ctx.recipe["rules"], **{k: src[k] for k in ("max_answer_words", "max_answer_sentences") if k in src}}
     zips = sources.ZipMedia()
-    image_config = {"patch_size": 14, "merge_size": 2, "temporal_patch_size": 2, "min_image_tokens": 16, "max_image_tokens": ctx.recipe["limits"]["max_image_tokens"]}
+    image_config = processor_image_config(ctx)
     accepted, rejected, counts = [], [], {"rows": 0, "turns": 0, "accepted": 0, "rejected": {}}
     pending_urls = []
 
@@ -198,8 +208,14 @@ def scan_shard(args, key, shard):
                 provenance["image_transform"] = img["image_transform"]
             if row.get("category"):
                 provenance["category"] = row["category"]
+            if src["status"] == "pending":
+                provenance.setdefault("pending_reason", "source_pending")
+            status = "pending" if provenance.get("pending_reason") else src["status"]
+            if status == "pending":
+                counts.setdefault("pending", {})
+                counts["pending"][provenance["pending_reason"]] = counts["pending"].get(provenance["pending_reason"], 0) + 1
             accepted.append({
-                "record_id": rid, "kind": src["kind"], "source": key, "task": src["task"], "terms": src["terms"], "status": src["status"],
+                "record_id": rid, "kind": src["kind"], "source": key, "task": src["task"], "terms": src["terms"], "status": status,
                 "dataset": ds["repo"], "revision": ds["revision"], "file": shard["file"], "row": row["row"], "turn": turn, "upstream_id": row.get("upstream_id"), "orig_split": row.get("orig_split"),
                 "question": q, "answer": a, "answer_orig": a_orig, "answer_type": a_type, "selector": selector,
                 "image_sha256": img["image_sha256"], "image_path": img["image_path"], "image_format": img["image_format"], "image_mode": img["image_mode"], "image_bytes": img["image_bytes"], "width": img["width"], "height": img["height"],
@@ -233,14 +249,18 @@ def scan_shard(args, key, shard):
             if src["kind"] == "sft":
                 q, a, a_type, reason = sft_turn(src, rules, t["question"], t["answer"])
                 a_orig, selector = text.clean(t["answer"] or ""), None
+                if t.get("pending_reason"):
+                    t["provenance"]["pending_reason"] = t["pending_reason"]
             else:
                 q, a, info = rl_turn(t["problem"], t["reference"])
                 reason, a_type, selector, a_orig = info.get("reason"), info.get("answer_type"), info.get("selector"), str(t["reference"])
                 if info.get("mapped_from"):
                     t["provenance"]["choice_mapped_from"] = info["mapped_from"]
-                for k in ("answer_decimals", "pending", "unit"):
+                for k in ("answer_decimals", "unit"):
                     if info.get(k) is not None:
                         t["provenance"][k] = info[k]
+                if info.get("pending"):
+                    t["provenance"]["pending_reason"] = info["pending"]
             reason = row.get("reject") or reason
             if reason:
                 reject(rid, reason, q, a or a_orig)

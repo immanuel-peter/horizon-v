@@ -1,11 +1,14 @@
 # Step 5 data recipe. Every source, revision, rule, limit, quota and split parameter used by
 # `python -m k2hv.data` lives here; the recipe hash is recorded in every build manifest.
-# status: include (default export), addon (built and validated, exported separately pending a
-# terms decision), pending (pilot-audited, not built), exclude (audited, not built).
+# status: include (built and exported), pending (not built until a recorded gap is closed: terms
+# evidence or data integrity), exclude (audited and rejected for quality or fit). terms_note records
+# the original statement that permits research training use and the media origin; redistribution is
+# recorded separately and nothing is redistributed. Hub tags and code-repository licences alone are
+# not a basis. Rows inside an included source can be pending too (metadata.pending_reason).
 
 [recipe]
 name = "k2hv-step05"
-version = 1
+version = "v2"
 seed = 20261031
 processor = "hf/K2-Horizon-V-init"
 
@@ -49,10 +52,11 @@ scan = 14
 validate = 15
 url_threads = 12
 
-[terms]
-# Classes recorded on every row. "review" components are exported only in the add-on.
-permissive = ["cc-by-4.0", "mit", "apache-2.0", "odc-by", "openmdw-1.1"]
-review = ["gpl-3.0", "cc-by-nc-sa-4.0", "cc-by-nc-4.0"]
+[media.coco_instances_train2017]
+# COCO 2017 instance boxes, used to check Nemotron spatial labels against every instance pair.
+url = "http://images.cocodataset.org/annotations/annotations_trainval2017.zip"
+sha256 = "113a836d90195ee1f884e704da6304dfaaecff1f023f49b6ca93c4aaae470268"
+member = "annotations/instances_train2017.json"
 
 # ---------------------------------------------------------------- SFT sources
 [sources.fv_vqav2]
@@ -61,7 +65,8 @@ adapter = "finevision"
 config = "vqav2"
 task = "general_vqa"
 terms = "cc-by-4.0"
-terms_note = "VQAv2 annotations CC BY 4.0; COCO train2014 images under Flickr terms"
+terms_note = "visualqa.org/terms.html: annotations 'licensed under a Creative Commons Attribution 4.0 International License'. Media: COCO train2014 Flickr photos; COCO does not own the images, use follows Flickr terms and per-image licences in the COCO annotations"
+redistribution = "annotations CC BY 4.0 with attribution; images not redistributed"
 status = "include"
 quota = 200000
 max_qa_per_image = 3
@@ -71,9 +76,11 @@ kind = "sft"
 adapter = "finevision"
 config = "visual7w"
 task = "general_vqa_choice"
-terms = "mit"
-terms_note = "MIT per Bee license table (secondary); COCO images"
-status = "include"
+terms = "unverified"
+terms_note = "none found. Media: COCO photos"
+redistribution = "unknown"
+missing_evidence = "a dataset terms statement from the authors: the visual7w-toolkit MIT LICENSE covers toolkit code, the data downloads separately, and the project page (ai.stanford.edu/~yukez/visual7w) refused connections; its archived copy has no terms"
+status = "pending"
 quota = 40000
 max_qa_per_image = 3
 
@@ -82,8 +89,9 @@ kind = "sft"
 adapter = "finevision"
 config = "vsr"
 task = "spatial"
-terms = "cc-by-4.0"
-terms_note = "CC BY 4.0 per Bee license table (secondary); COCO 2017 images"
+terms = "apache-2.0"
+terms_note = "cambridgeltl/visual-spatial-reasoning README: 'This project is licensed under the Apache-2.0 License'; the data splits ship in the repository. Media: COCO 2017 Flickr photos (Flickr terms)"
+redistribution = "Apache-2.0 for the annotations; images not redistributed"
 status = "include"
 quota = 10000
 max_qa_per_image = 3
@@ -94,7 +102,8 @@ adapter = "finevision"
 config = "tallyqa"
 task = "counting"
 terms = "apache-2.0"
-terms_note = "Apache-2.0 per CVPRW 2025 supplemental (secondary); COCO and Visual Genome images"
+terms_note = "manoja328/TallyQA_dataset distributes the QA pairs as tallyqa.zip in the repository; repository LICENSE Apache-2.0. Media: COCO and Visual Genome photos (Flickr terms)"
+redistribution = "Apache-2.0 for the QA pairs; images not redistributed"
 status = "include"
 quota = 120000
 max_qa_per_image = 2
@@ -105,7 +114,8 @@ adapter = "finevision"
 config = "clevr"
 task = "counting_synthetic"
 terms = "cc-by-4.0"
-terms_note = "CLEVR CC BY 4.0"
+terms_note = "cs.stanford.edu/people/jcjohns/clevr: 'Creative Commons CC BY 4.0 license'. Media: synthetic renders by the authors, same terms"
+redistribution = "CC BY 4.0 with attribution"
 status = "include"
 quota = 40000
 max_qa_per_image = 1
@@ -117,7 +127,8 @@ adapter = "finevision"
 config = "textvqa"
 task = "scene_text"
 terms = "cc-by-4.0"
-terms_note = "TextVQA CC BY 4.0 (facebook/textvqa Hub metadata); Open Images"
+terms_note = "facebook/textvqa card by the dataset creator (rev 30a47cf): 'Licensing Information: CC by 4.0'. Media: Open Images photos listed as CC BY 2.0 (Open Images makes no warranty per image)"
+redistribution = "CC BY 4.0 annotations; images not redistributed"
 status = "include"
 quota = 40000
 max_qa_per_image = 3
@@ -128,8 +139,10 @@ adapter = "finevision"
 config = "st_vqa"
 task = "scene_text"
 terms = "unverified"
-terms_note = "ST-VQA: no license located; release review required"
-status = "include"
+terms_note = "none found. Media: COCO-Text, Visual Genome, VizWiz, ICDAR, ImageNet and IIIT images with mixed terms"
+redistribution = "unknown"
+missing_evidence = "the RRC download terms (rrc.cvc.uab.es, behind registration); the public and archived overview pages state none, and this host cannot verify the portal's TLS certificate"
+status = "pending"
 quota = 25000
 max_qa_per_image = 3
 
@@ -155,8 +168,10 @@ adapter = "finevision"
 config = "docvqa"
 task = "document"
 terms = "unverified"
-terms_note = "DocVQA: research-use dataset, no license located; release review required"
-status = "include"
+terms_note = "none found. Media: UCSF Industry Documents Library pages"
+redistribution = "unknown"
+missing_evidence = "the RRC/docvqa.org download terms; the public and archived pages state none"
+status = "pending"
 quota = 40000
 max_qa_per_image = 4
 
@@ -166,8 +181,10 @@ adapter = "finevision"
 config = "infographic_vqa"
 task = "infographic"
 terms = "unverified"
-terms_note = "InfographicVQA: no license located; release review required"
-status = "include"
+terms_note = "none found. Media: web infographics"
+redistribution = "unknown"
+missing_evidence = "the RRC download terms; the public and archived pages state none"
+status = "pending"
 quota = 30000
 max_qa_per_image = 8
 
@@ -176,8 +193,9 @@ kind = "sft"
 adapter = "finevision"
 config = "ai2d_merged"
 task = "diagram_choice"
-terms = "unverified"
-terms_note = "AI2D: no license located; release review required"
+terms = "ai2-noncommercial"
+terms_note = "ai2d/license.txt in AI2's ai2d-all.zip: 'available for general use by academic or non-profit, or government-sponsored researchers'; no use in a for-profit enterprise. Admitted for this academic research project only. Media: diagrams collected by AI2, covered by the same licence"
+redistribution = "prohibited: the licence grants no right to modify and publicly release the data or to distribute it to a third party"
 status = "include"
 quota = 15000
 max_qa_per_image = 3
@@ -187,8 +205,9 @@ kind = "sft"
 adapter = "finevision"
 config = "plotqa"
 task = "chart"
-terms = "mit"
-terms_note = "PlotQA MIT per Bee license table (secondary)"
+terms = "cc-by-4.0"
+terms_note = "NiteshMethani/PlotQA README: 'All the datasets created as part of this work are released under a CC-BY-4.0 license'. Media: plots rendered by the authors, same terms"
+redistribution = "CC BY 4.0 with attribution"
 status = "include"
 quota = 40000
 max_qa_per_image = 1
@@ -199,9 +218,11 @@ kind = "sft"
 adapter = "finevision"
 config = "dvqa"
 task = "chart_synthetic"
-terms = "cc-by-nc-4.0"
-terms_note = "DVQA CC BY-NC 4.0 per Bee table; another paper states CC BY 4.0; release review required"
-status = "addon"
+terms = "unverified"
+terms_note = "none found. Media: synthetic bar charts by the authors"
+redistribution = "unknown"
+missing_evidence = "any licence statement: the README has none, GitHub reports NOASSERTION, the project page kushalkafle.com/projects/dvqa.html has none, and secondary sources disagree (CC BY-NC 4.0 vs CC BY 4.0)"
+status = "pending"
 quota = 40000
 max_qa_per_image = 1
 files = 3
@@ -212,8 +233,9 @@ adapter = "finevision"
 config = "iconqa"
 task = "diagram_math_choice"
 terms = "cc-by-nc-sa-4.0"
-terms_note = "IconQA CC BY-NC-SA 4.0 per Bee table"
-status = "addon"
+terms_note = "lupantech/IconQA README text: 'licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License'; iconqa.github.io agrees. The README badge says CC BY-SA 4.0; the stricter text is applied. Media: icon images collected by the authors, same terms"
+redistribution = "non-commercial, ShareAlike, attribution"
+status = "include"
 quota = 20000
 max_qa_per_image = 2
 
@@ -223,8 +245,9 @@ adapter = "finevision"
 config = "chartqa"
 task = "chart"
 terms = "gpl-3.0"
-terms_note = "ChartQA GPL-3.0 (HuggingFaceM4/ChartQA Hub metadata)"
-status = "addon"
+terms_note = "vis-nlp/ChartQA README: 'The ChartQA dataset is available in the ChartQA Dataset folder in this repository'; repository LICENSE GPL-3.0. Media: charts from Statista, Pew, OWID and OECD; per-chart site terms not verified"
+redistribution = "GPL-3.0 obligations; chart images not redistributed"
+status = "include"
 quota = 40000
 max_qa_per_image = 4
 
@@ -234,7 +257,8 @@ adapter = "cosyn"
 config = "chart"
 task = "chart_synthetic"
 terms = "odc-by"
-terms_note = "CoSyn-400K ODC-BY (Hub metadata)"
+terms_note = "allenai/CoSyn-400K card (Ai2, the creator): 'licensed by ODC-BY-1.0. It is intended for research and educational use'. Media: images rendered from Claude-generated code (Anthropic terms); questions from GPT-4o mini (OpenAI terms)"
+redistribution = "ODC-BY with attribution; model-provider terms apply"
 status = "include"
 quota = 120000
 max_qa_per_image = 2
@@ -247,7 +271,8 @@ adapter = "cosyn"
 config = "table"
 task = "table_synthetic"
 terms = "odc-by"
-terms_note = "CoSyn-400K ODC-BY (Hub metadata)"
+terms_note = "allenai/CoSyn-400K card (Ai2, the creator): 'licensed by ODC-BY-1.0. It is intended for research and educational use'. Media: images rendered from Claude-generated code (Anthropic terms); questions from GPT-4o mini (OpenAI terms)"
+redistribution = "ODC-BY with attribution; model-provider terms apply"
 status = "include"
 quota = 60000
 max_qa_per_image = 2
@@ -259,7 +284,8 @@ adapter = "cosyn"
 config = "document"
 task = "document_synthetic"
 terms = "odc-by"
-terms_note = "CoSyn-400K ODC-BY (Hub metadata)"
+terms_note = "allenai/CoSyn-400K card (Ai2, the creator): 'licensed by ODC-BY-1.0. It is intended for research and educational use'. Media: images rendered from Claude-generated code (Anthropic terms); questions from GPT-4o mini (OpenAI terms)"
+redistribution = "ODC-BY with attribution; model-provider terms apply"
 status = "include"
 quota = 80000
 max_qa_per_image = 2
@@ -273,7 +299,8 @@ adapter = "cosyn"
 config = "diagram"
 task = "diagram_synthetic"
 terms = "odc-by"
-terms_note = "CoSyn-400K ODC-BY (Hub metadata)"
+terms_note = "allenai/CoSyn-400K card (Ai2, the creator): 'licensed by ODC-BY-1.0. It is intended for research and educational use'. Media: images rendered from Claude-generated code (Anthropic terms); questions from GPT-4o mini (OpenAI terms)"
+redistribution = "ODC-BY with attribution; model-provider terms apply"
 status = "include"
 quota = 20000
 max_qa_per_image = 2
@@ -299,9 +326,11 @@ kind = "sft"
 adapter = "pixmo_count"
 task = "counting"
 terms = "odc-by"
-terms_note = "PixMo-Count ODC-BY (Hub metadata); images fetched from source URLs under site terms"
-# Pilot: 0 of 923 sampled URLs returned bytes matching the supplied image_sha256 (846 mismatched,
-# 41 gone). Admission needs a decision to accept unverifiable re-encoded bytes.
+terms_note = "allenai/pixmo-count card (Ai2): 'licensed under ODC-BY-1.0. It is intended for research and educational use'. Media: images fetched from their original URLs under each site's terms"
+redistribution = "ODC-BY for the annotations; images not redistributed"
+missing_evidence = "image integrity: no fetched image matches its published image_sha256 (see docs/evidence/step05/pixmo-count.json)"
+# Pilot (923 sampled URLs): 830 fetched with bytes not matching the supplied image_sha256, 29 gone
+# (404/410), 64 rate-limited (429), 0 matched. Pending while image integrity is unverified.
 status = "pending"
 quota = 40000
 max_qa_per_image = 1
@@ -335,8 +364,9 @@ kind = "sft"
 adapter = "visonlyqa"
 task = "geometry_perception_choice"
 terms = "gpl-3.0"
-terms_note = "VisOnlyQA_Train GPL-3.0 (Hub metadata and LICENSE.md); bases CLEVR/SuperCLEVR BSD, synthetic geometry"
-status = "addon"
+terms_note = "ryokamoi/VisOnlyQA_Train LICENSE.md at the pinned revision: 'VisOnlyQA dataset and our code are provided under the GNU GPL v3.0'. Media: synthetic geometry, CLEVR and SuperCLEVR renders"
+redistribution = "GPL-3.0 obligations"
+status = "include"
 quota = 30000
 max_qa_per_image = 1
 
@@ -345,7 +375,8 @@ kind = "sft"
 adapter = "nemotron_coco"
 task = "counting_spatial_choice"
 terms = "openmdw-1.1"
-terms_note = "Annotations OpenMDW-1.1; COCO train2017 images (CC BY 4.0 annotations, Flickr images)"
+terms_note = "Nemotron-Image-Training-v3.5 card, coco_count_spatial_qa row: 'Use of this dataset is governed by OpenMDW-1.1'; COCO annotations CC BY 4.0. Media: COCO train2017 Flickr photos (Flickr terms)"
+redistribution = "OpenMDW-1.1 for the QA; images not redistributed"
 status = "include"
 quota = 15000
 max_qa_per_image = 2
@@ -355,18 +386,22 @@ max_qa_per_image = 2
 kind = "rl"
 adapter = "virl39k"
 task = "math_science_reasoning"
-terms = "mit"
-terms_note = "ViRL39K MIT (Hub metadata); components retain upstream terms"
-status = "include"
+terms = "unverified"
+terms_note = "none found. Media: images from existing datasets with their own terms"
+redistribution = "unknown"
+missing_evidence = "a dataset terms statement: the card has only a 'license: mit' Hub tag; TIGER-AI-Lab/VL-Rethinker's Apache-2.0 LICENSE covers code and the data is not in that repository"
+status = "pending"
 quota = 40000
 
 [sources.rl_vwi_verified]
 kind = "rl"
 adapter = "vwi_verified"
 task = "web_stem_reasoning"
-terms = "mit"
-terms_note = "VisualWebInstruct-verified MIT (Hub metadata); web-crawled images"
-status = "include"
+terms = "unverified"
+terms_note = "none found. Media: web images found through Google Image search, no stated terms"
+redistribution = "unknown"
+missing_evidence = "a dataset terms statement: the card has only a 'license: mit' Hub tag; the GitHub MIT LICENSE covers the pipeline code"
+status = "pending"
 quota = 100000
 
 [sources.rl_chartverse]
@@ -374,7 +409,8 @@ kind = "rl"
 adapter = "chartverse_rl"
 task = "chart_reasoning"
 terms = "apache-2.0"
-terms_note = "ChartVerse-RL-40K Apache-2.0 (Hub metadata)"
+terms_note = "opendatalab/ChartVerse-RL-40K card text: 'This dataset is released under the Apache 2.0 License'. Media: charts rendered by the authors, same terms"
+redistribution = "Apache-2.0"
 status = "include"
 quota = 40000
 
@@ -382,9 +418,11 @@ quota = 40000
 kind = "rl"
 adapter = "thinklite"
 task = "math_science_reasoning"
-terms = "mit"
-terms_note = "ThinkLite-VL-70k MIT (Hub metadata); no per-row upstream source"
-status = "include"
+terms = "unverified"
+terms_note = "none found. Media: images from unnamed upstream datasets (no per-row source)"
+redistribution = "unknown"
+missing_evidence = "a dataset terms statement: the card is only a 'license: mit' Hub tag and si0wang/ThinkLite-VL has no licence"
+status = "pending"
 quota = 70000
 
 [sources.rl_geometry3k]
@@ -392,7 +430,8 @@ kind = "rl"
 adapter = "geometry3k"
 task = "geometry"
 terms = "mit"
-terms_note = "Geometry3K MIT (Hub metadata, Bee table)"
+terms_note = "lupantech/InterGPS ('Code and data for ACL 2021 paper') ships the Geometry3K data in the repository under its MIT LICENSE; hiyouga/geometry3k is a repackaging whose Hub tag is not the basis. Media: problem diagrams from the source textbooks; diagram rights not verified"
+redistribution = "MIT for the dataset files"
 status = "include"
 quota = 3000
 
@@ -477,7 +516,7 @@ sft_quota = 45
 rl_quota = 60
 files = 2
 row_groups = 1
-statuses = ["include", "addon", "pending", "exclude"]
+statuses = ["include", "pending", "exclude"]
 
 [profiles.full]
-statuses = ["include", "addon"]
+statuses = ["include"]

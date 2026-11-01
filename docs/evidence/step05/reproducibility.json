@@ -17,5 +17,20 @@
   "clean": "1185e88739fb9271945ee287012aa3a453ff41267d298adb76721b4c22f7a031",
   "resumed": "1185e88739fb9271945ee287012aa3a453ff41267d298adb76721b4c22f7a031",
   "note": "both roots re-exported after the export index switched to one shared schema; only index/ files changed"
+ },
+ "v2": {
+  "test": "pilot built with a recipe copy differing only in version (build directory pilot-v2r, shared hf/ and images/ caches), SIGKILLed after 18 of 58 scan shards, resumed and SIGKILLed again during validation (1 of 2 chunks done), then resumed to completion; compared with the clean pilot-v2 build",
+  "script": "outputs/step05/resume-v2/killtest.sh (machine-local)",
+  "scan_shard_candidate_checksums_equal": "58 of 58",
+  "selected_parquet_sha256": {
+   "clean": "0b4a964debb47ce53553ba30c50e19e65c335c2d6a8fb4ac343066fa6e64f830",
+   "resumed": "0b4a964debb47ce53553ba30c50e19e65c335c2d6a8fb4ac343066fa6e64f830"
+  },
+  "exports_SHA256SUMS_sha256": {
+   "clean": "6f6cd126950302131510b04df17cdccb82013eefe833712da818aa4a097eb5a6",
+   "resumed": "6f6cd126950302131510b04df17cdccb82013eefe833712da818aa4a097eb5a6"
+  },
+  "result": "identical scan outputs, selection and export bytes; resumed verify passed (1,767 rows, 1,471 images)",
+  "limits": "downloads were cached from earlier builds, so download resume is covered only by the v1 test"
  }
 }

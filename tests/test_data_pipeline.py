@@ -384,7 +384,7 @@ def test_portable_hash_and_materialize_rewrite_only_the_root(tmp_path):
     record = {"kind": "sft", "image_path": "images/ab/abc.png", "question": "Q?", "answer": "A", "record_id": "r", "source": "s", "task": "t", "image_sha256": "abc"}
     a, b = pipeline.miles_row(record, Path("/data/one")), pipeline.miles_row(record, Path("/mnt/two"))
     assert a["images"] == ["/data/one/images/ab/abc.png"] and pipeline.portable_hash(a) == pipeline.portable_hash(b) == pipeline.portable_hash(pipeline.miles_row(record, None))
-    ctx = SimpleNamespace(root=tmp_path, profile_name="p")
+    ctx = SimpleNamespace(root=tmp_path, profile_name="p", export_dir=tmp_path / "exports/p")
     portable = tmp_path / "exports/p/portable/default/sft/train/part-00000.parquet"
     portable.parent.mkdir(parents=True)
     pq.write_table(pa.Table.from_pylist([pipeline.miles_row(record, None)]), portable)
@@ -453,13 +453,90 @@ def test_scan_is_atomic_and_resume_reproduces_outputs(tmp_path, monkeypatch):
 def test_recipe_is_complete_and_consistent():
     recipe = tomllib.loads(RECIPE.read_text())
     for key, src in recipe["sources"].items():
-        assert src["status"] in ("include", "addon", "pending", "exclude"), key
+        assert src["status"] in ("include", "pending", "exclude"), key
         assert src["adapter"] in sources.ADAPTERS and sources.ADAPTERS[src["adapter"]].dataset in recipe["datasets"], key
         assert src["terms"] and src["terms_note"] and src["kind"] in ("sft", "rl"), key
-        if src["status"] == "addon":
-            assert src["terms"] in recipe["terms"]["review"], key
         if src["status"] == "include":
-            assert src["terms"] not in recipe["terms"]["review"], key
+            assert src["terms"] != "unverified" and src.get("redistribution") and "Hub metadata" not in src["terms_note"], key
+        if src["status"] == "pending":
+            assert src.get("missing_evidence"), key
+    assert recipe["profiles"]["full"]["statuses"] == ["include"]
+    assert len(recipe["media"]["coco_instances_train2017"]["sha256"]) == 64
     for ds in list(recipe["datasets"].values()) + list(recipe["evals"].values()):
         assert len(ds["revision"]) == 40
     assert set(recipe["evals"]) == {"mmmu_val", "mathvista_testmini", "chartqa_test", "docvqa_val", "textvqa_val", "mmbench_dev", "pope_test"}
+
+
+# ------------------------------------------------------------------- v2 pipeline paths
+
+
+class FakeCoco:
+    names = {"person", "tennis racket", "cat", "keyboard", "bench", "handbag"}
+
+    def __init__(self, boxes):
+        self.boxes = {1: boxes}
+
+    category = sources.CocoInstances.category
+
+
+SPATIAL_Q = "In the image, where is the {a} positioned relative to the {b}? Select from the following choices.\n(A) {x}\n(B) {y}"
+
+
+def test_nemotron_spatial_rule_keeps_consistent_rows_and_holds_instance_dependent_ones():
+    person, racket = [10, 100, 40, 200], [30, 20, 30, 30]
+    q = SPATIAL_Q.format(a="person", b="tennis racket", x="below", y="above")
+    assert sources.spatial_status(FakeCoco({"person": [person], "tennis racket": [racket]}), 1, q, "(A)") is None, "overlap alone is not an error"
+    assert sources.spatial_status(FakeCoco({"person": [person], "tennis racket": [racket]}), 1, q, "(B)") == "spatial_label_contradicts_boxes"
+    two = {"person": [person, [200, 0, 40, 10]], "tennis racket": [racket]}
+    assert sources.spatial_status(FakeCoco(two), 1, q, "(A)") == "spatial_instance_dependent"
+    agree = {"person": [person, [200, 150, 40, 100]], "tennis racket": [racket]}
+    assert sources.spatial_status(FakeCoco(agree), 1, q, "(A)") is None
+    assert sources.spatial_status(FakeCoco({"person": [person]}), 1, q, "(A)") == "spatial_objects_not_annotated"
+    assert sources.spatial_status(FakeCoco({}), 1, "Is it nice?", "(A)") == "spatial_question_unparsed"
+    lr = "Where is the cat in relation to the keyboard in this image? Select from the following choices.\n(A) left\n(B) right"
+    assert sources.spatial_status(FakeCoco({"cat": [[0, 0, 10, 10]], "keyboard": [[50, 0, 10, 10]]}), 1, lr, "(A)") is None
+
+
+def test_split_checks_separate_forbidden_from_permitted_sharing():
+    rows = [{"bucket": "default/sft/train", "record_id": "a", "group_id": "g1"}, {"bucket": "pending/sft/train", "record_id": "b", "group_id": "g1"},
+            {"bucket": "default/sft/sweep50k", "record_id": "a", "group_id": "g1"}, {"bucket": "default/rl/pool", "record_id": "c", "group_id": "g2"}]
+    forbidden, permitted, sweep = pipeline.split_checks(rows)
+    assert forbidden == {} and permitted == {"default/sft/train & pending/sft/train": 1} and sweep
+    forbidden, _, _ = pipeline.split_checks(rows + [{"bucket": "default/sft/validation", "record_id": "d", "group_id": "g1"}, {"bucket": "default/rl/heldout", "record_id": "e", "group_id": "g1"}])
+    assert set(forbidden) == {"default/rl/heldout & default/sft/train", "default/rl/heldout & default/sft/validation", "default/sft/train & default/sft/validation",
+                              "default/rl/heldout & pending/sft/train", "default/sft/validation & pending/sft/train"}
+    assert not pipeline.split_checks(rows + [{"bucket": "default/sft/sweep50k", "record_id": "zz", "group_id": "g9"}])[2]
+
+
+@needs_miles
+def test_verify_fails_on_missing_or_altered_materialized_rows(tmp_path):
+    stored = images.prepare(png(photo(5, (64, 64))), tmp_path)
+    record = {"kind": "sft", "image_path": stored["image_path"], "question": "Q?", "answer": "A", "record_id": "r1", "source": "s", "task": "t", "image_sha256": stored["image_sha256"], "status": "include", "provenance": "{}"}
+    edir = tmp_path / "exports/p"
+    portable = edir / "portable/default/sft/train/part-00000.parquet"
+    portable.parent.mkdir(parents=True)
+    row = pipeline.miles_row(record, None)
+    pq.write_table(pa.Table.from_pylist([row]), portable)
+    (edir / "index").mkdir()
+    pq.write_table(pa.Table.from_pylist([{"record_id": "r1", "portable_hash": pipeline.portable_hash(row), "group_id": "g", "image_sha256": stored["image_sha256"]}]), edir / "index/default__sft__train.parquet")
+    pq.write_table(pa.Table.from_pylist([{"image_sha256": stored["image_sha256"], "path": stored["image_path"]}]), edir / "images.parquet")
+    files = {"portable/default/sft/train/part-00000.parquet": {}, "index/default__sft__train.parquet": {}, "images.parquet": {}}
+    (edir / "manifest.json").write_text(json.dumps({"files": files}))
+    (edir / "SHA256SUMS").write_text("".join(f"{runtime.file_sha256(edir / k)}  {k}\n" for k in files))
+    ctx = SimpleNamespace(root=tmp_path, profile_name="p", export_dir=edir, recipe={"workers": {"validate": 1}})
+    assert not pipeline.verify(ctx, tmp_path), "no materialized rows"
+    pipeline.materialize(ctx, tmp_path)
+    assert pipeline.verify(ctx, tmp_path)
+    miles_file = edir / "miles/default/sft/train/part-00000.parquet"
+    bad = {**pq.read_table(miles_file).to_pylist()[0], "metadata": {**row["metadata"], "image_sha256": "0" * 64}}
+    pq.write_table(pa.Table.from_pylist([bad]), miles_file)
+    assert not pipeline.verify(ctx, tmp_path)
+
+
+def test_scan_image_geometry_comes_from_the_processor(checker):
+    ctx = SimpleNamespace(recipe=tomllib.loads(RECIPE.read_text()))
+    assert build.processor_image_config(ctx) == checker.image_config
+
+
+def test_temp_paths_are_unique():
+    assert len({runtime.temp_path("/x/y.bin") for _ in range(100)}) == 100
