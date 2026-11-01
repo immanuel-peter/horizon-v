@@ -3,12 +3,14 @@
 # status: include (built and exported), pending (not built until a recorded gap is closed: terms
 # evidence or data integrity), exclude (audited and rejected for quality or fit). terms_note records
 # the original statement that permits research training use and the media origin; redistribution is
-# recorded separately and nothing is redistributed. Hub tags and code-repository licences alone are
-# not a basis. Rows inside an included source can be pending too (metadata.pending_reason).
+# recorded separately and nothing is redistributed. A dataset creator's own Hub licence declaration
+# is a basis; a tag set by someone else (a mirror) or a code-repository licence alone is not.
+# Explicit upstream restrictions are recorded; missing upstream terms are recorded as missing.
+# Rows inside an included source can be pending too (metadata.pending_reason).
 
 [recipe]
 name = "k2hv-step05"
-version = "v2"
+version = "v3"
 seed = 20261031
 processor = "hf/K2-Horizon-V-init"
 
@@ -386,22 +388,20 @@ max_qa_per_image = 2
 kind = "rl"
 adapter = "virl39k"
 task = "math_science_reasoning"
-terms = "unverified"
-terms_note = "none found. Media: images from existing datasets with their own terms"
-redistribution = "unknown"
-missing_evidence = "a dataset terms statement: the card has only a 'license: mit' Hub tag; TIGER-AI-Lab/VL-Rethinker's Apache-2.0 LICENSE covers code and the data is not in that repository"
-status = "pending"
+terms = "mit"
+terms_note = "Creator's Hub declaration: TIGER-Lab/ViRL39K card metadata 'license: mit' on TIGER-Lab's own repository, covering the released questions, answers and images.zip; the card has no prose terms. Upstreams by the per-row source field (provenance.upstream_source): ScienceQA and ScienceQAConverted, CC BY-NC-SA 4.0 and 'non-commercial research purposes only'; ai2d, AI2's licence (academic non-profit use, no redistribution); chartqa, GPL-3.0; MMMath (THU-KEG/MM_Math), M3CoT and DeepScaleR, MIT; R1OneVision, Apache-2.0; MMK12, MMK12Converted, K12, dvqa and geoqa_plus, no terms found (missing, not a restriction); Processed, collected by the creators. The card also lists LLaVA-OneVision-Data, which allows 'academic research and education purpose' only; the source field does not mark which rows came from it. Media: images from these datasets and newly collected ones"
+redistribution = "not cleared: the MIT declaration cannot relicense upstream data. ScienceQA rows are NC-SA, ai2d rows may not be redistributed, chartqa rows are GPL-3.0, LLaVA-OneVision-derived rows are academic-only, and several upstreams state no terms"
+status = "include"
 quota = 40000
 
 [sources.rl_vwi_verified]
 kind = "rl"
 adapter = "vwi_verified"
 task = "web_stem_reasoning"
-terms = "unverified"
-terms_note = "none found. Media: web images found through Google Image search, no stated terms"
-redistribution = "unknown"
-missing_evidence = "a dataset terms statement: the card has only a 'license: mit' Hub tag; the GitHub MIT LICENSE covers the pipeline code"
-status = "pending"
+terms = "mit"
+terms_note = "Creator's Hub declaration: TIGER-Lab/VisualWebInstruct-verified card metadata 'license: mit' on TIGER-Lab's own repository, covering the released QA pairs and images; no prose terms. The parent TIGER-Lab/VisualWebInstruct declares 'license: apache-2.0'. Media, per the parent card: web images found through Google Image Search (118,576 of the parent's images) and images from coco, chartqa, ai2d, geoqa+, sqa (ScienceQA), vg, docvqa, gqa, ocr_vqa and textvqa. Rows carry no image source, so upstream restrictions (ScienceQA CC BY-NC-SA research only, AI2D no redistribution, ChartQA GPL-3.0) attach to rows only through image matching; rights in the web images are not stated"
+redistribution = "not cleared: the MIT declaration cannot relicense web images or upstream data with their own terms (ScienceQA NC-SA, AI2D no redistribution, ChartQA GPL-3.0), and rows carry no image source"
+status = "include"
 quota = 100000
 
 [sources.rl_chartverse]
@@ -418,11 +418,10 @@ quota = 40000
 kind = "rl"
 adapter = "thinklite"
 task = "math_science_reasoning"
-terms = "unverified"
-terms_note = "none found. Media: images from unnamed upstream datasets (no per-row source)"
-redistribution = "unknown"
-missing_evidence = "a dataset terms statement: the card is only a 'license: mit' Hub tag and si0wang/ThinkLite-VL has no licence"
-status = "pending"
+terms = "mit"
+terms_note = "Creator's Hub declaration: russwang/ThinkLite-VL-70k card metadata 'license: mit'; the paper's repository si0wang/ThinkLite-VL links this dataset and the authors' models under the same account. The card has no other text and the repository has no licence. Upstreams per the paper (arXiv 2504.07934, Figure 3): Geometry3K (MIT), GeoQA (no licence found), Geos (Apache-2.0 repository), FigureQA (code MIT, data terms not found), ScienceQA, IconQA and TabMWP (CC BY-NC-SA 4.0), OK-VQA (no terms found; COCO images). Rows carry no source field"
+redistribution = "not cleared: ScienceQA, IconQA and TabMWP data are NC-SA, several upstreams state no terms, and rows carry no source field"
+status = "include"
 quota = 70000
 
 [sources.rl_geometry3k]

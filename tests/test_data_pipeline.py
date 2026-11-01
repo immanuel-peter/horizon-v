@@ -457,7 +457,9 @@ def test_recipe_is_complete_and_consistent():
         assert src["adapter"] in sources.ADAPTERS and sources.ADAPTERS[src["adapter"]].dataset in recipe["datasets"], key
         assert src["terms"] and src["terms_note"] and src["kind"] in ("sft", "rl"), key
         if src["status"] == "include":
-            assert src["terms"] != "unverified" and src.get("redistribution") and "Hub metadata" not in src["terms_note"], key
+            assert src["terms"] != "unverified" and src.get("redistribution"), key
+            if "license:" in src["terms_note"] and "metadata" in src["terms_note"]:
+                assert src["terms_note"].startswith("Creator's Hub declaration"), f"{key}: a Hub tag counts only when the dataset creator set it"
         if src["status"] == "pending":
             assert src.get("missing_evidence"), key
     assert recipe["profiles"]["full"]["statuses"] == ["include"]
