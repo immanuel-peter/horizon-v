@@ -252,6 +252,12 @@ def select(ctx):
     is_winner[list(winner.values())] = True
     duplicates = Counter(c["source"][i] for i in range(n) if not excluded[i] and not limit_reason[i] and not is_winner[i])
 
+    # An RL row whose image is blank (constant thumbnail, as in images.thumb_similarity) is a text-only problem;
+    # hold it as row-level pending instead of training vision RL on it.
+    blank_rl = {i for i in range(n) if c["kind"][i] == "rl" and c["status"][i] != "pending" and blank_thumb(thumb_all[i])}
+    for i in blank_rl:
+        c["status"][i] = "pending"
+
     # RL selection first; its image groups are reserved away from SFT
     by_source = defaultdict(list)
     for i in range(n):
@@ -301,6 +307,7 @@ def select(ctx):
     split = [assign_split(seed, group[i], c["kind"][i], split_cfg) for i in selected]
     picked = picked.append_column("group_id", pa.array([group[i] for i in selected])).append_column("split", pa.array(split)).append_column("rank", pa.array([ranks[i] for i in selected]))
     picked = picked.append_column("est_total_tokens", pa.array([est_total[i] for i in selected], pa.int32())).append_column("est_supervised_tokens", pa.array([est_super[i] for i in selected], pa.int32()))
+    picked = hold_rows(picked, {c["record_id"][i] for i in blank_rl}, "image_blank")
     out = ctx.work / "select"
     write_table(out / "selected.parquet", picked)
     write_table(out / "exclusions.parquet", pa.Table.from_pylist(exclusions) if exclusions else pa.table({"record_id": pa.array([], pa.string())}))
@@ -317,7 +324,7 @@ def select(ctx):
         "cross_source_groups": dict(cross_source.most_common()),
         "excluded": dict(Counter(f"{x['source']}|{x['eval']}|{x['method']}|{x['status']}" for x in exclusions)),
         "limit_rejects": dict(Counter(f"{c['source'][i]}|{limit_reason[i]}" for i in range(n) if limit_reason[i])),
-        "duplicates": dict(duplicates), "reserved_for_rl": dict(reserved), "rl_sft_overlap_before_reservation": dict(rl_sft_overlap),
+        "duplicates": dict(duplicates), "reserved_for_rl": dict(reserved), "held_image_blank": dict(Counter(c["source"][i] for i in blank_rl if is_winner[i])), "rl_sft_overlap_before_reservation": dict(rl_sft_overlap),
         "selected": dict(Counter(c["source"][i] for i in selected)), "split": dict(Counter(f"{c['kind'][i]}|{s}" for i, s in zip(selected, split))),
         "overheads": {"sft": sft_overhead, "rl": rl_overhead},
         "eval_question_keys": len(eval_q),
@@ -326,6 +333,21 @@ def select(ctx):
     write_json(out / "select.json", stats)
     log(f"  selected {len(selected)}; excluded {int(excluded.sum())}; duplicates {sum(duplicates.values())}; reserved for RL {sum(reserved.values())}")
     return stats
+
+
+def blank_thumb(thumb):
+    return thumb is not None and np.frombuffer(thumb, dtype=np.uint8).std() < 1
+
+
+def hold_rows(table, record_ids, reason):
+    """Mark the given selected rows as row-level pending with ``reason`` (status and provenance.pending_reason)."""
+    if not record_ids:
+        return table
+    rids = table.column("record_id").to_pylist()
+    status = [("pending" if rid in record_ids else st) for rid, st in zip(rids, table.column("status").to_pylist())]
+    prov = [(build.canonical({**json.loads(pr), "pending_reason": reason}) if rid in record_ids else pr) for rid, pr in zip(rids, table.column("provenance").to_pylist())]
+    table = table.set_column(table.schema.get_field_index("status"), "status", pa.array(status, pa.string()))
+    return table.set_column(table.schema.get_field_index("provenance"), "provenance", pa.array(prov, pa.string()))
 
 
 def _pair_metrics(jobs):

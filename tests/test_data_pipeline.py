@@ -568,5 +568,17 @@ def test_validation_reuses_only_unchanged_rows_under_the_same_fingerprint(tmp_pa
     assert pipeline._validate_fingerprint(ctx, "sft") == sft and pipeline._validate_fingerprint(ctx, "rl") != rl, "only RL validation depends on the scorer"
 
 
+def test_blank_rl_images_are_held_as_pending():
+    blank = np.full(32 * 32, 255, np.uint8).tobytes()
+    noisy = np.random.default_rng(0).integers(0, 255, 32 * 32, dtype=np.uint8).tobytes()
+    assert pipeline.blank_thumb(blank) and pipeline.blank_thumb(np.full(1024, 3, np.uint8).tobytes())
+    assert not pipeline.blank_thumb(noisy) and not pipeline.blank_thumb(None)
+    table = pa.table({"record_id": ["a", "b"], "status": ["include", "include"], "provenance": [build.canonical({"upstream_source": "DeepScaleR"}), build.canonical({})]})
+    held = pipeline.hold_rows(table, {"a"}, "image_blank").to_pylist()
+    assert held[0]["status"] == "pending" and json.loads(held[0]["provenance"]) == {"upstream_source": "DeepScaleR", "pending_reason": "image_blank"}
+    assert held[1] == table.to_pylist()[1]
+    assert pipeline.hold_rows(table, set(), "image_blank") is table
+
+
 def test_temp_paths_are_unique():
     assert len({runtime.temp_path("/x/y.bin") for _ in range(100)}) == 100
