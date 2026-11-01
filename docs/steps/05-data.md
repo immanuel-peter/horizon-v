@@ -181,9 +181,9 @@ uv run python -m k2hv.data verify --profile full --data-root /path/to/copy --tar
 
 `verify` checks SHA256SUMS, re-hashes and decodes every referenced image, and checks that each Miles row hashes to its validated portable row. Miles's loader does not read `s3://`, so images must be on a local or mounted path at training time.
 
-### Step 6 dependency: Miles loads every image eagerly
+### Step 6 dependency: lazy image loading
 
-Pinned Miles `Dataset.__init__` calls `process_vision_info` for every row at load time and holds each decoded qwen-resized image in memory: 2.9 MB per row on average (p90 8.9 MB) for this data, about 2.9 TB for a million rows. The full export cannot be loaded as one Miles dataset. Step 6 needs lazy media loading (for example keeping paths in the sample and loading inside `k2hv.sft_rollout.generate_rollout`) or must train over small shards in sequence. The 50k sweep subset would need about 150 GB.
+Pinned Miles `Dataset.__init__` calls `process_vision_info` for every row and keeps each decoded image, about 3 MB per row for this data (2.6 TB for the v1 training split). `k2hv.lazy_data.LazyRolloutDataSource` replaces only the dataset and keeps pinned Miles batching, shuffling and checkpointing. See [step 6](06-sft.md#loading-the-step-5-data).
 
 ### Step 6 fix: one BOS in the SFT path
 

@@ -24,6 +24,7 @@ MILES_SOURCES = {
     "miles/utils/data.py": "38e252720b113f5c0458e8ff087624a53ace1c8ec62f1e78cabfa215da2a2ee9",
     "miles/utils/processing_utils.py": "787876a2f5b4ec2b3a80aaba868ca88c6ea5278e7a60f06b86afd223a7475c5f",
     "miles/utils/types.py": "0a60609a1a3407da1161fe5341d9aa3661d0533c47088bffd84673246ce28cd2",
+    "miles/rollout/data_source.py": "ab91c7c94088fb099a3f844a5e22016ce86d8db801535bf4e8e7ea709eb57317",
 }
 RL360_COMMIT = "3e13010e0e47b7d08f19dfb6bdd3ac6d21dc200e"
 RL360_SOURCES = {
@@ -85,6 +86,34 @@ def miles():
     read_file, _ = _function(data_py, "read_file", ns)
     _, load_source = _function(root / "miles/utils/processing_utils.py", "load_processor", {})
     return types.SimpleNamespace(root=root, build_messages=build_messages, read_file=read_file, process_vision_info=process_vision_info, Sample=Sample, load_processor_source=load_source)
+
+
+def _class(path, name, namespace):
+    tree = ast.parse(path.read_text())
+    node = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name)
+    exec(compile(ast.Module([node], []), str(path), "exec"), namespace)
+    return namespace[name]
+
+
+@cache
+def miles_loading():
+    """Pinned eager ``Dataset`` and ``RolloutDataSource`` classes, executed without the SGLang imports of their modules.
+
+    Used on CPU to compare ``k2hv.lazy_data`` with the code it replaces. ``Dataset`` runs here without a
+    chat template or length filter, the configuration step 6 uses.
+    """
+    m = miles()
+    ns = {"random": __import__("random"), "json": __import__("json"), "np": __import__("numpy"), "logger": logging.getLogger("miles.utils.data"),
+          "read_file": m.read_file, "_build_messages": m.build_messages, "Sample": m.Sample, "filter_long_prompt": lambda samples, *a: samples, "chat_template_utils": None}
+    dataset = _class(m.root / "miles/utils/data.py", "Dataset", ns)
+    from miles.utils.simple_checkpointer import load_simple_checkpoint, save_simple_checkpoint
+
+    source_path = m.root / "miles/rollout/data_source.py"
+    ns = {"abc": __import__("abc"), "copy": __import__("copy"), "logging": logging, "logger": logging.getLogger("miles.rollout.data_source"), "Path": Path,
+          "Dataset": dataset, "Sample": m.Sample, "load_simple_checkpoint": load_simple_checkpoint, "save_simple_checkpoint": save_simple_checkpoint}
+    _class(source_path, "DataSource", ns)
+    rollout = _class(source_path, "RolloutDataSource", ns)
+    return types.SimpleNamespace(Dataset=dataset, RolloutDataSource=rollout)
 
 
 def _import_qwen_vl_utils():
