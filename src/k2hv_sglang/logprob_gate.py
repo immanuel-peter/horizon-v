@@ -105,7 +105,7 @@ def main():
     parser.add_argument("--batch-invariant", action="store_true")
     parser.add_argument("--checkpoint", default="hf/K2-Horizon-V-init")
     parser.add_argument("--reference", type=Path, required=True)
-    parser.add_argument("--report", type=Path, default=Path("outputs/step04/logprob.json"))
+    parser.add_argument("--report", type=Path, default=Path("outputs/gates/logprob.json"))
     parser.add_argument("--url", default="http://127.0.0.1:30000")
     args = parser.parse_args()
     (capture if args.stage == "capture" else evaluate)(args)

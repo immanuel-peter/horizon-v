@@ -4,6 +4,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+INIT_CHECKPOINT = Path("hf/K2-Horizon-V-init")
+
 
 def capture():
     def git(*args):

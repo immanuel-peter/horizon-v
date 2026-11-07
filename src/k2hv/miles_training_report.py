@@ -11,7 +11,7 @@ from pathlib import Path
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--logs", nargs="+", type=Path, required=True)
-    p.add_argument("--directory", type=Path, default=Path("outputs/step04/miles-sft"))
+    p.add_argument("--directory", type=Path, default=Path("outputs/gates/miles-sft"))
     p.add_argument("--report", type=Path, required=True)
     a = p.parse_args()
     curve = {}

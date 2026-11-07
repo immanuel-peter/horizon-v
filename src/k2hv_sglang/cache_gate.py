@@ -15,7 +15,7 @@ from safetensors import safe_open
 from safetensors.torch import save_file
 from transformers import AutoProcessor
 
-from k2hv.gate_provenance import capture as provenance
+from k2hv.gate_provenance import INIT_CHECKPOINT, capture as provenance
 
 from .native_gates import traces
 from .smoke import post
@@ -41,7 +41,7 @@ def state(args):
 
 
 def load_projector():
-    root = Path("hf/K2-Horizon-V-init")
+    root = INIT_CHECKPOINT
     index = json.loads((root / "model.safetensors.index.json").read_text())["weight_map"]
     weights = {}
     for key, shard in index.items():
@@ -52,7 +52,7 @@ def load_projector():
 
 
 def checkpoint(args, weights):
-    source = Path("hf/K2-Horizon-V-init")
+    source = INIT_CHECKPOINT
     target = args.directory / "updated-checkpoint"
     target.mkdir(exist_ok=True)
     index = json.loads((source / "model.safetensors.index.json").read_text())["weight_map"]
@@ -78,7 +78,7 @@ def checkpoint(args, weights):
 def update(args):
     cases = json.loads((args.cases / "cases.json").read_text())
     case = next(c for c in cases if c["name"] == "square")
-    reset = post(args.url, "/update_weights_from_disk", {"model_path": str(Path("hf/K2-Horizon-V-init").resolve()), "load_format": "auto"})
+    reset = post(args.url, "/update_weights_from_disk", {"model_path": str(INIT_CHECKPOINT.resolve()), "load_format": "auto"})
     assert reset["success"], reset
     before = state(args)
     initial, first = request(args, case)
@@ -87,7 +87,7 @@ def update(args):
     multiple = next(c for c in cases if c["name"] == "multiple")
     request(args, multiple)
 
-    processor = AutoProcessor.from_pretrained("hf/K2-Horizon-V-init", trust_remote_code=True, local_files_only=True)
+    processor = AutoProcessor.from_pretrained(INIT_CHECKPOINT, trust_remote_code=True, local_files_only=True)
 
     patch_groups = np.random.default_rng(17).integers(0, 256, (80, 2, 2, 14, 14, 3), dtype=np.uint8)
     geometry = []
@@ -118,7 +118,7 @@ def update(args):
     assert opened["success"], opened
     succeeded = False
     try:
-        result = post(args.url, "/update_weights_from_tensor", {"serialized_named_tensors": [encoded], "flush_cache": True, "abort_all_requests": True, "weight_version": "step04-projector-only"})
+        result = post(args.url, "/update_weights_from_tensor", {"serialized_named_tensors": [encoded], "flush_cache": True, "abort_all_requests": True, "weight_version": "projector-only"})
         assert result["success"], result
         succeeded = True
     finally:
@@ -163,7 +163,7 @@ def fresh(args):
     b = result["meta_info"]["input_token_logprobs"]
     errors = [abs(x[0] - y[0]) for x, y in zip(a, b) if x[0] is not None and y[0] is not None]
     assert max(errors) == 0, max(errors)
-    restored = post(args.url, "/update_weights_from_disk", {"model_path": str(Path("hf/K2-Horizon-V-init").resolve()), "load_format": "auto"})
+    restored = post(args.url, "/update_weights_from_disk", {"model_path": str(INIT_CHECKPOINT.resolve()), "load_format": "auto"})
     assert restored["success"], restored
     current = state(args)
     assert current["frozen_sha256"] == old["before"]["frozen_sha256"]
@@ -193,7 +193,7 @@ def main():
     p.add_argument("stage", choices=["update", "fresh"])
     p.add_argument("--directory", type=Path, required=True)
     p.add_argument("--trace", type=Path, required=True)
-    p.add_argument("--cases", type=Path, default=Path("outputs/step04/native-math"))
+    p.add_argument("--cases", type=Path, default=Path("outputs/gates/native-math"))
     p.add_argument("--url", default="http://127.0.0.1:30000")
     a = p.parse_args()
     a.directory.mkdir(parents=True, exist_ok=True)

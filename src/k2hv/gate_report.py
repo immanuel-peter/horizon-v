@@ -119,7 +119,7 @@ def assemble(root):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--root", type=Path, default=Path("outputs/step04/final"))
+    p.add_argument("--root", type=Path, default=Path("outputs/gates/final"))
     p.add_argument("--report", type=Path, required=True)
     a = p.parse_args()
     report = assemble(a.root)
