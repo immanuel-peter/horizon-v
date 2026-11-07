@@ -100,7 +100,7 @@ def miles_loading():
     """Pinned eager ``Dataset`` and ``RolloutDataSource`` classes, executed without the SGLang imports of their modules.
 
     Used on CPU to compare ``k2hv.lazy_data`` with the code it replaces. ``Dataset`` runs here without a
-    chat template or length filter, the configuration step 6 uses.
+    chat template or length filter, the configuration SFT training uses.
     """
     m = miles()
     ns = {"random": __import__("random"), "json": __import__("json"), "np": __import__("numpy"), "logger": logging.getLogger("miles.utils.data"),
@@ -162,7 +162,7 @@ def rl360():
     package = types.ModuleType("k2hv_rl360_reward")
     package.__path__ = []
     utils = types.ModuleType("k2hv_rl360_reward.utils")
-    # The scorers' process-based timeout wrapper belongs to step 8; admission tests call the scoring logic directly.
+    # The scorers' process-based timeout wrapper belongs to RL training; admission tests call the scoring logic directly.
     utils.timeout_limit = lambda seconds, use_signals=False: (lambda func: func)
     sys.modules.update({package.__name__: package, utils.__name__: utils})
     modules = {}
