@@ -16,7 +16,8 @@ def prepare_sample(processor, sample):
     if messages[1].get("think") != "" or not isinstance(answer, str):
         raise ValueError("Gate SFT requires a string answer and explicit empty think")
     text = processor.apply_chat_template(messages, tokenize=False)
-    output = processor(text=text, images=sample.multimodal_inputs["images"], return_tensors="pt")
+    # The rendered template already starts with the BOS token; tokenizing it with special tokens would add a second one.
+    output = processor(text=text, images=sample.multimodal_inputs["images"], return_tensors="pt", add_special_tokens=False)
     ids = output["input_ids"][0].tolist()
     tokenizer = processor.tokenizer
     closing = tokenizer.encode("</ifm|think>", add_special_tokens=False)

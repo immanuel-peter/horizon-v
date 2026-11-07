@@ -1,0 +1,103 @@
+{
+ "contract": {
+  "card": "allenai/pixmo-count@ebf51cf README 'Image Checking': sha256(requests.get(example['image_url']).content).hexdigest() == example['image_sha256']",
+  "molmo_downloader": "allenai/molmo olmo/data/download_urls.py (sha256 ec5e9d10...): session.get(url, timeout=5).content hashed with sha256; check_sha can be turned off"
+ },
+ "pilot_record_corrected": {
+  "sampled": 923,
+  "url_hash_mismatch": 830,
+  "url_http_404": 17,
+  "url_http_410": 12,
+  "url_http_429": 64,
+  "matched": 0,
+  "note": "earlier text said '0 of 923 matched (846 mismatched, 41 gone)'; the pilot's rejection counts are the figures here"
+ },
+ "bounded_recheck": {
+  "repo": "allenai/pixmo-count",
+  "revision": "ebf51cf70e45d12374e64d475862e4f8d21d31d0",
+  "train_rows": 36916,
+  "sampled": 60,
+  "method": "requests.get(url).content with default headers, as in the card",
+  "status": {
+   "200": 59,
+   "404": 1
+  },
+  "matches": 0,
+  "redirected": 0,
+  "hosts": {
+   "live.staticflickr.com": {
+    "rows": 60,
+    "status_200": 59,
+    "match": 0
+   }
+  },
+  "command": "uv run python tools/step05/pixmo_hash_check.py outputs/step05/pixmo/hash_check.json 60",
+  "refetch_identical_of_12": 12,
+  "header_variants_identical_of_12": 12,
+  "header_variant_matches": 0,
+  "alternative_hash_matches_of_12": {
+   "rgb_bytes": 0,
+   "native_bytes": 0,
+   "url": 0
+  },
+  "last_modified_years_of_59": {
+   "2022": 1,
+   "2019": 36,
+   "2026": 12,
+   "2023": 5,
+   "2025": 3,
+   "2021": 1,
+   "2020": 1
+  },
+  "examples": [
+   {
+    "row": 0,
+    "url": "https://live.staticflickr.com/65535/52286789057_0cd87c3865_h.jpg",
+    "expected": "05941e11b4ea2bf81fcbb63f32f6d59848cf5e64936fc993a0ffe33a54c0c9fa",
+    "sha256": "c15823a5b26a164f4631677233bd956a59476892486bf60d9baf97918652f3e6",
+    "bytes": 136320,
+    "size": [
+     1600,
+     1067
+    ],
+    "last_modified": "Mon, 15 Aug 2022 16:38:12 GMT"
+   },
+   {
+    "row": 626,
+    "url": "https://live.staticflickr.com/4051/5167489031_467fc4e4f6_h.jpg",
+    "expected": "ba47bd6c7642aca409a75a0f2606add347d45f742aad4a98ac115a00d61df94e",
+    "sha256": "cf406c99b6697244afd6248f7e3792d263eed3e9365f9fc7bae726aacb3b3fcf",
+    "bytes": 484404,
+    "size": [
+     1063,
+     1600
+    ],
+    "last_modified": "Tue, 19 Feb 2019 05:34:05 GMT"
+   },
+   {
+    "row": 1251,
+    "url": "https://live.staticflickr.com/8725/16708066687_9586024223_k.jpg",
+    "expected": "a7312636a46723988ff837598de91f03ee0210a81efbaf9ce5eae1f54a2ab8bb",
+    "sha256": "50f50c3470a86d79cb09a40bfc5df0bd193d21abfaaa4c85c86a2594269d086f",
+    "bytes": 338254,
+    "size": [
+     1920,
+     1080
+    ],
+    "last_modified": "Sat, 16 Feb 2019 12:38:35 GMT"
+   }
+  ]
+ },
+ "measured": [
+  "Under the card's own method, 0 of 59 fetched train images match image_sha256 (1 more URL returned 404).",
+  "The bytes Flickr serves are stable: identical on refetch (12/12) and with browser or JPEG-only Accept headers (12/12).",
+  "36 of 59 responses carry a Last-Modified date in 2019, before the dataset release.",
+  "sha256 of decoded RGB pixels, native-mode pixels or the URL string matches none of 12."
+ ],
+ "hypotheses_not_established": [
+  "The published hashes were computed on bytes from a different representation or fetch path at crawl time.",
+  "Flickr regenerated the size derivatives (_h, _b, _k, _z, _c, _o) after the crawl without changing Last-Modified."
+ ],
+ "missing_evidence": "Ai2's original bytes for a sample, or a hash definition that reproduces the published values. Hash checks are not waived; the source stays pending.",
+ "issue_explainer_recheck": "8 of 8 rows (0-280, every 40th) HTTP 200 JPEG, 0 byte matches, 0 decoded-pixel matches, including an _o original with camera EXIF"
+}

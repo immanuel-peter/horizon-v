@@ -1,0 +1,521 @@
+# Step 5 data recipe. Every source, revision, rule, limit, quota and split parameter used by
+# `python -m k2hv.data` lives here; the recipe hash is recorded in every build manifest.
+# status: include (built and exported), pending (not built until a recorded gap is closed: terms
+# evidence or data integrity), exclude (audited and rejected for quality or fit). terms_note records
+# the original statement that permits research training use and the media origin; redistribution is
+# recorded separately and nothing is redistributed. A dataset creator's own Hub licence declaration
+# is a basis; a tag set by someone else (a mirror) or a code-repository licence alone is not.
+# Explicit upstream restrictions are recorded; missing upstream terms are recorded as missing.
+# Rows inside an included source can be pending too (metadata.pending_reason).
+
+[recipe]
+name = "k2hv-step05"
+version = "v3"
+seed = 20261031
+processor = "hf/K2-Horizon-V-init"
+
+[limits]
+max_supervised_tokens = 128   # answer + <|ifm|im_end|>
+max_total_tokens = 2048       # fully expanded sequence, image pads included
+max_image_tokens = 1024       # processor default cap; asserted, never truncated
+rl_max_prompt_tokens = 1536   # rendered generation prompt incl. image, leaves room to answer
+
+[rules]
+max_question_chars = 1200
+max_answer_words = 24
+max_answer_sentences = 2
+single_line_answer = true
+
+[split]
+sft_validation_fraction = 0.01
+rl_heldout_fraction = 0.05
+sweep_size = 50000
+oversample = 1.15
+
+[overlap]
+# Stage 1 (all pairs): 64-bit pHash Hamming distance and 32x32 thumbnail correlation.
+eval_phash_distance = 10
+group_phash_distance = 3
+prefilter_similarity = 0.6
+# Stage 2 (decoded pairs, aligned 256-px renders): see overlap.aligned_metrics. Calibrated on the
+# pilot's inspected pairs: templated charts/maps/forms reach edge 0.95 with max_block >= 0.2;
+# recolored or re-encoded copies reach edge >= 0.98 or max_block <= 0.05.
+max_aspect_diff = 0.03
+confirm_edge = 0.98
+confirm_edge_local = 0.93
+confirm_max_block = 0.10
+uncertain_edge = 0.85          # uncertain matches are excluded and listed for inspection
+eval_question_min_chars = 40   # identical question text (after removing format lines) to an eval item is listed
+eval_question_specific_chars = 120   # ...and excluded as uncertain when this long,
+eval_question_image_similarity = 0.5 # or when the two images are at least loosely similar (32x32 correlation)
+
+[workers]
+scan = 14
+validate = 15
+url_threads = 12
+
+[media.coco_instances_train2017]
+# COCO 2017 instance boxes, used to check Nemotron spatial labels against every instance pair.
+url = "http://images.cocodataset.org/annotations/annotations_trainval2017.zip"
+sha256 = "113a836d90195ee1f884e704da6304dfaaecff1f023f49b6ca93c4aaae470268"
+member = "annotations/instances_train2017.json"
+
+# ---------------------------------------------------------------- SFT sources
+[sources.fv_vqav2]
+kind = "sft"
+adapter = "finevision"
+config = "vqav2"
+task = "general_vqa"
+terms = "cc-by-4.0"
+terms_note = "visualqa.org/terms.html: annotations 'licensed under a Creative Commons Attribution 4.0 International License'. Media: COCO train2014 Flickr photos; COCO does not own the images, use follows Flickr terms and per-image licences in the COCO annotations"
+redistribution = "annotations CC BY 4.0 with attribution; images not redistributed"
+status = "include"
+quota = 200000
+max_qa_per_image = 3
+
+[sources.fv_visual7w]
+kind = "sft"
+adapter = "finevision"
+config = "visual7w"
+task = "general_vqa_choice"
+terms = "unverified"
+terms_note = "none found. Media: COCO photos"
+redistribution = "unknown"
+missing_evidence = "a dataset terms statement from the authors: the visual7w-toolkit MIT LICENSE covers toolkit code, the data downloads separately, and the project page (ai.stanford.edu/~yukez/visual7w) refused connections; its archived copy has no terms"
+status = "pending"
+quota = 40000
+max_qa_per_image = 3
+
+[sources.fv_vsr]
+kind = "sft"
+adapter = "finevision"
+config = "vsr"
+task = "spatial"
+terms = "apache-2.0"
+terms_note = "cambridgeltl/visual-spatial-reasoning README: 'This project is licensed under the Apache-2.0 License'; the data splits ship in the repository. Media: COCO 2017 Flickr photos (Flickr terms)"
+redistribution = "Apache-2.0 for the annotations; images not redistributed"
+status = "include"
+quota = 10000
+max_qa_per_image = 3
+
+[sources.fv_tallyqa]
+kind = "sft"
+adapter = "finevision"
+config = "tallyqa"
+task = "counting"
+terms = "apache-2.0"
+terms_note = "manoja328/TallyQA_dataset distributes the QA pairs as tallyqa.zip in the repository; repository LICENSE Apache-2.0. Media: COCO and Visual Genome photos (Flickr terms)"
+redistribution = "Apache-2.0 for the QA pairs; images not redistributed"
+status = "include"
+quota = 120000
+max_qa_per_image = 2
+
+[sources.fv_clevr]
+kind = "sft"
+adapter = "finevision"
+config = "clevr"
+task = "counting_synthetic"
+terms = "cc-by-4.0"
+terms_note = "cs.stanford.edu/people/jcjohns/clevr: 'Creative Commons CC BY 4.0 license'. Media: synthetic renders by the authors, same terms"
+redistribution = "CC BY 4.0 with attribution"
+status = "include"
+quota = 40000
+max_qa_per_image = 1
+files = 13
+
+[sources.fv_textvqa]
+kind = "sft"
+adapter = "finevision"
+config = "textvqa"
+task = "scene_text"
+terms = "cc-by-4.0"
+terms_note = "facebook/textvqa card by the dataset creator (rev 30a47cf): 'Licensing Information: CC by 4.0'. Media: Open Images photos listed as CC BY 2.0 (Open Images makes no warranty per image)"
+redistribution = "CC BY 4.0 annotations; images not redistributed"
+status = "include"
+quota = 40000
+max_qa_per_image = 3
+
+[sources.fv_st_vqa]
+kind = "sft"
+adapter = "finevision"
+config = "st_vqa"
+task = "scene_text"
+terms = "unverified"
+terms_note = "none found. Media: COCO-Text, Visual Genome, VizWiz, ICDAR, ImageNet and IIIT images with mixed terms"
+redistribution = "unknown"
+missing_evidence = "the RRC download terms (rrc.cvc.uab.es, behind registration); the public and archived overview pages state none, and this host cannot verify the portal's TLS certificate"
+status = "pending"
+quota = 25000
+max_qa_per_image = 3
+
+# Pilot: kept questions are metadata-derived (titles include series text absent from the cover;
+# "Is this a <category> book?" comes from Amazon categories). Excluded for label quality.
+[sources.fv_ocrvqa]
+kind = "sft"
+adapter = "finevision"
+config = "ocrvqa"
+task = "ocr_book_cover"
+terms = "unverified"
+terms_note = "OCR-VQA: no license located; Amazon cover images; release review required"
+status = "exclude"
+quota = 40000
+max_qa_per_image = 1
+files = 4
+# Genre and author labels come from Amazon metadata, not the cover; pilot decides.
+question_exclude = "(?i)genre|\\bwrote\\b|\\bauthor\\b|\\btype of book\\b|\\bcomic\\b|related to|\\bbook (?:is|about)\\b"
+
+[sources.fv_docvqa]
+kind = "sft"
+adapter = "finevision"
+config = "docvqa"
+task = "document"
+terms = "unverified"
+terms_note = "none found. Media: UCSF Industry Documents Library pages"
+redistribution = "unknown"
+missing_evidence = "the RRC/docvqa.org download terms; the public and archived pages state none"
+status = "pending"
+quota = 40000
+max_qa_per_image = 4
+
+[sources.fv_infographic_vqa]
+kind = "sft"
+adapter = "finevision"
+config = "infographic_vqa"
+task = "infographic"
+terms = "unverified"
+terms_note = "none found. Media: web infographics"
+redistribution = "unknown"
+missing_evidence = "the RRC download terms; the public and archived pages state none"
+status = "pending"
+quota = 30000
+max_qa_per_image = 8
+
+[sources.fv_ai2d]
+kind = "sft"
+adapter = "finevision"
+config = "ai2d_merged"
+task = "diagram_choice"
+terms = "ai2-noncommercial"
+terms_note = "ai2d/license.txt in AI2's ai2d-all.zip: 'available for general use by academic or non-profit, or government-sponsored researchers'; no use in a for-profit enterprise. Admitted for this academic research project only. Media: diagrams collected by AI2, covered by the same licence"
+redistribution = "prohibited: the licence grants no right to modify and publicly release the data or to distribute it to a third party"
+status = "include"
+quota = 15000
+max_qa_per_image = 3
+
+[sources.fv_plotqa]
+kind = "sft"
+adapter = "finevision"
+config = "plotqa"
+task = "chart"
+terms = "cc-by-4.0"
+terms_note = "NiteshMethani/PlotQA README: 'All the datasets created as part of this work are released under a CC-BY-4.0 license'. Media: plots rendered by the authors, same terms"
+redistribution = "CC BY 4.0 with attribution"
+status = "include"
+quota = 40000
+max_qa_per_image = 1
+files = 6
+
+[sources.fv_dvqa]
+kind = "sft"
+adapter = "finevision"
+config = "dvqa"
+task = "chart_synthetic"
+terms = "unverified"
+terms_note = "none found. Media: synthetic bar charts by the authors"
+redistribution = "unknown"
+missing_evidence = "any licence statement: the README has none, GitHub reports NOASSERTION, the project page kushalkafle.com/projects/dvqa.html has none, and secondary sources disagree (CC BY-NC 4.0 vs CC BY 4.0)"
+status = "pending"
+quota = 40000
+max_qa_per_image = 1
+files = 3
+
+[sources.fv_iconqa]
+kind = "sft"
+adapter = "finevision"
+config = "iconqa"
+task = "diagram_math_choice"
+terms = "cc-by-nc-sa-4.0"
+terms_note = "lupantech/IconQA README text: 'licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License'; iconqa.github.io agrees. The README badge says CC BY-SA 4.0; the stricter text is applied. Media: icon images collected by the authors, same terms"
+redistribution = "non-commercial, ShareAlike, attribution"
+status = "include"
+quota = 20000
+max_qa_per_image = 2
+
+[sources.fv_chartqa]
+kind = "sft"
+adapter = "finevision"
+config = "chartqa"
+task = "chart"
+terms = "gpl-3.0"
+terms_note = "vis-nlp/ChartQA README: 'The ChartQA dataset is available in the ChartQA Dataset folder in this repository'; repository LICENSE GPL-3.0. Media: charts from Statista, Pew, OWID and OECD; per-chart site terms not verified"
+redistribution = "GPL-3.0 obligations; chart images not redistributed"
+status = "include"
+quota = 40000
+max_qa_per_image = 4
+
+[sources.cosyn_chart]
+kind = "sft"
+adapter = "cosyn"
+config = "chart"
+task = "chart_synthetic"
+terms = "odc-by"
+terms_note = "allenai/CoSyn-400K card (Ai2, the creator): 'licensed by ODC-BY-1.0. It is intended for research and educational use'. Media: images rendered from Claude-generated code (Anthropic terms); questions from GPT-4o mini (OpenAI terms)"
+redistribution = "ODC-BY with attribution; model-provider terms apply"
+status = "include"
+quota = 120000
+max_qa_per_image = 2
+files = 26
+max_answer_decimals = 2
+
+[sources.cosyn_table]
+kind = "sft"
+adapter = "cosyn"
+config = "table"
+task = "table_synthetic"
+terms = "odc-by"
+terms_note = "allenai/CoSyn-400K card (Ai2, the creator): 'licensed by ODC-BY-1.0. It is intended for research and educational use'. Media: images rendered from Claude-generated code (Anthropic terms); questions from GPT-4o mini (OpenAI terms)"
+redistribution = "ODC-BY with attribution; model-provider terms apply"
+status = "include"
+quota = 60000
+max_qa_per_image = 2
+max_answer_decimals = 2
+
+[sources.cosyn_document]
+kind = "sft"
+adapter = "cosyn"
+config = "document"
+task = "document_synthetic"
+terms = "odc-by"
+terms_note = "allenai/CoSyn-400K card (Ai2, the creator): 'licensed by ODC-BY-1.0. It is intended for research and educational use'. Media: images rendered from Claude-generated code (Anthropic terms); questions from GPT-4o mini (OpenAI terms)"
+redistribution = "ODC-BY with attribution; model-provider terms apply"
+status = "include"
+quota = 80000
+max_qa_per_image = 2
+files = 26
+max_answer_decimals = 2
+
+# Pilot: answers are often vague relation words ("Affects", "All actions"); admitted at a reduced quota.
+[sources.cosyn_diagram]
+kind = "sft"
+adapter = "cosyn"
+config = "diagram"
+task = "diagram_synthetic"
+terms = "odc-by"
+terms_note = "allenai/CoSyn-400K card (Ai2, the creator): 'licensed by ODC-BY-1.0. It is intended for research and educational use'. Media: images rendered from Claude-generated code (Anthropic terms); questions from GPT-4o mini (OpenAI terms)"
+redistribution = "ODC-BY with attribution; model-provider terms apply"
+status = "include"
+quota = 20000
+max_qa_per_image = 2
+max_answer_decimals = 2
+
+# Pilot: 30% of answers are unrounded computations (e.g. 136.1013215859031); inspected integer answers
+# are multi-condition computations over dense charts. With empty thinking these train guessing;
+# ChartVerse-RL covers this family in RL. Excluded.
+[sources.chartverse_sft]
+kind = "sft"
+adapter = "chartverse_sft"
+task = "chart_synthetic"
+terms = "apache-2.0"
+terms_note = "ChartVerse-SFT-600K Apache-2.0 (Hub metadata)"
+status = "exclude"
+quota = 30000
+max_qa_per_image = 1
+files = 4
+max_answer_decimals = 2
+
+[sources.pixmo_count]
+kind = "sft"
+adapter = "pixmo_count"
+task = "counting"
+terms = "odc-by"
+terms_note = "allenai/pixmo-count card (Ai2): 'licensed under ODC-BY-1.0. It is intended for research and educational use'. Media: images fetched from their original URLs under each site's terms"
+redistribution = "ODC-BY for the annotations; images not redistributed"
+missing_evidence = "image integrity: no fetched image matches its published image_sha256 (see docs/evidence/step05/pixmo-count.json)"
+# Pilot (923 sampled URLs): 830 fetched with bytes not matching the supplied image_sha256, 29 gone
+# (404/410), 64 rate-limited (429), 0 matched. Pending while image integrity is unverified.
+status = "pending"
+quota = 40000
+max_qa_per_image = 1
+
+# Pilot: 44 of 1,079 sampled pairs pass the short-answer rules, and those are mostly emoji games,
+# refusals and sentence answers. Excluded.
+[sources.pixmo_ama]
+kind = "sft"
+adapter = "pixmo_ama"
+task = "general_human"
+terms = "odc-by"
+terms_note = "PixMo-AskModelAnything ODC-BY (Hub metadata); images fetched from source URLs under site terms"
+status = "exclude"
+quota = 20000
+max_qa_per_image = 1
+
+# Pilot: 58% of turns are on multi-page documents; single-page answers are LLM-written sentences
+# restating the question. Excluded; DocVQA, InfographicVQA and CoSyn documents cover document reading.
+[sources.docmatix]
+kind = "sft"
+adapter = "docmatix"
+task = "document"
+terms = "mit"
+terms_note = "Docmatix MIT (Hub metadata); PDFA pages"
+status = "exclude"
+quota = 0
+pilot_files = 3
+
+[sources.visonlyqa]
+kind = "sft"
+adapter = "visonlyqa"
+task = "geometry_perception_choice"
+terms = "gpl-3.0"
+terms_note = "ryokamoi/VisOnlyQA_Train LICENSE.md at the pinned revision: 'VisOnlyQA dataset and our code are provided under the GNU GPL v3.0'. Media: synthetic geometry, CLEVR and SuperCLEVR renders"
+redistribution = "GPL-3.0 obligations"
+status = "include"
+quota = 30000
+max_qa_per_image = 1
+
+[sources.nemotron_coco_count_spatial]
+kind = "sft"
+adapter = "nemotron_coco"
+task = "counting_spatial_choice"
+terms = "openmdw-1.1"
+terms_note = "Nemotron-Image-Training-v3.5 card, coco_count_spatial_qa row: 'Use of this dataset is governed by OpenMDW-1.1'; COCO annotations CC BY 4.0. Media: COCO train2017 Flickr photos (Flickr terms)"
+redistribution = "OpenMDW-1.1 for the QA; images not redistributed"
+status = "include"
+quota = 15000
+max_qa_per_image = 2
+
+# ---------------------------------------------------------------- RL sources
+[sources.rl_virl39k]
+kind = "rl"
+adapter = "virl39k"
+task = "math_science_reasoning"
+terms = "mit"
+terms_note = "Creator's Hub declaration: TIGER-Lab/ViRL39K card metadata 'license: mit' on TIGER-Lab's own repository, covering the released questions, answers and images.zip; the card has no prose terms. Upstreams by the per-row source field (provenance.upstream_source): ScienceQA and ScienceQAConverted, CC BY-NC-SA 4.0 and 'non-commercial research purposes only'; ai2d, AI2's licence (academic non-profit use, no redistribution); chartqa, GPL-3.0; MMMath (THU-KEG/MM_Math), M3CoT and DeepScaleR, MIT; R1OneVision, Apache-2.0; MMK12, MMK12Converted, K12, dvqa and geoqa_plus, no terms found (missing, not a restriction); Processed, collected by the creators. The card also lists LLaVA-OneVision-Data, which allows 'academic research and education purpose' only; the source field does not mark which rows came from it. Media: images from these datasets and newly collected ones"
+redistribution = "not cleared: the MIT declaration cannot relicense upstream data. ScienceQA rows are NC-SA, ai2d rows may not be redistributed, chartqa rows are GPL-3.0, LLaVA-OneVision-derived rows are academic-only, and several upstreams state no terms"
+status = "include"
+quota = 40000
+
+[sources.rl_vwi_verified]
+kind = "rl"
+adapter = "vwi_verified"
+task = "web_stem_reasoning"
+terms = "mit"
+terms_note = "Creator's Hub declaration: TIGER-Lab/VisualWebInstruct-verified card metadata 'license: mit' on TIGER-Lab's own repository, covering the released QA pairs and images; no prose terms. The parent TIGER-Lab/VisualWebInstruct declares 'license: apache-2.0'. Media, per the parent card: web images found through Google Image Search (118,576 of the parent's images) and images from coco, chartqa, ai2d, geoqa+, sqa (ScienceQA), vg, docvqa, gqa, ocr_vqa and textvqa. Rows carry no image source, so upstream restrictions (ScienceQA CC BY-NC-SA research only, AI2D no redistribution, ChartQA GPL-3.0) attach to rows only through image matching; rights in the web images are not stated"
+redistribution = "not cleared: the MIT declaration cannot relicense web images or upstream data with their own terms (ScienceQA NC-SA, AI2D no redistribution, ChartQA GPL-3.0), and rows carry no image source"
+status = "include"
+quota = 100000
+
+[sources.rl_chartverse]
+kind = "rl"
+adapter = "chartverse_rl"
+task = "chart_reasoning"
+terms = "apache-2.0"
+terms_note = "opendatalab/ChartVerse-RL-40K card text: 'This dataset is released under the Apache 2.0 License'. Media: charts rendered by the authors, same terms"
+redistribution = "Apache-2.0"
+status = "include"
+quota = 40000
+
+[sources.rl_thinklite]
+kind = "rl"
+adapter = "thinklite"
+task = "math_science_reasoning"
+terms = "mit"
+terms_note = "Creator's Hub declaration: russwang/ThinkLite-VL-70k card metadata 'license: mit'; the paper's repository si0wang/ThinkLite-VL links this dataset and the authors' models under the same account. The card has no other text and the repository has no licence. Upstreams per the paper (arXiv 2504.07934, Figure 3): Geometry3K (MIT), GeoQA (no licence found), Geos (Apache-2.0 repository), FigureQA (code MIT, data terms not found), ScienceQA, IconQA and TabMWP (CC BY-NC-SA 4.0), OK-VQA (no terms found; COCO images). Rows carry no source field"
+redistribution = "not cleared: ScienceQA, IconQA and TabMWP data are NC-SA, several upstreams state no terms, and rows carry no source field"
+status = "include"
+quota = 70000
+
+[sources.rl_geometry3k]
+kind = "rl"
+adapter = "geometry3k"
+task = "geometry"
+terms = "mit"
+terms_note = "lupantech/InterGPS ('Code and data for ACL 2021 paper') ships the Geometry3K data in the repository under its MIT LICENSE; hiyouga/geometry3k is a repackaging whose Hub tag is not the basis. Media: problem diagrams from the source textbooks; diagram rights not verified"
+redistribution = "MIT for the dataset files"
+status = "include"
+quota = 3000
+
+# ---------------------------------------------------------------- datasets
+[datasets.finevision]
+repo = "HuggingFaceM4/FineVision"
+revision = "3c380a731a3429c1d04693d6ec16d7e683def84c"
+[datasets.cosyn]
+repo = "allenai/CoSyn-400K"
+revision = "86e46e1fd5e754d056169f0fb38f06c6997ff7de"
+[datasets.chartverse_sft]
+repo = "opendatalab/ChartVerse-SFT-600K"
+revision = "07b1576394fa58f43e19987842d1d2c7fd1f1a92"
+[datasets.pixmo_count]
+repo = "allenai/pixmo-count"
+revision = "ebf51cf70e45d12374e64d475862e4f8d21d31d0"
+[datasets.pixmo_ama]
+repo = "allenai/pixmo-ask-model-anything"
+revision = "739ffd8b417737da31e5069b9c8ff6a72a7d58b6"
+[datasets.docmatix]
+repo = "HuggingFaceM4/Docmatix"
+revision = "0725b65616e0e5f6024be10e38ddf8d8c48664fd"
+[datasets.visonlyqa]
+repo = "ryokamoi/VisOnlyQA_Train"
+revision = "10d60126fba59ed3731e4de20290be169b8b8a8a"
+[datasets.nemotron_coco]
+repo = "nvidia/Nemotron-Image-Training-v3.5"
+revision = "70b27e021e64bd97641597dc1f127a208b58be0e"
+media = "https://images.cocodataset.org/zips/train2017.zip"
+[datasets.virl39k]
+repo = "TIGER-Lab/ViRL39K"
+revision = "812ec617dea4bc8a4e751663b88e4ebb7de4d00e"
+[datasets.vwi_verified]
+repo = "TIGER-Lab/VisualWebInstruct-verified"
+revision = "0e54d1161f62daabb2a13346949b02bb8df5b836"
+[datasets.chartverse_rl]
+repo = "opendatalab/ChartVerse-RL-40K"
+revision = "0b28d2620cfb6329f845e76bc83991f1c35bdec3"
+[datasets.thinklite]
+repo = "russwang/ThinkLite-VL-70k"
+revision = "5c86ea41d624e27e53002af47b8cf4538aa2c88f"
+[datasets.geometry3k]
+repo = "hiyouga/geometry3k"
+revision = "fd21e533e1e50d0662a2bf7b223e60511bd5f8b7"
+
+# ---------------------------------------------------------------- evaluation exclusions (step 7)
+[evals.mmmu_val]
+repo = "lmms-lab/MMMU"
+revision = "364f2e2eb107b36e07ff4c5a15f5947a759cef47"
+files = ["data/validation-00000-of-00001.parquet"]
+[evals.mathvista_testmini]
+repo = "AI4Math/MathVista"
+revision = "2b6ad69445fbb5695c9b165475e8decdbeb97747"
+files = ["data/testmini-00000-of-00001-725687bf7a18d64b.parquet"]
+[evals.chartqa_test]
+repo = "lmms-lab/ChartQA"
+revision = "9e63b7df1592a1c2158e735cc1725454aef0d6d9"
+files = ["data/test-00000-of-00001.parquet"]
+[evals.docvqa_val]
+repo = "lmms-lab/DocVQA"
+revision = "539088ef8a8ada01ac8e2e6d4e372586748a265e"
+glob = "DocVQA/validation-*.parquet"
+[evals.textvqa_val]
+repo = "lmms-lab/textvqa"
+revision = "9c0699cd19768ac5ab97568f6b3cbac4c0062884"
+glob = "data/validation-*.parquet"
+[evals.mmbench_dev]
+repo = "lmms-lab/MMBench"
+revision = "56ba1af8954932c4804bd3f522e05ed96e63b654"
+files = ["en/dev-00000-of-00001.parquet"]
+# POPE: lmms-eval `pope` task, lmms-lab/POPE default config, test split = adversarial+popular+random,
+# 9,000 questions over 500 COCO val2014 images.
+[evals.pope_test]
+repo = "lmms-lab/POPE"
+revision = "4db1276663dfa5eb8ad16a52d24c31a09e470896"
+glob = "data/test-*.parquet"
+
+# ---------------------------------------------------------------- build profiles
+[profiles.pilot]
+# ~1,000 SFT examples across adapters, plus RL samples. Reads row groups from evenly spaced files.
+sft_quota = 45
+rl_quota = 60
+files = 2
+row_groups = 1
+statuses = ["include", "pending", "exclude"]
+
+[profiles.full]
+statuses = ["include"]
