@@ -53,8 +53,6 @@ def photo(seed=0, size=(400, 300)):
     return Image.fromarray(base).resize(size, Image.Resampling.BICUBIC)
 
 
-# ------------------------------------------------------------------- text rules
-
 RULES = tomllib.loads(RECIPE.read_text())["rules"]
 
 
@@ -90,8 +88,6 @@ def test_finevision_answers_are_normalized_without_truncation():
     assert build.sft_turn({"adapter": "chartverse_sft", "max_answer_decimals": 2}, RULES, "What share?", "0.21358378184590313")[3] == "answer_unrounded_computation"
     assert build.sft_turn({"adapter": "x", "question_exclude": "(?i)genre"}, RULES, "What is the genre of this book?", "Travel")[3] == "question_excluded_by_source_rule"
 
-
-# ------------------------------------------------------------------- images
 
 
 def test_bad_images_are_rejected_with_reasons():
@@ -161,8 +157,6 @@ def test_image_token_estimate_and_unpatchify_match_the_processor():
             assert np.abs(np.asarray(restored, np.int16) - np.asarray(resized, np.int16)).max() <= 1
 
 
-# ------------------------------------------------------------------- overlap
-
 CFG = tomllib.loads(RECIPE.read_text())["overlap"]
 
 
@@ -219,8 +213,6 @@ def test_dedup_key_needs_image_identity_and_split_follows_group():
     assert {uf.find(k) for k in (1, 2, 3)} == {1} and uf.find(0) == 0
 
 
-# ------------------------------------------------------------------- RL scoring
-
 
 @pytest.mark.parametrize("problem,reference,answer_type,target,selector", [
     ("<image>\nFind x.", "\\boxed{2016}", "numeric", "2016", scoring.MATH),
@@ -274,7 +266,10 @@ def test_admission_catches_a_scorer_that_misses_equivalent_forms(monkeypatch):
 def test_pinned_math_dapo_behavior_is_characterized():
     """Why the k2hv selectors exist: the published RL360 math_dapo compares strings and reads any Answer line."""
     rl = runtime.rl360()
-    ok = lambda r, t: bool(rl.math_dapo.compute_score(r, t)["acc"])  # noqa: E731
+
+    def ok(response, label):
+        return bool(rl.math_dapo.compute_score(response, label)["acc"])
+
     assert ok("Answer: 1.5", "1.5") and ok("Answer: \\boxed{1.5}", "1.5") and ok("Answer: 1.5 cm", "1.5")
     assert not ok("\\boxed{1.5}", "1.5") and not ok("Answer: 1.50", "1.5") and not ok("Answer: 3/2", "1.5") and not ok("Answer: 20%", "20")
     assert not ok("Answer: \\frac{3}{5}", "\\(\\frac{3}{5}\\)"), "a delimited v1 target only matches the delimited string"
@@ -291,8 +286,6 @@ def test_rl_prompt_replaces_source_format_instructions():
     assert p.startswith("<image>\nWhich?") and p.count("<image>") == 1 and target == "B" and "letter of the correct option" in p
     assert build.rl_turn("<image><image> two images", "1")[2]["reason"] == "multi_image_marker"
 
-
-# ------------------------------------------------------------------- SFT/RL row contracts
 
 
 @pytest.fixture(scope="module")
@@ -376,8 +369,6 @@ def test_rl_contract(tmp_path, checker):
     with pytest.raises(contract.ContractError, match="row_selector"):
         checker.rl({**row, "metadata": {"data_source": "geo3k"}})
 
-
-# ------------------------------------------------------------------- portability and resume
 
 
 def test_portable_hash_and_materialize_rewrite_only_the_root(tmp_path):
@@ -468,8 +459,6 @@ def test_recipe_is_complete_and_consistent():
         assert len(ds["revision"]) == 40
     assert set(recipe["evals"]) == {"mmmu_val", "mathvista_testmini", "chartqa_test", "docvqa_val", "textvqa_val", "mmbench_dev", "pope_test"}
 
-
-# ------------------------------------------------------------------- v2 pipeline paths
 
 
 class FakeCoco:

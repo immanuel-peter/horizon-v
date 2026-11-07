@@ -126,7 +126,10 @@ def sample(response, label="4", source=M, status=Status.COMPLETED, **meta):
 
 def test_miles_entry_point_separates_format_and_infrastructure_failures(monkeypatch):
     args = SimpleNamespace(apply_chat_template_kwargs={"reasoning_effort": "medium"})
-    run = lambda x: asyncio.run(reward.async_rm(args, x))  # noqa: E731
+
+    def run(item):
+        return asyncio.run(reward.async_rm(args, item))
+
     assert run(sample(done("4", "think_fast")))["score"] == 1.0
     assert run(sample(done("4")))["outcome"] == "format_wrong_think_tag", "effort comes from --apply-chat-template-kwargs"
     assert run(sample(done("4"), reasoning_effort="high"))["score"] == 1.0, "a row may override the effort"
