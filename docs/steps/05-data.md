@@ -42,7 +42,7 @@ uv run python -m k2hv.data build --profile pilot   # ~1,000 SFT examples plus RL
 uv run python -m k2hv.data build --profile full
 ```
 
-Resume by rerunning the same command. Every stage writes outputs atomically (temporary file, then rename) followed by a done marker that fingerprints its inputs: the recipe slice and scan code for a shard; the processor files, limits, contract code and Miles pin for a validation chunk. Completed work with a matching fingerprint is reused; anything else is recomputed. Every sampling decision (per-image turn caps, quotas, splits, the sweep subset) orders records by `sha256(seed:salt:record_id)` or by image group, never by processing order. A hard-killed and resumed build therefore reproduces the same records, splits and file bytes ([evidence](#reproducibility)).
+Resume by rerunning the same command. Every stage writes outputs atomically (temporary file, then rename) followed by a done marker that fingerprints its inputs: the recipe slice and scan code for a shard; the processor files, limits, contract code and Miles pin for a validation chunk. Completed work with a matching fingerprint is reused; anything else is recomputed. Every sampling decision (per-image turn caps, quotas, splits, the sweep subset) orders records by `sha256(seed:salt:record_id)` or by image group, never by processing order. A hard-killed and resumed build therefore reproduces the same records, splits and file bytes ([evidence](../evidence/step05/reproducibility.json)).
 
 Workers are spawned processes with one torch/OMP/MKL thread each: 14 scan workers and 15 validation workers on the 16-vCPU machine, and 12 threads for URL fetches.
 
