@@ -1,7 +1,7 @@
 """Miles data source that decodes images only for the samples a rollout requests.
 
 Pinned Miles ``Dataset.__init__`` runs ``process_vision_info`` on every row and keeps the decoded
-images, which needs terabytes for the step 5 SFT export. ``LazyRolloutDataSource`` keeps the
+images, which needs terabytes for the full SFT export. ``LazyRolloutDataSource`` keeps the
 pinned ``RolloutDataSource`` batching, epoch, shuffle and checkpoint code and replaces only the
 dataset: rows stay as Arrow text and image paths, and a sample's images are decoded when
 ``get_samples`` slices it. Row order and the per-epoch permutation match the pinned ``Dataset``.
@@ -9,7 +9,7 @@ dataset: rows stay as Arrow text and image paths, and a sample's images are deco
 Use with ``--data-source-path k2hv.lazy_data.LazyRolloutDataSource``. ``--prompt-data`` may be a
 Parquet file, a directory of Parquet parts (read in sorted order) or a comma-separated list.
 Supported configuration: ``--multimodal-keys`` without ``--apply-chat-template``, ``--tool-key``
-or ``--rollout-max-prompt-len`` (step 5 validated every row's length).
+or ``--rollout-max-prompt-len`` (the data pipeline validates every row's length).
 """
 
 import random

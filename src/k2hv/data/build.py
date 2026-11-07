@@ -90,9 +90,6 @@ def code_fingerprint():
     return digest({"scan_version": SCAN_VERSION, **{name: hashlib.sha256((here / name).read_bytes()).hexdigest() for name in files}})
 
 
-# ------------------------------------------------------------------- scan
-
-
 def shard_id(shard):
     name = re.sub(r"[^A-Za-z0-9._-]+", "_", shard["file"])
     if shard.get("row_groups") is not None:
@@ -332,9 +329,6 @@ def preserved_splits(ctx):
         if hasattr(adapter, "preserved"):
             out[key] = adapter.preserved(ctx, src)
     return out
-
-
-# ------------------------------------------------------------------- evaluation index
 
 
 def eval_index_one(args, name):

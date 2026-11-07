@@ -1,4 +1,4 @@
-"""HF reference component of step 04; assemble all components with k2hv.step04_report."""
+"""HF reference component of the GPU gates; assemble all components with k2hv.gate_report."""
 
 from __future__ import annotations
 
@@ -49,13 +49,13 @@ def run(args):
     torch.manual_seed(args.seed)
     report = {
         "schema": 2,
-        "component": "HF reference and controlled isolation; full completion requires k2hv.step04_report",
+        "component": "HF reference and controlled isolation; full completion requires k2hv.gate_report",
         "command": sys.argv,
         "seed": args.seed,
         "starting_sha": args.starting_sha,
         "head_sha": command("git", "rev-parse", "HEAD"),
         "code_sha256": {
-            str(p): hashlib.sha256(p.read_bytes()).hexdigest() for root in ("src", "hf/K2-Horizon-V-init", "tools/step04") for p in Path(root).rglob("*.py") if "__pycache__" not in p.parts
+            str(p): hashlib.sha256(p.read_bytes()).hexdigest() for root in ("src", "hf/K2-Horizon-V-init", "scripts/gates") for p in Path(root).rglob("*.py") if "__pycache__" not in p.parts
         },
         "python": platform.python_version(),
         "packages": {p: importlib.metadata.version(p) for p in ("torch", "transformers", "pillow", "safetensors")},

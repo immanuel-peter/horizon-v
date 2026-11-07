@@ -164,7 +164,7 @@ def main():
     parser.add_argument("stage", choices=["capture", "evaluate"])
     parser.add_argument("--checkpoint", default="hf/K2-Horizon-V-init")
     parser.add_argument("--directory", type=Path, required=True)
-    parser.add_argument("--trace", type=Path, default=Path("outputs/step04/native-trace"))
+    parser.add_argument("--trace", type=Path, default=Path("outputs/gates/native-trace"))
     parser.add_argument("--url", default="http://127.0.0.1:30000")
     args = parser.parse_args()
     args.directory.mkdir(parents=True, exist_ok=True)

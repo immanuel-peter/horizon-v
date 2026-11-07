@@ -1,4 +1,4 @@
-"""Final-answer scorers for K2-Horizon-V RL rows (step 5 data, step 8 training).
+"""Final-answer scorers for K2-Horizon-V RL rows (data admission and RL training).
 
 Contract, for every selector:
 
@@ -125,7 +125,6 @@ def normalize(s):
     s = s.strip().rstrip(".").strip()
     if "=" in s:
         s = s.rsplit("=", 1)[1].strip()
-    # Drop trailing units only when what remains has no variables, so "3m - m^2" keeps its m.
     while True:
         stripped = UNIT_TAIL.sub("", s).strip()
         if stripped == s or not stripped or stripped[-1] in "+-*/^(=" or re.search(r"[A-Za-z]", re.sub(r"\\[A-Za-z]+", "", stripped)):
@@ -137,7 +136,6 @@ def normalize(s):
     return s
 
 
-# Whitelist parser: LaTeX subset -> tokens -> sympy, no eval.
 
 def _group(s, i):
     """Return (content, next index) of a {...} group or a single character at s[i]."""

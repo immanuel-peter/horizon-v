@@ -9,7 +9,7 @@ Train only the projector on short-answer image data with upstream Miles, FSDP an
 | `src/k2hv/sft_rollout.py` | Processes images and validates one user/assistant pair with explicit `think: ""`. Sets tokens, the answer mask and `multimodal_train_inputs` (`pixel_values`, `image_grid_thw`). |
 | `src/k2hv/miles_gate_adapter.py` | `K2HorizonVAdapter` freezes everything except the projector, installs packed attention, keeps projector masters in FP32 and sets its FSDP2 precision. |
 | `src/k2hv/packed_attention.py` | Document-sized SDPA calls inside one packed row, with packed linear layers. |
-| `tools/step04/miles_sft.sh` | The launch that passed the gate. |
+| `scripts/gates/miles_sft.sh` | The launch that passed the gate. |
 
 The loss covers only the answer and `<|ifm|im_end|>`, excluding prompt, image and empty-thinking tokens. `prepare_sample` tokenizes the rendered template with `add_special_tokens=False`, so a sequence starts with exactly one BOS. Step 4 certified the earlier version, which added a second BOS ([step 5](05-data.md#step-6-fix-one-bos-in-the-sft-path)); rerun a short GPU SFT check on the fixed path before a long run. Only the vision tower runs under `no_grad`; the frozen language model passes gradients back to the projector.
 
@@ -34,7 +34,7 @@ The rollout is single-turn with empty thinking. Before extending it to multi-tur
 
 ## Full run
 
-Create a bulk launcher from `tools/step04/miles_sft.sh` in the step 4 container/environment. Preserve the registration variables, `UV_NO_SYNC=1`, `--attn-implementation sdpa --true-on-policy-mode --gradient-checkpointing` and the SFT loss/rollout flags. Replace the fixture input, run length and save path with the step 5 dataset and a separate output directory.
+Create a bulk launcher from `scripts/gates/miles_sft.sh` in the step 4 container/environment. Preserve the registration variables, `UV_NO_SYNC=1`, `--attn-implementation sdpa --true-on-policy-mode --gradient-checkpointing` and the SFT loss/rollout flags. Replace the fixture input, run length and save path with the step 5 dataset and a separate output directory.
 
 Remove its `K2HV_MILES_GATE` export before using new data: it enables capture hooks and writes sample tensors into the step 4 evidence directory. The script's one actor GPU, 4-sample batch and constant 1e-3 LR are the tested gate settings; the full-run settings below need measurement.
 
@@ -63,6 +63,6 @@ Miles writes a distributed FP32 checkpoint. The verified readers are `verify_fro
 Only the projector changes, so the proposed export is the init HF repo with the projector tensors replaced. Verify it before step 7:
 
 1. Keep every non-weight file (code, tokenizer, template, processor) identical to init, and regenerate the manifest with `python -m k2hv.checkpoint_io manifest <dir>`.
-2. Reload through HF and serve it with `tools/step04/serve.sh --model-path <dir>`, then compare projected features and logprobs with the Miles checkpoint, as the cache gate's fresh-engine stage does.
+2. Reload through HF and serve it with `scripts/gates/serve.sh --model-path <dir>`, then compare projected features and logprobs with the Miles checkpoint, as the cache gate's fresh-engine stage does.
 
 Keep experiment checkpoints separate from the init directory.

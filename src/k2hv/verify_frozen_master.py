@@ -10,13 +10,13 @@ import torch
 from safetensors import safe_open
 from torch.distributed.checkpoint import FileSystemReader, load
 
-from .gate_provenance import capture
+from .gate_provenance import INIT_CHECKPOINT, capture
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--checkpoint", type=Path, required=True)
-    p.add_argument("--init", type=Path, default=Path("hf/K2-Horizon-V-init"))
+    p.add_argument("--init", type=Path, default=INIT_CHECKPOINT)
     p.add_argument("--report", type=Path, required=True)
     a = p.parse_args()
     index = json.loads((a.init / "model.safetensors.index.json").read_text())["weight_map"]

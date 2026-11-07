@@ -53,7 +53,6 @@ def quota(ctx, src):
     return src["quota"]
 
 
-
 def inventory(ctx):
     out = {"datasets": {}, "evals": {}, "preserved_splits": {}}
     for name, ds in sorted(ctx.datasets.items()):
@@ -79,7 +78,6 @@ def inventory(ctx):
     write_json(ctx.root / "inventory" / "inventory.json", out)
     log(f"inventory: {len(out['datasets'])} dataset entries, {len(out['evals'])} evaluation sets")
     return out
-
 
 
 def _tokenizer(ctx):
@@ -446,7 +444,6 @@ def image_matches(ctx, u, e, cfg):
     return best
 
 
-
 def miles_row(r, root):
     image = str(Path(root) / r["image_path"]) if root is not None else r["image_path"]
     # Same metadata keys on every row of a kind, so Parquet round trips do not add nulls and change row hashes.
@@ -574,7 +571,6 @@ def _validate_job(args, chunk_path, done_path, content, kind, reused):
     marker["content"] = content
     write_json(done_path, marker)
     return marker
-
 
 
 def _percentiles(values):
@@ -744,7 +740,6 @@ def build_manifest(ctx, files, image_rows, report):
     }
 
 
-
 def materialize(ctx, target_root):
     """Write Miles Parquet whose image paths are absolute under target_root (which must contain images/)."""
     target_root = Path(target_root).resolve()
@@ -841,9 +836,8 @@ def _verify_images(paths):
     return bad
 
 
-
 def inspect(ctx, per_source=4, out=None):
-    out = Path(out or Path("outputs/step05") / ctx.build_name / "inspect")
+    out = Path(out or Path("outputs/data") / ctx.build_name / "inspect")
     (out / "img").mkdir(parents=True, exist_ok=True)
     edir = ctx.export_dir
     checker = contract.Checker(ctx.recipe["recipe"]["processor"], ctx.recipe["limits"])
@@ -884,7 +878,7 @@ def inspect(ctx, per_source=4, out=None):
 def exclusion_sheets(ctx, per_category=12, out=None):
     from PIL import Image, ImageDraw
 
-    out = Path(out or Path("outputs/step05") / ctx.build_name / "exclusions")
+    out = Path(out or Path("outputs/data") / ctx.build_name / "exclusions")
     out.mkdir(parents=True, exist_ok=True)
     rows = pq.read_table(ctx.work / "select" / "exclusions.parquet").to_pylist()
     cats = defaultdict(list)
@@ -916,7 +910,7 @@ def exclusion_sheets(ctx, per_category=12, out=None):
 
 
 def evidence(ctx, out):
-    """Compact, path-free summary of a profile's reports for docs/evidence/step05."""
+    """Compact, path-free summary of a profile's reports."""
     edir = ctx.export_dir
     quality = json.loads((edir / "reports" / "quality.json").read_text())
     manifest = json.loads((edir / "manifest.json").read_text())
