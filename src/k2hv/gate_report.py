@@ -1,4 +1,4 @@
-"""Fail closed when assembling the independently executed step 04 gate evidence."""
+"""Fail closed when assembling the independently executed GPU gate evidence."""
 
 import argparse
 import hashlib
@@ -114,7 +114,7 @@ def assemble(root):
         return counts
 
     gate("cpu_regression", regression)
-    return {"schema": 2, "step04_complete": all(r["status"] == "passed" for r in results), "provenance": current, "results": results, "artifacts": artifacts}
+    return {"schema": 2, "complete": all(r["status"] == "passed" for r in results), "provenance": current, "results": results, "artifacts": artifacts}
 
 
 def main():
@@ -127,7 +127,7 @@ def main():
     a.report.write_text(json.dumps(report, indent=2) + "\n")
     for row in report["results"]:
         print(f"{row['gate']}: {row['status']} {row.get('error', '')}")
-    if not report["step04_complete"]:
+    if not report["complete"]:
         raise SystemExit(1)
 
 
