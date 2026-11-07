@@ -63,7 +63,6 @@ class LazyDataset:
         self.table = pa.concat_tables([pq.read_table(f) for f in parquet_files(self.path)])
 
     def shuffle(self, new_epoch_id):
-        # Same permutation as pinned miles.utils.data.Dataset.shuffle.
         if self.epoch_id == new_epoch_id:
             return
         random.seed(self.seed + new_epoch_id)

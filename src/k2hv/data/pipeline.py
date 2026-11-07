@@ -53,11 +53,8 @@ def quota(ctx, src):
     return src["quota"]
 
 
-# ------------------------------------------------------------------- inventory
-
 
 def inventory(ctx):
-    """Pin listings and record schema, row counts and sizes for every recipe dataset and evaluation set."""
     out = {"datasets": {}, "evals": {}, "preserved_splits": {}}
     for name, ds in sorted(ctx.datasets.items()):
         files = hub.listing(ctx.root, ds["repo"], ds["revision"])["files"]
@@ -83,8 +80,6 @@ def inventory(ctx):
     log(f"inventory: {len(out['datasets'])} dataset entries, {len(out['evals'])} evaluation sets")
     return out
 
-
-# ------------------------------------------------------------------- select
 
 
 def _tokenizer(ctx):
@@ -121,7 +116,6 @@ def select(ctx, trace=False):
     thumb_all = table.column("thumb").to_pylist()
     log(f"select: {n} candidates")
 
-    # unique images
     img_of = {}
     img_rows = []
     for i, sha in enumerate(c["image_sha256"]):
@@ -132,7 +126,6 @@ def select(ctx, trace=False):
     u = {"sha": [c["image_sha256"][i] for i in img_rows], "pixel_sha256": [c["pixel_sha256"][i] for i in img_rows], "phash": phash_all[img_rows], "thumb": [thumb_all[i] for i in img_rows]}
     log(f"  unique images {len(img_rows)}")
 
-    # evaluation index
     ev_files = sorted((ctx.root / "work" / "evals").glob("*.parquet"))
     if len(ev_files) != len(ctx.recipe["evals"]):
         raise RuntimeError("Run the evals stage first; evaluation index is incomplete")
@@ -182,7 +175,6 @@ def select(ctx, trace=False):
             excluded[i] = True
             exclusions.append({"record_id": c["record_id"][i], "source": c["source"][i], "kind": c["kind"][i], "image_sha256": c["image_sha256"][i], "question": c["question"][i][:300], **hit})
 
-    # grouping: identical pixels, near-duplicates, shared document/rendering hints
     uf = overlap.UnionFind(len(img_rows))
     by_pixel = {}
     for k, p in enumerate(u["pixel_sha256"]):
@@ -218,7 +210,6 @@ def select(ctx, trace=False):
             cross_source[" + ".join(sorted(s))] += 1
     log(f"  groups {len(members)} from {len(img_rows)} images; near-dup pairs {len(pairs)}; oversized buckets {oversized}")
 
-    # token estimates
     tok = _tokenizer(ctx)
     sft_overhead, rl_overhead = _overheads(ctx)
     q_text = [("\n" + q.replace("<image>", "", 1)) if k == "rl" else ("\n" + q) for q, k in zip(c["question"], c["kind"])]
@@ -239,7 +230,6 @@ def select(ctx, trace=False):
         est_super.append(sup)
         limit_reason.append(reason)
 
-    # deduplication: image group + normalized question + normalized answer; keep the higher-priority source
     priority = {k: p for p, k in enumerate(ctx.recipe["sources"])}
     ranks = [rank(seed, rid) for rid in c["record_id"]]
     winner = {}
@@ -260,7 +250,6 @@ def select(ctx, trace=False):
     for i in blank_rl:
         c["status"][i] = "pending"
 
-    # RL selection first; its image groups are reserved away from SFT
     by_source = defaultdict(list)
     for i in range(n):
         if is_winner[i]:
@@ -457,8 +446,6 @@ def image_matches(ctx, u, e, cfg):
     return best
 
 
-# ------------------------------------------------------------------- validate
-
 
 def miles_row(r, root):
     image = str(Path(root) / r["image_path"]) if root is not None else r["image_path"]
@@ -588,8 +575,6 @@ def _validate_job(args, chunk_path, done_path, content, kind, reused):
     write_json(done_path, marker)
     return marker
 
-
-# ------------------------------------------------------------------- export
 
 
 def _percentiles(values):
@@ -759,8 +744,6 @@ def build_manifest(ctx, files, image_rows, report):
     }
 
 
-# ------------------------------------------------------------------- materialize / verify
-
 
 def materialize(ctx, target_root):
     """Write Miles Parquet whose image paths are absolute under target_root (which must contain images/)."""
@@ -858,11 +841,8 @@ def _verify_images(paths):
     return bad
 
 
-# ------------------------------------------------------------------- inspection sheet
-
 
 def inspect(ctx, per_source=4, out=None):
-    """HTML sheet of exact model-input images (inverted pixel_values) and decoded supervision."""
     out = Path(out or Path("outputs/step05") / ctx.build_name / "inspect")
     (out / "img").mkdir(parents=True, exist_ok=True)
     edir = ctx.export_dir
@@ -902,7 +882,6 @@ def inspect(ctx, per_source=4, out=None):
 
 
 def exclusion_sheets(ctx, per_category=12, out=None):
-    """Side-by-side candidate/evaluation pairs for each (source, eval, method, status) category."""
     from PIL import Image, ImageDraw
 
     out = Path(out or Path("outputs/step05") / ctx.build_name / "exclusions")
