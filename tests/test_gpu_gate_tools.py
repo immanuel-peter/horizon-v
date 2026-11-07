@@ -8,7 +8,7 @@ import pytest
 
 @pytest.fixture
 def archive_verifier():
-    spec = importlib.util.spec_from_file_location("verify_archive", Path(__file__).parents[1] / "tools/step04/verify_archive.py")
+    spec = importlib.util.spec_from_file_location("verify_archive", Path(__file__).parents[1] / "scripts/gates/verify_archive.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.verify

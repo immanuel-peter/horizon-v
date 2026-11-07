@@ -55,7 +55,7 @@ def run(args):
         "starting_sha": args.starting_sha,
         "head_sha": command("git", "rev-parse", "HEAD"),
         "code_sha256": {
-            str(p): hashlib.sha256(p.read_bytes()).hexdigest() for root in ("src", "hf/K2-Horizon-V-init", "tools/step04") for p in Path(root).rglob("*.py") if "__pycache__" not in p.parts
+            str(p): hashlib.sha256(p.read_bytes()).hexdigest() for root in ("src", "hf/K2-Horizon-V-init", "scripts/gates") for p in Path(root).rglob("*.py") if "__pycache__" not in p.parts
         },
         "python": platform.python_version(),
         "packages": {p: importlib.metadata.version(p) for p in ("torch", "transformers", "pillow", "safetensors")},
