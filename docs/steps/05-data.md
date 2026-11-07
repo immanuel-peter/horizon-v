@@ -2,7 +2,7 @@
 
 Build reproducible image-QA datasets on a Linux CPU machine. SFT teaches the projector to connect images to short answers; RL later uses questions whose answers a rule-based scorer can verify. Dataset preparation needs no model weights or GPU. RL difficulty calibration needs the SFT checkpoint and runs after [step 6](06-sft.md).
 
-The pipeline is `python -m k2hv.data` (`src/k2hv/data/`), driven by the recipe [`configs/data/step05.toml`](../../configs/data/step05.toml). Every source revision, rule, limit, quota, overlap threshold and split parameter lives in the recipe, and its hash is in every build manifest. Results of the current v3 build (2026-11-01) are under [Build results](#build-results); compact evidence is in [`docs/evidence/step05/`](../evidence/step05/).
+The pipeline is `python -m k2hv.data` (`src/k2hv/data/`), driven by the recipe [`configs/data/recipe.toml`](../../configs/data/recipe.toml). Every source revision, rule, limit, quota, overlap threshold and split parameter lives in the recipe, and its hash is in every build manifest. Results of the current v3 build (2026-11-01) are under [Build results](#build-results); compact evidence is in [`docs/evidence/step05/`](../evidence/step05/).
 
 A CPU data audit cannot establish model quality. Mixture weights, the value of each capability and the effect of the 1,024-image-token budget on document reading need the SFT sweep and [step 7](07-eval.md) evaluations.
 
@@ -16,7 +16,7 @@ git clone https://github.com/radixark/miles third_party/miles && git -C third_pa
 git clone --filter=blob:none https://github.com/ifm-ai/RL360 third_party/rl360 && git -C third_party/rl360 checkout 3e13010e0e47b7d08f19dfb6bdd3ac6d21dc200e
 ```
 
-`HF_TOKEN` must be in the environment. The data root defaults to `data/step05` (git-ignored; override with `--data-root` or `K2HV_DATA_ROOT`).
+`HF_TOKEN` must be in the environment. The data root defaults to `data/build` (git-ignored; override with `--data-root` or `K2HV_DATA_ROOT`). Builds made before the rename live under `data/step05`; rename that directory or pass it as `--data-root`.
 
 ### Why the Miles code is loaded selectively
 
@@ -226,7 +226,7 @@ The stage-2 thresholds come from inspecting every pilot pair (sheets via `inspec
 
 ## Outputs and rematerialization
 
-`data/step05/` after a build:
+`data/build/` after a build:
 
 ```text
 images/<sha[:2]>/<sha>.<ext>   content-addressed original bytes (P/LA transparency composited on white, recorded)

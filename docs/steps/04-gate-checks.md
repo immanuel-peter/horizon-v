@@ -46,22 +46,22 @@ Use the retained container, or recreate it from the exact digest and bind mount 
 
 ```bash
 export UV_NO_SYNC=1
-mkdir -p outputs/step04/final
+mkdir -p outputs/gates/final
 gpu() {
   docker exec k2hv-step04 bash -c \
     'source .venv-container/bin/activate; export UV_NO_SYNC=1; exec "$@"' bash "$@"
 }
 ```
 
-Verify the archive and source patches first. Download only the assets the processor handoff allows, and keep the tracked HF code, configs and original projector. Run `tools/step04/activate.sh` once to bootstrap, never during a training or serving stage.
+Verify the archive and source patches first. Download only the assets the processor handoff allows, and keep the tracked HF code, configs and original projector. Run `scripts/gates/activate.sh` once to bootstrap, never during a training or serving stage.
 
 ```bash
-docker exec k2hv-step04 bash tools/step04/activate.sh python -m k2hv_sglang.check_runtime
-gpu python tools/step04/verify_archive.py --report outputs/step04/final/archive.json
+docker exec k2hv-step04 bash scripts/gates/activate.sh python -m k2hv_sglang.check_runtime
+gpu python scripts/gates/verify_archive.py --report outputs/gates/final/archive.json
 gpu python -m k2hv.checkpoint_io manifest hf/K2-Horizon-V-init
-gpu python tools/step04/probe.py > outputs/step04/final/cuda-probe.json
-gpu python -m k2hv.gpu_gates --report outputs/step04/final/hf.json
-gpu python -m k2hv.miles_packing_gate --report outputs/step04/final/packing.json
+gpu python scripts/gates/probe.py > outputs/gates/final/cuda-probe.json
+gpu python -m k2hv.gpu_gates --report outputs/gates/final/hf.json
+gpu python -m k2hv.miles_packing_gate --report outputs/gates/final/packing.json
 ```
 
 The HF component reports `packing_controlled` separately. The full packing gate is `miles_packing_gate`, which uses real FSDP2 and unpadded separate samples. None of these commands starts a native engine.
@@ -70,65 +70,65 @@ Capture HF references, then release the process before launching SGLang:
 
 ```bash
 gpu python -m k2hv_sglang.logprob_gate capture --batch-invariant \
-  --reference outputs/step04/final/text-reference.json
-gpu python -m k2hv_sglang.native_gates capture --directory outputs/step04/final/native
-gpu python tools/step04/capture_runtime.py --report outputs/step04/final/runtime.json
+  --reference outputs/gates/final/text-reference.json
+gpu python -m k2hv_sglang.native_gates capture --directory outputs/gates/final/native
+gpu python scripts/gates/capture_runtime.py --report outputs/gates/final/runtime.json
 
-docker exec -e K2HV_GATE_TRACE=/workspace/outputs/step04/final/native-trace \
-  -e K2HV_GATE_WEIGHT_STATE=1 k2hv-step04 bash tools/step04/serve.sh
+docker exec -e K2HV_GATE_TRACE=/workspace/outputs/gates/final/native-trace \
+  -e K2HV_GATE_WEIGHT_STATE=1 k2hv-step04 bash scripts/gates/serve.sh
 # Wait for "The server is fired up"; run clients in another terminal.
 gpu python -m k2hv_sglang.smoke --model-path /workspace/hf/K2-Horizon-V-init \
-  --report outputs/step04/final/smoke.json
-gpu python -m k2hv_sglang.logprob_gate evaluate --reference outputs/step04/final/text-reference.json \
-  --report outputs/step04/final/text-chunked.json
-gpu python -m k2hv_sglang.native_gates evaluate --directory outputs/step04/final/native \
-  --trace outputs/step04/final/native-trace
-gpu python -m k2hv_sglang.cache_gate update --directory outputs/step04/final/cache \
-  --trace outputs/step04/final/native-trace --cases outputs/step04/final/native
+  --report outputs/gates/final/smoke.json
+gpu python -m k2hv_sglang.logprob_gate evaluate --reference outputs/gates/final/text-reference.json \
+  --report outputs/gates/final/text-chunked.json
+gpu python -m k2hv_sglang.native_gates evaluate --directory outputs/gates/final/native \
+  --trace outputs/gates/final/native-trace
+gpu python -m k2hv_sglang.cache_gate update --directory outputs/gates/final/cache \
+  --trace outputs/gates/final/native-trace --cases outputs/gates/final/native
 ```
 
 Stop only this launched server using `docker exec k2hv-step04 pkill -TERM -f '^python -m sglang.launch_server'`. Launch a fresh engine for the cache experiment:
 
 ```bash
-docker exec -e K2HV_GATE_TRACE=/workspace/outputs/step04/final/fresh-trace \
-  -e K2HV_GATE_WEIGHT_STATE=1 k2hv-step04 bash tools/step04/serve.sh \
-  --model-path /workspace/outputs/step04/final/cache/updated-checkpoint
+docker exec -e K2HV_GATE_TRACE=/workspace/outputs/gates/final/fresh-trace \
+  -e K2HV_GATE_WEIGHT_STATE=1 k2hv-step04 bash scripts/gates/serve.sh \
+  --model-path /workspace/outputs/gates/final/cache/updated-checkpoint
 # After readiness, from another terminal:
-gpu python -m k2hv_sglang.cache_gate fresh --directory outputs/step04/final/cache \
-  --trace outputs/step04/final/fresh-trace --cases outputs/step04/final/native
+gpu python -m k2hv_sglang.cache_gate fresh --directory outputs/gates/final/cache \
+  --trace outputs/gates/final/fresh-trace --cases outputs/gates/final/native
 ```
 
-This uses HTTP pause/begin/update/end/continue through the real tokenizer manager, scheduler and worker. The final stage reloads the init checkpoint and verifies its features. Stop that server, then launch `tools/step04/serve.sh --chunked-prefill-size -1` with a new trace directory and run `logprob_gate evaluate --reference outputs/step04/final/text-reference.json --report outputs/step04/final/text-unchunked.json`. Stop it before training.
+This uses HTTP pause/begin/update/end/continue through the real tokenizer manager, scheduler and worker. The final stage reloads the init checkpoint and verifies its features. Stop that server, then launch `scripts/gates/serve.sh --chunked-prefill-size -1` with a new trace directory and run `logprob_gate evaluate --reference outputs/gates/final/text-reference.json --report outputs/gates/final/text-unchunked.json`. Stop it before training.
 
 Prepare only the small gate fixture and run real Miles SFT:
 
 ```bash
-gpu python tools/step04/prepare_sft.py --directory outputs/step04/sft-fixture
-docker exec k2hv-step04 bash tools/step04/miles_sft.sh --num-rollout 512 --save-interval 512 \
-  --save /workspace/outputs/step04/final/miles-checkpoints \
-  > outputs/step04/final/miles-from-init.log 2>&1
+gpu python scripts/gates/prepare_sft.py --directory outputs/gates/sft-fixture
+docker exec k2hv-step04 bash scripts/gates/miles_sft.sh --num-rollout 512 --save-interval 512 \
+  --save /workspace/outputs/gates/final/miles-checkpoints \
+  > outputs/gates/final/miles-from-init.log 2>&1
 gpu python -m k2hv.verify_frozen_master \
-  --checkpoint outputs/step04/final/miles-checkpoints/iter_0000512 \
-  --report outputs/step04/final/frozen-master.json
+  --checkpoint outputs/gates/final/miles-checkpoints/iter_0000512 \
+  --report outputs/gates/final/frozen-master.json
 gpu python -m k2hv.miles_sft_evaluate \
-  --checkpoint outputs/step04/final/miles-checkpoints/iter_0000512 \
-  --report outputs/step04/final/overfit.json
-gpu python -m k2hv.miles_training_report --logs outputs/step04/final/miles-from-init.log \
-  --report outputs/step04/final/training-summary.json
+  --checkpoint outputs/gates/final/miles-checkpoints/iter_0000512 \
+  --report outputs/gates/final/overfit.json
+gpu python -m k2hv.miles_training_report --logs outputs/gates/final/miles-from-init.log \
+  --report outputs/gates/final/training-summary.json
 ```
 
 The fixture asks only for color and shape. Four colors, four shapes and four locations give 64 varied images without leaking the answer. The captured Miles tensors and decoded spans show that the answer and turn end are supervised, while prompt, image and empty-thinking tokens are not. Only the frozen vision tower runs under `no_grad`. The frozen decoder passes gradients to the projector. Keep experiment checkpoints separate from init.
 
-To resume, add `--load /workspace/outputs/step04/final/miles-checkpoints`, raise `--num-rollout` (528 adds one pass over the 64 samples) and use a new save directory. Miles restores optimizer, RNG and data-source state. The criterion is every example, not the average. Keep failed measurements.
+To resume, add `--load /workspace/outputs/gates/final/miles-checkpoints`, raise `--num-rollout` (528 adds one pass over the 64 samples) and use a new save directory. Miles restores optimizer, RNG and data-source state. The criterion is every example, not the average. Keep failed measurements.
 
 Finally run the CPU regressions and assemble every required component:
 
 ```bash
 K2HV_SGLANG_SOURCE=$PWD/third_party/sglang-source/python/sglang/srt \
   env -u LD_LIBRARY_PATH .venv-gpu/bin/python -m pytest -q \
-  --junitxml=outputs/step04/final/regression.xml > outputs/step04/final/pytest.log 2>&1
-gpu python -m k2hv.step04_report --root outputs/step04/final \
-  --report outputs/step04/final/report.json
+  --junitxml=outputs/gates/final/regression.xml > outputs/gates/final/pytest.log 2>&1
+gpu python -m k2hv.gate_report --root outputs/gates/final \
+  --report outputs/gates/final/report.json
 ```
 
 Provenance records a source census. Assembly checks the hashes of the model, processor and training compute sources and of each stage's runner, so editing an evidence CLI that no stage ran leaves finished computations valid. Pinned external source audits stay mandatory. The runner exits nonzero on missing or unrun components, failed checks or stale source hashes. Keep large tensor traces, image payloads, checkpoints and logs in the ignored `outputs/`, and commit only the sanitized report and compact evidence.

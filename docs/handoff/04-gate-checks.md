@@ -16,7 +16,7 @@ Rechecked hardware: RTX PRO 6000 Blackwell Server Edition, SM120, 97887 MiB, dri
 - SGLang `b8d46f2f309fdada4bbb05ef4e90ac4adf7a3bcf` plus the committed optional tokenizer validation hook; 19 source files audited. No newer revision or CUDA dependency replacement was needed.
 - HF SDPA math, native text `torch_native`, native vision `sdpa`; pinned batch-invariant matrix kernels, BMM override disabled, eager vision RoPE. Observed launch profiles confirm TP=1, unquantized BF16, context 2048, chunk sizes 256/-1, max running requests 1, KV capacity 4096, PIL and reasoning parser `k2_horizon`.
 
-The child venv explicitly exposes the image's `/opt/sglang` packages. Bootstrap with `tools/step04/activate.sh`, the pinned CPU/orchestration requirements and `--no-deps` editable installs; use `UV_NO_SYNC=1`. Do not sync the development lock into this environment. Build the pinned Rust tree-cache extension with `SGLANG_RUST_BUILD_MODE=auto` and Cargo on PATH when recreating the container. The retained container already has that build. Host commands need `env -u LD_LIBRARY_PATH` to avoid the inherited cuDNN conflict.
+The child venv explicitly exposes the image's `/opt/sglang` packages. Bootstrap with `scripts/gates/activate.sh`, the pinned CPU/orchestration requirements and `--no-deps` editable installs; use `UV_NO_SYNC=1`. Do not sync the development lock into this environment. Build the pinned Rust tree-cache extension with `SGLANG_RUST_BUILD_MODE=auto` and Cargo on PATH when recreating the container. The retained container already has that build. Host commands need `env -u LD_LIBRARY_PATH` to avoid the inherited cuDNN conflict.
 
 ## Results
 
@@ -54,7 +54,7 @@ docker run --name k2hv-step04 --gpus device=0 --ipc=host -d \
   --mount type=bind,src="$PWD",dst=/workspace -w /workspace \
   lmsysorg/sglang@sha256:e3a4f06001a29542fc4a8638536d9ffc5eb9c9942b08603c09b19a56eae4a1ae sleep infinity
 docker exec k2hv-step04 git config --global --add safe.directory '*'
-docker exec k2hv-step04 bash tools/step04/activate.sh python -m k2hv_sglang.check_runtime
+docker exec k2hv-step04 bash scripts/gates/activate.sh python -m k2hv_sglang.check_runtime
 ```
 
 Clone radixark/miles and sgl-project/sglang under the ignored `third_party/` at the pins above. The patch recipes check the revision, patch digest and working-file hashes, and refuse unexpected edits. The [step guide](../steps/04-gate-checks.md) has the sequential commands.

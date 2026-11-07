@@ -4,7 +4,7 @@ This checkpoint is the baseline. RL in [step 8](08-rl.md) has to beat it. The ha
 
 ## Serve
 
-`tools/step04/serve.sh` supplies the registration variables and tested native SGLang launch on SM120 (TP=1, BF16, `torch_native` text attention, `sdpa` vision attention, batch-invariant kernels, reasoning parser `k2_horizon`). Point `--model-path` at the exported SFT checkpoint ([step 6](06-sft.md#export)). Its 2048-token context limits the generation budget remaining after image/prompt tokens; choose context and KV capacity for the benchmark protocol. Increase concurrency only after measuring memory and throughput. Changed limits, GPUs or attention backends need the [step 4](04-gate-checks.md) text and image gates rerun on the target.
+`scripts/gates/serve.sh` supplies the registration variables and tested native SGLang launch on SM120 (TP=1, BF16, `torch_native` text attention, `sdpa` vision attention, batch-invariant kernels, reasoning parser `k2_horizon`). Point `--model-path` at the exported SFT checkpoint ([step 6](06-sft.md#export)). Its 2048-token context limits the generation budget remaining after image/prompt tokens; choose context and KV capacity for the benchmark protocol. Increase concurrency only after measuring memory and throughput. Changed limits, GPUs or attention backends need the [step 4](04-gate-checks.md) text and image gates rerun on the target.
 
 Chat completions separate reasoning from the answer through the parser. Use the runtime pinned in [step 3](03-sglang-model.md).
 
