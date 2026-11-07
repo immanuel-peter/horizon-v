@@ -2,7 +2,7 @@
 
 Build reproducible image-QA datasets on a Linux CPU machine. SFT teaches the projector to connect images to short answers; RL later uses questions whose answers a rule-based scorer can verify. Dataset preparation needs no model weights or GPU. RL difficulty calibration needs the SFT checkpoint and runs after [step 6](06-sft.md).
 
-The pipeline is `python -m k2hv.data` (`src/k2hv/data/`), driven by the recipe [`configs/data/step05.toml`](../../configs/data/step05.toml). Every source revision, rule, limit, quota, overlap threshold and split parameter lives in the recipe, and its hash is in every build manifest. Results of the v2 build (2026-11-01) and the changes from v1 are under [Build results](#build-results); compact evidence is in [`docs/evidence/step05/`](../evidence/step05/).
+The pipeline is `python -m k2hv.data` (`src/k2hv/data/`), driven by the recipe [`configs/data/step05.toml`](../../configs/data/step05.toml). Every source revision, rule, limit, quota, overlap threshold and split parameter lives in the recipe, and its hash is in every build manifest. Results of the current v3 build (2026-11-01) are under [Build results](#build-results); compact evidence is in [`docs/evidence/step05/`](../evidence/step05/).
 
 A CPU data audit cannot establish model quality. Mixture weights, the value of each capability and the effect of the 1,024-image-token budget on document reading need the SFT sweep and [step 7](07-eval.md) evaluations.
 
@@ -101,41 +101,14 @@ The card's own check is `sha256(requests.get(image_url).content) == image_sha256
 
 ### AI2D terms
 
-AI2 has published two sets of terms for AI2D, and no document I found says which one governs ([evidence](../evidence/step05/ai2d-terms.json), collected by `tools/step05/ai2d_terms.py`).
+AI2 has published two sets of terms for AI2D, and no AI2 statement says which governs ([evidence](../evidence/step05/ai2d-terms.json), collected by `tools/step05/ai2d_terms.py`).
 
-- **Bundled licence.** `ai2d/license.txt` in `ai2d-all.zip`, titled "License for Non-Commercial Use" and marked "(C) 2016". Its zip entry is dated 2016-08-18, and all 28,757 members are dated August or September 2016. It allows "general use by academic or non-profit, or government-sponsored researchers" and evaluation elsewhere. It excludes use "in a for-profit enterprise". It grants no right "to modify and publicly release the data in any form" or "to distribute the data to a third party in any form", only to publish short segments or still images in an academic paper. It must accompany any redistribution.
-- **CC BY-SA label.** AI2's dataset page `allenai.org/data/diagrams` showed "License: CC BY-SA", linked to the 4.0 deed. The field is absent from the 2020-09-27 Wayback capture and present in all 11 readable captures from 2021-01-26 to 2024-06-15. Wayback blocked the requests for six more captures in that span. The AWS Open Data listing (`allenai-diagrams.yaml` in `awslabs/open-data-registry`) copies the label.
-  - The listing was added by [PR #915](https://github.com/awslabs/open-data-registry/pull/915), opened 2021-04-07 and merged 2021-04-20. Its author, Michal Guerquin (`aimichal`), called the bucket "our S3 bucket" and described the files as specs for the AI2 datasets "listed at https://allenai.org/data which have a license".
-  - Every one of the PR's 18 commits had CC BY-SA, and no later commit has touched the file. The AWS Marketplace page shows the same label, with AI2 as provider and manager.
+- **Bundled licence.** `ai2d/license.txt` in `ai2d-all.zip`, "License for Non-Commercial Use", (C) 2016. It allows use by academic, non-profit or government-sponsored researchers, excludes for-profit use, and grants no right to modify and publicly release the data or distribute it to a third party.
+- **CC BY-SA label.** AI2's dataset page showed "License: CC BY-SA" from at least 2021-01 to 2024-06, and the AWS Open Data listing, added in April 2021, copies it. Since 2024-08 the page redirects straight to the zip. The zip AI2 serves today still contains the 2016 licence.
+- **Evidence the label may be a catalogue default.** AI2's TQA page carried the same CC BY-SA field next to a description saying TQA is distributed under CC BY-NC 3.0. The field contradicted the dataset's own terms there too. That does not show what AI2 intended for AI2D.
+- **Image origin.** The paper (arXiv 1603.07396) says the images were scraped from Google Image Search, so neither licence settles per-image rights.
 
-History, and what it does and does not settle:
-
-- **Archive.** The zip has one S3 object version, last modified 2021-02-04T19:48:17Z. The TQA zip has the identical timestamp, which points to a bulk re-upload rather than a revision of AI2D. The archive AI2 serves today still contains the 2016 licence, uploaded after the CC BY-SA label first appeared.
-- **Current pages.** Since at least 2024-08-16, `allenai.org/data/diagrams` redirects (HTTP 307) straight to the zip, so AI2's own site no longer shows a licence. The AWS listing that AI2 manages still says CC BY-SA. The PRIOR project page states no licence in any of its 14 readable captures from 2020-08 to 2026-03; 8 were blocked.
-- **No explanation found.** No AI2 statement explains the label, withdraws the 2016 licence, or says one supersedes the other. I searched the registry history, the PR discussion, AI2's pages and the web.
-- **TQA comparison.** AI2's TQA page gained the same "License: CC BY-SA" field between its 2020-10-23 and 2020-11-09 captures, and PR #915 gave TQA the same label. TQA's archive README says "Creative Commons Attribution – Non-Commerical 3.0", and from November 2020 to at least June 2021 the TQA page showed the CC BY-SA field next to a description saying the data "is distributed under a Creative Commons Attribution – Non-Commerical 3.0 license". The label field contradicted the dataset's own terms on the same AI2 page. That suggests AI2 did not set the field from each dataset's terms. It does not show what AI2 intended for AI2D.
-- **Image origin.** The paper (arXiv 1603.07396, p. 9) says the images "are collected by scraping Google Image Search" and annotated on Mechanical Turk. Neither licence can grant rights in the diagrams themselves that AI2 does not hold, and per-image rights are not verified. The v2 recipe's AI2D `terms_note`, which the v2 manifest copies, says "diagrams collected by AI2, covered by the same licence". That clause is wrong. The recipe stays as built, because its bytes are hashed into the v2 manifest and its AI2D entry into the scan fingerprint. The next recipe revision that rebuilds for another reason should fix it.
-
-This record treats neither source as overriding the other. A CC BY-SA 4.0 grant by AI2 would be irrevocable, and a rightsholder may offer data under more than one licence. The open question is whether the page label was a deliberate grant for AI2D or a catalogue default. The bundled licence is the document AI2 ships with the data, and the build follows it as the stricter of the two. Both allow this project's academic research training, so AI2D stays included as before.
-
-Storage and redistribution are separate questions:
-
-| Use | Bundled 2016 licence | CC BY-SA 4.0 label | Status |
-|---|---|---|---|
-| Copies on this CPU instance's disk (a GCP VM, so the data already sits with a cloud provider), or in a private bucket only the licensed researchers can read | Grants use by academic researchers. Says nothing about where copies are stored and defines neither "third party" nor "distribute" | Permitted | Neither text prohibits it. A cloud provider holding the copy under the project's account is not normally a recipient, but the licence does not say so |
-| Read access for collaborators beyond those researchers, such as a shared bucket or a private Hub repo with other members | Not granted if they count as a third party; the licence names no project or institutional scope | Permitted with attribution | Unresolved. It depends on who counts as a third party |
-| Public release of AI2D rows, images or modified copies (public Hub dataset, public bucket) | Not granted | Permitted with attribution; adapted material under BY-SA | Not permitted under the terms the build follows. Needs written confirmation from AI2 (`ai2-data@allenai.org` per the project page, `vision@allenai.org` per the README) |
-| Weights trained on AI2D | Not addressed; it is unclear whether a model is a "derivation" | Not addressed by the label | Open; outside step 5 |
-
-Per-image rights in the scraped diagrams remain open whichever AI2 licence applies.
-
-**Finding AI2D in the exports.** Index rows (`index/*.parquet`) have `source == "fv_ai2d"` and `terms == "ai2-noncommercial"`, and portable and Miles rows have `metadata.source == "fv_ai2d"`. Full v2 has 4,277 AI2D rows: 4,245 in `default/sft/train` (247 of them in the sweep), 32 in `default/sft/validation`, and none in RL or pending buckets. They use 2,415 images (434.5 MB). No other source shares any of those images, so AI2D's images can be kept apart or left out as a set. In v3, `fv_ai2d` has 4,057 rows (220 left SFT because their image groups now hold RL rows), and AI2D content also reaches RL through ViRL39K: 163 exported rows with `provenance.upstream_source` `ai2d` or `ai2dConverted`, 107 of them on an image byte-identical to an `fv_ai2d` image. VisualWebInstruct-verified includes AI2D images too but marks no row's image source. `images.parquet` has no source column, so select AI2D images through the index:
-
-```python
-import pyarrow.parquet as pq, pyarrow.compute as pc, glob
-rows = [pq.read_table(f, columns=["source", "image_path"]) for f in glob.glob("exports/full-v3/index/*.parquet")]
-ai2d = sorted({p for t in rows for p in pc.filter(t, pc.equal(t["source"], "fv_ai2d"))["image_path"].to_pylist()})
-```
+The build follows the bundled licence as the stricter one. Both allow this project's academic research training, so AI2D stays included, and public release needs AI2's confirmation. The v2 recipe's AI2D `terms_note` says the diagrams are "covered by the same licence". That clause is wrong. It stays as built because the recipe is hashed into the v2 manifest, and the next rebuild should fix it.
 
 ### RL sources admitted in v3
 
@@ -392,6 +365,8 @@ No row failed the length limits. Every exported row passed the processor contrac
 | Same-split sharing between `default` and `pending` (permitted) | | SFT train 197, validation 3; RL pool 277, held-out 13 |
 | Sweep is a subset of train | 50,000 | true |
 | Select rerun with `--trace` reproduces the selection | `selected.parquet`, `exclusions.parquet`, `question_text_matches.parquet`, `select.json` | byte-identical |
+| Interrupted and resumed pilot equals a clean pilot (run on v2 code) | scan, selection, export bytes | identical ([evidence](../evidence/step05/reproducibility.json)) |
+| Visual review (run on v1 and v2 cards) | 27 sampled v2 cards plus the v1 reviews | [findings](../evidence/step05/manual-audit.json) |
 | Tests | 279 passed, 1 skipped | |
 
 RL difficulty calibration on the GPU still waits for the SFT checkpoint ([below](#rl-prompt-selection-after-sft)).
@@ -417,87 +392,6 @@ All nine are FineVision IconQA rows `fv_iconqa:iconqa/train-00000-of-00001.parqu
 | 7594 | reserved for RL | 2 | `rl_thinklite` 60067 | 3 |
 
 The images are IconQA templates, mostly a ruler under a line of varying length, plus a flower beside a cube and a row of tiled squares. Neighbouring images differ by a few pixels, so near-duplicate chains join template images whose questions differ. Row 2367's group has 191 images. The grouping is doing what the recipe specifies. A long chain costs some SFT rows, but it cannot put related images on both sides of a split. No exported row changed, so full-v3 stays as built and needs no new version.
-
-### v2
-
-Recipe version `v2` on 2026-11-01 (n2d-standard-16, 16 vCPU, 62 GiB), seed 20261031, built into `data/step05/{work,exports}/full-v2`. Wall time: scan 56 min, evals 4 s (reused), select 61 min, validate 104 min, export 1 min, materialize 8 s, verify 9 min. Log: `outputs/step05/full-v2-build.log`; progress log: `outputs/step05/progress.log`. Summary: [`full-v2.json`](../evidence/step05/full-v2.json), pilot [`pilot-v2.json`](../evidence/step05/pilot-v2.json).
-
-| Stage | Records |
-|---|---|
-| Candidates after text and image rules (17 included sources) | 2,180,410 over 634,210 unique images, 517,627 groups |
-| Excluded for evaluation overlap | 3,415 |
-| Exact QA duplicates | 39,247 |
-| SFT records reserved for RL | 0; no group is shared by SFT and RL candidates |
-| Selected (1.15× oversampling for admitted rows, all pending rows), all validated | 917,421; 0 contract failures |
-| Exported after quotas | 848,365 rows (898,365 index rows with the sweep), 547,348 images (73.07 GB) |
-
-| Bucket | Rows | Images | SFT total tokens or RL prompt tokens, p50 / p99 / max | Supervised p50 / p99 / max |
-|---|---|---|---|---|
-| `default/sft/train` | 803,904 | 506,660 | 515 / 1,084 / 1,141 | 2 / 14 / 101 |
-| `default/sft/validation` | 8,114 | 5,149 | 516 / 1,087 / 1,139 | 2 / 15 / 60 |
-| `default/sft/sweep50k` (subset of train) | 50,000 | 48,661 | 515 / 1,087 / 1,139 | 2 / 14 / 44 |
-| `default/rl/pool` | 19,961 | 19,477 | 1,090 / 1,125 / 1,161 | |
-| `default/rl/heldout` | 1,037 | 1,005 | 1,090 / 1,127 / 1,144 | |
-| `pending/sft/train` | 239 | 239 | 392 / 551 / 571 | 2 / 2 / 2 |
-| `pending/sft/validation` | 3 | 3 | | |
-| `pending/rl/pool` | 14,337 | 14,271 | 1,091 / 1,122 / 1,170 | |
-| `pending/rl/heldout` | 770 | 769 | | |
-
-- **SFT.** 812,018 default rows, every one with exactly one BOS. Image tokens never exceed 1,024 and totals never exceed 1,141.
-- **RL.** 20,998 admitted rows: `k2hv_math_v1` 20,735 and `k2hv_decimal_v1` 263, from ChartVerse-RL (18,972) and Geometry3K (2,026). No admitted RL source has option-letter targets, so `k2hv_choice_v1` has no rows in v2.
-- **Pending (15,349 rows).** 15,107 ChartVerse-RL long decimals with no stated precision, and 242 Nemotron spatial rows whose instance pairs disagree. Examples are in `full-v2.json` under `pending`.
-
-Sources below quota exported every eligible row: AI2D 4,277 of 15,000, VSR 3,075 of 10,000, TextVQA 34,552 of 40,000, ChartQA 26,808 of 40,000, Nemotron 14,255 admitted of 15,000, CoSyn chart 119,051 of 120,000, ChartVerse-RL 18,972 admitted of 40,000, Geometry3K 2,026 of 3,000. Rejection reasons by source are in `per_source.*.scan.rejected` of `full-v2.json`.
-
-**Evaluation exclusion.** 3,415 records:
-
-| Set | Excluded |
-|---|---|
-| ChartQA test | 1,243 |
-| MathVista testmini | 1,070 |
-| MMBench dev | 854 |
-| POPE | 227 |
-| TextVQA val | 19 |
-| DocVQA val, MMMU val | 1 each |
-
-By method: identical pixels 177, stage-2 confirmed 1,247, stage-2 uncertain 1,547, question text 444. A further 1,097 template-question matches are listed and kept. The count fell from v1's 8,938 because the pending sources (ThinkLite, DVQA, ViRL39K and others) are no longer selected. Pair sheets: `outputs/step05/full-v2/exclusions/` (32 categories).
-
-**Checks.**
-
-| Check | Scope | Result |
-|---|---|---|
-| Miles normalization, `prepare_sample`, processor contract, one BOS | every selected row (917,421) | 0 failures |
-| RL target re-admission through `k2hv.reward` | every selected admitted RL row (20,998 after quotas) | 0 failures |
-| Files against SHA256SUMS; materialized file set against portable parts | 27 files | complete, 0 bad |
-| Each index row once in its bucket's Miles files with the validated hash, and its image file named by its `image_sha256` | 898,365 rows | 0 missing, 0 mismatches |
-| Images re-hashed and decoded; referenced set equals `images.parquet` | 547,348 | 0 bad, equal |
-| Group sharing across train/validation, pool/held-out or SFT/RL | all buckets | none |
-| Same-split sharing between `default` and `pending` (permitted) | | SFT train 198, validation 3; RL pool 184, held-out 13 |
-| Sweep is a subset of train | 50,000 | true |
-| Interrupted and resumed pilot equals a clean pilot | scan, selection, export bytes | identical ([evidence](../evidence/step05/reproducibility.json)) |
-| Visual review | sampled: 27 v2 cards plus the v1 reviews | [findings](../evidence/step05/manual-audit.json) |
-
-The processor check and the sampled review do not show that every label is correct or that the corpus is enough. Model quality needs the SFT sweep and held-out evaluation.
-
-### Changes from v1
-
-v1 (`exports/full`, code `061982f`, recipe `c91f84fe…`) is preserved unchanged: its SHA256SUMS still hashes to `6d78bf8b…`.
-
-| | v1 | v2 |
-|---|---|---|
-| Default SFT train / validation | 839,928 / 8,605 | 803,904 / 8,114 |
-| Add-on SFT (GPL/NC sources) | 112,349 | none; ChartQA, IconQA and VisOnlyQA are in default |
-| RL pool / held-out | 119,413 / 6,409 (`math_dapo`, `stem__supergpqa`) | 19,961 / 1,037 (`k2hv_*`) |
-| Pending | 15,486 long-decimal RL rows | 15,107 RL decimals and 242 Nemotron spatial rows |
-| BOS per SFT row | 2 | 1 |
-| Images | 709,353 (99.28 GB) | 547,348 (73.07 GB) |
-
-What drives the differences:
-
-- **Terms policy.** Visual7W, ST-VQA, DocVQA, InfographicVQA, DVQA, ViRL39K, VisualWebInstruct and ThinkLite are pending. That removes about 113k SFT rows and the three largest RL sources.
-- **Unaffected sources.** Scan outputs of CoSyn, CLEVR, TallyQA, TextVQA and VQAv2 are byte-identical to v1. Other sources differ only in `terms`, `status`, the 243 Nemotron spatial rows, or the RL prompt and target fields ([comparison](../evidence/step05/scan-v1-v2.json)).
-- **Unchanged SFT rows.** The 803,646 SFT rows in both builds are identical except for a new `metadata.pending_reason: null` key.
-- **RL targets.** The 1,150 delimited RL targets are fixed. Re-admitting every v1 RL row under the new contract is recorded in [`rl-recheck-v1.json`](../evidence/step05/rl-recheck-v1.json).
 
 ### Artifacts
 
