@@ -6,7 +6,7 @@ Step 04 is complete. Every required gate passed on the local SM120 GPU through t
 
 ## Checkout and runtime
 
-The recert checkout was clean at `7d6df2d4d8894747ae029bcbd805acb3074864bf` on `drop-step-names` (PR #7, stacked on `step05-data`). Every stage records this execution commit and fresh source hashes. The previous proof stays intact under `outputs/step04/recert/`.
+The recert checkout was clean at `7d6df2d4d8894747ae029bcbd805acb3074864bf` on `drop-step-names` (PR #7, targeting `main` now that PR #6 is merged). Every stage records this execution commit and fresh source hashes. The previous proof stays intact under `outputs/step04/recert/`.
 
 Rechecked hardware: RTX PRO 6000 Blackwell Server Edition, SM120, 97887 MiB, driver 595.112.07; x86_64, 16 CPUs, 124 GiB RAM. This is neither Hopper nor SM100.
 
@@ -65,7 +65,7 @@ The archive revision is still `fc1f1c887facf728e2e02a13f9bf9a920af44552`. After 
 
 Additional machine-only assets: init weight assets under `hf/`, source checkpoints under `models/`, both venvs, exact source checkouts, Docker image/container and Rust cache; earlier diagnostic logs and integration/warmup/resume checkpoints under `outputs/step04/miles-sft/{checkpoints,final-checkpoints,resumed-checkpoints,pre-final}`; older cache experiments under `outputs/step04/cache-debug2/`. These historical checkpoints are retained, not substituted for the final proof. Experimental projectors are separate; no model was uploaded. Repository visibility was unchanged (GitHub already reported PUBLIC; the HF archive remains private). Full SFT, RL and bulk preparation were not run.
 
-The task servers and container are stopped, and the container is kept. The Brev instance is still running.
+The task servers and container are stopped, and the container is kept.
 
 Recertification: max logprob error `3.456108970567584e-06`, packed loss error `0.0`, worst overfit loss `1.589457004532354e-07`; teacher forcing and free generation both 64/64; 666 frozen FP32 masters exact. The final checkpoint SHA256 above is from this recert run. The first update's loss moved from 4.66667 to 4.77083 because the PR #6 BOS fix changes the supervised input; the final checkpoint therefore differs from the previous recert.
 
