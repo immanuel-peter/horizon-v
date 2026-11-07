@@ -1,4 +1,4 @@
-"""Step 5 data preparation CLI.
+"""Data preparation CLI.
 
 Stages (each resumable; rerunning skips work whose inputs are unchanged):
   inventory   pin listings, sizes and schemas of every recipe source and evaluation set
@@ -12,7 +12,7 @@ Stages (each resumable; rerunning skips work whose inputs are unchanged):
   verify      re-hash/decode every exported image and check exported rows match validated rows
   build       scan, evals, select, validate, export, materialize and verify in order
   inspect     HTML sheet of exact model inputs and decoded supervision; exclusion pair sheets
-  evidence    compact path-free summary for docs/evidence/step05
+  evidence    compact path-free summary of a build's reports
 """
 
 import argparse
@@ -20,8 +20,8 @@ import os
 import sys
 from pathlib import Path
 
-DEFAULT_RECIPE = "configs/data/step05.toml"
-DEFAULT_ROOT = "data/step05"
+DEFAULT_RECIPE = "configs/data/recipe.toml"
+DEFAULT_ROOT = "data/build"
 
 
 def main(argv=None):
@@ -31,7 +31,7 @@ def main(argv=None):
     parser.add_argument("--recipe", default=DEFAULT_RECIPE)
     parser.add_argument("--data-root", default=os.environ.get("K2HV_DATA_ROOT", DEFAULT_ROOT), help="build/data root (sources, images, work, exports)")
     parser.add_argument("--target-root", help="materialize: absolute root that will hold images/ on the training machine")
-    parser.add_argument("--out", default="docs/evidence/step05", help="evidence: output directory for the compact summary")
+    parser.add_argument("--out", default="outputs/data/evidence", help="evidence: output directory for the compact summary")
     parser.add_argument("--max-shards", type=int, help="scan: stop after this many shards (interruption testing)")
     parser.add_argument("--trace", action="store_true", help="select: also write select/trace/{candidates,edges}.parquet (decision per candidate, edges that formed each group)")
     parser.add_argument("--reuse-validation", action="append", default=[], metavar="BUILD", help="validate: reuse results of an earlier build (e.g. full-v2) for unchanged rows under the same fingerprint")
