@@ -1,12 +1,12 @@
 # Step 04 GPU handoff
 
-Re-certified PR #5 after cleanup at execution commit `19bef3f403d5a70d3a67615651b861471868bc71`. Every GPU stage and the CPU discovery test were rerun without changing hashed sources or thresholds. The report below supersedes the pre-cleanup certification.
+Re-certified on PR #7 (`drop-step-names`) at execution commit `7d6df2d4d8894747ae029bcbd805acb3074864bf`, after the step-name removal and the PR #6 BOS fix changed six hashed compute sources. Every GPU stage and the CPU suite were rerun without changing hashed sources or thresholds. The report below supersedes the previous certification.
 
 Step 04 is complete. Every required gate passed on the local SM120 GPU through the intended HF, native SGLang and real Miles FSDP paths. [The sanitized report](../evidence/step04/report.json) records results, execution commits, source hashes, thresholds and artifact hashes. [Exact rerun commands](../steps/04-gate-checks.md) are separate from the fast CPU suite.
 
 ## Checkout and runtime
 
-The recert checkout was clean at `19bef3f403d5a70d3a67615651b861471868bc71` on `step04-cleanup`, with PR #5 targeting `step04-gpu-gates`. Every stage records this execution commit and fresh source hashes. Earlier proof remains intact under `outputs/step04/final/`.
+The recert checkout was clean at `7d6df2d4d8894747ae029bcbd805acb3074864bf` on `drop-step-names` (PR #7, targeting `main` now that PR #6 is merged). Every stage records this execution commit and fresh source hashes. The previous proof stays intact under `outputs/step04/recert/`.
 
 Rechecked hardware: RTX PRO 6000 Blackwell Server Edition, SM120, 97887 MiB, driver 595.112.07; x86_64, 16 CPUs, 124 GiB RAM. This is neither Hopper nor SM100.
 
@@ -16,7 +16,7 @@ Rechecked hardware: RTX PRO 6000 Blackwell Server Edition, SM120, 97887 MiB, dri
 - SGLang `b8d46f2f309fdada4bbb05ef4e90ac4adf7a3bcf` plus the committed optional tokenizer validation hook; 19 source files audited. No newer revision or CUDA dependency replacement was needed.
 - HF SDPA math, native text `torch_native`, native vision `sdpa`; pinned batch-invariant matrix kernels, BMM override disabled, eager vision RoPE. Observed launch profiles confirm TP=1, unquantized BF16, context 2048, chunk sizes 256/-1, max running requests 1, KV capacity 4096, PIL and reasoning parser `k2_horizon`.
 
-The child venv explicitly exposes the image's `/opt/sglang` packages. Bootstrap with `tools/step04/activate.sh`, the pinned CPU/orchestration requirements and `--no-deps` editable installs; use `UV_NO_SYNC=1`. Do not sync the development lock into this environment. Build the pinned Rust tree-cache extension with `SGLANG_RUST_BUILD_MODE=auto` and Cargo on PATH when recreating the container. The retained container already has that build. Host commands need `env -u LD_LIBRARY_PATH` to avoid the inherited cuDNN conflict.
+The child venv explicitly exposes the image's `/opt/sglang` packages. Bootstrap with `scripts/gates/activate.sh`, the pinned CPU/orchestration requirements and `--no-deps` editable installs; use `UV_NO_SYNC=1`. Do not sync the development lock into this environment. Build the pinned Rust tree-cache extension with `SGLANG_RUST_BUILD_MODE=auto` and Cargo on PATH when recreating the container. The retained container already has that build. Host commands need `env -u LD_LIBRARY_PATH` to avoid the inherited cuDNN conflict.
 
 ## Results
 
@@ -29,9 +29,9 @@ The child venv explicitly exposes the image's `/opt/sglang` packages. Bootstrap 
 | Native vision/preprocessing/insertion | All 12 expanded/raw cases passed; pixels, grids, tower outputs, projected features and decoder embeddings exact; counts, original text IDs, hash offsets and full insertion coverage checked; three malformed cases rejected with HTTP 400 |
 | Packing | Actual Miles get_batch → FSDP2 → actor inputs → SFT loss, packed length 128 versus unpadded length-39 samples: loss error 1.58946e-7; all six projector gradients exact. Controlled same-shape isolation is separately reported |
 | Cache/update | Real pause/begin/tensor-update/end/continue worker session, KV flush, repeated/multiple images and identical pixels with different grids passed. Frozen digest unchanged; feature change 0.2509766; fresh-engine features/logprobs exact; init weights/features reloaded |
-| Real Miles overfit | Fresh 512-update run from init: batch loss 4.66667 → 5.96046e-08; every example <0.05, worst 1.98682e-07; teacher forcing 64/64 and free generation 64/64 |
+| Real Miles overfit | Fresh 512-update run from init: batch loss 4.77083 → -0.0; every example <0.05, worst 1.58946e-07; teacher forcing 64/64 and free generation 64/64 |
 | Training invariants | Six projector tensors trainable; all 512 gradient norms finite/nonzero; 2,048 image-feature backward checks passed; all 666 frozen FP32 checkpoint tensors exactly equal promoted init values before downcast |
-| CPU regression | 163 passed, separate from GPU certification |
+| CPU regression | 281 passed, separate from GPU certification |
 
 Peak GPU allocations: native 22.41 GB, SFT 44.38 GB, full packing verification 75.50 GB. Heavy stages ran sequentially. No tolerance was increased. No required gate remains failed, blocked or unrun.
 
@@ -54,17 +54,19 @@ docker run --name k2hv-step04 --gpus device=0 --ipc=host -d \
   --mount type=bind,src="$PWD",dst=/workspace -w /workspace \
   lmsysorg/sglang@sha256:e3a4f06001a29542fc4a8638536d9ffc5eb9c9942b08603c09b19a56eae4a1ae sleep infinity
 docker exec k2hv-step04 git config --global --add safe.directory '*'
-docker exec k2hv-step04 bash tools/step04/activate.sh python -m k2hv_sglang.check_runtime
+docker exec k2hv-step04 bash scripts/gates/activate.sh python -m k2hv_sglang.check_runtime
 ```
 
 Clone radixark/miles and sgl-project/sglang under the ignored `third_party/` at the pins above. The patch recipes check the revision, patch digest and working-file hashes, and refuse unexpected edits. The [step guide](../steps/04-gate-checks.md) has the sequential commands.
 
 The archive revision is still `fc1f1c887facf728e2e02a13f9bf9a920af44552`. After the experiments, all seven downloaded assets matched the separate archive manifest. The tracked HF code, configs and original random projector stay attached, and the combined 23-file local manifest was regenerated. Independent sources stay pinned to IFM/K2-Horizon-7B `4622f94a6632384784471fd674d5b78f8d527798` and immanuelpeter/GLM-5.3-Flash-Vision `44a87fd4e6e31f5722a375238b7aedce3e0ad2db`.
 
-`report.json` summarizes the machine-only artifacts under `outputs/step04/recert/` (file count, total bytes and a digest of the sorted path and SHA256 list). The final model file is `outputs/step04/recert/miles-checkpoints/iter_0000512/model/__0_0.distcp` (37,748,956,064 bytes, SHA256 `fc6d1d83981271941ad0de637a9a88b5cc23fec5c373e76067ff5b11e80cab54`). Full raw reports and reference payloads stay in the same directory.
+`report.json` summarizes the machine-only artifacts under `outputs/gates/final/` (file count, total bytes and a digest of the sorted path and SHA256 list). The final model file is `outputs/gates/final/miles-checkpoints/iter_0000512/model/__0_0.distcp` (37,748,956,064 bytes, SHA256 `fe486bcc96fa5ec00ee577bd20fc69eded2f606e768dabc4c2c77aa4e6f50888`). Full raw reports and reference payloads stay in the same directory.
 
 Additional machine-only assets: init weight assets under `hf/`, source checkpoints under `models/`, both venvs, exact source checkouts, Docker image/container and Rust cache; earlier diagnostic logs and integration/warmup/resume checkpoints under `outputs/step04/miles-sft/{checkpoints,final-checkpoints,resumed-checkpoints,pre-final}`; older cache experiments under `outputs/step04/cache-debug2/`. These historical checkpoints are retained, not substituted for the final proof. Experimental projectors are separate; no model was uploaded. Repository visibility was unchanged (GitHub already reported PUBLIC; the HF archive remains private). Full SFT, RL and bulk preparation were not run.
 
-The task servers and container are stopped, and the container is kept. The Brev instance is still running.
+The task servers and container are stopped, and the container is kept.
 
-Recertification: max logprob error `3.456108970567584e-06`, packed loss error `1.5894571969710114e-07`, worst overfit loss `1.986821113556895e-07`; teacher forcing and free generation both 64/64; 666 frozen FP32 masters exact. The final checkpoint SHA256 above is from this recert run.
+Recertification: max logprob error `3.456108970567584e-06`, packed loss error `0.0`, worst overfit loss `1.589457004532354e-07`; teacher forcing and free generation both 64/64; 666 frozen FP32 masters exact. The final checkpoint SHA256 above is from this recert run. The first update's loss moved from 4.66667 to 4.77083 because the PR #6 BOS fix changes the supervised input; the final checkpoint therefore differs from the previous recert.
+
+Machine setup for this run: the root disk had 1.1 GB free, so `outputs/gates` is a bind mount of the 1.7 TB instance-store volume (it does not survive a stop of the instance), and `outputs/gates/init` holds a byte copy of the init shards. `hf/K2-Horizon-V-init` itself is unchanged. `cache_gate` hard-links unchanged shards, which cannot cross mounts, so `cache/updated-checkpoint/model-0000{2,3,4}-of-00004.safetensors` were pre-created as hard links to that copy; the gate wrote the changed shard `model-00001-of-00004.safetensors` itself. The archive manifest was copied from `outputs/step04/archive/SHA256SUMS` to the new default `outputs/gates/archive/SHA256SUMS`, and all four init shards were rechecked against it. Two failed attempts of the cache update stage (cross-device link errors) are kept in `outputs/gates/failed-attempts/`. No source file was edited.

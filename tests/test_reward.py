@@ -1,4 +1,4 @@
-"""CPU tests of the k2hv RL final-answer contract. A GPU rollout/reward integration test is separate (step 8)."""
+"""CPU tests of the k2hv RL final-answer contract. A GPU rollout/reward integration test is separate."""
 
 import asyncio
 import time
@@ -85,6 +85,13 @@ def test_parser_never_evaluates_python_and_bounds_work():
     assert time.time() - t < 5
     with pytest.raises(reward.ScoreError):
         reward.to_sympy("__class__")
+
+
+def test_trailing_units_are_dropped_only_when_no_variable_remains():
+    assert reward.normalize("12 cm") == "12"
+    assert reward.normalize("28 in^2") == "28"
+    assert reward.normalize("3m - m^2") == "3m - m^2"
+    assert reward.normalize("x + 3 cm") == "x + 3 cm"
 
 
 def test_choice():

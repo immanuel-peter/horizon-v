@@ -4,6 +4,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+INIT_CHECKPOINT = Path("hf/K2-Horizon-V-init")
+
 
 def capture():
     def git(*args):
@@ -11,7 +13,7 @@ def capture():
 
     sources = {
         str(p): hashlib.sha256(p.read_bytes()).hexdigest()
-        for root in ("src", "hf/K2-Horizon-V-init", "tools/step04")
+        for root in ("src", "hf/K2-Horizon-V-init", "scripts/gates")
         for p in Path(root).rglob("*")
         if p.is_file() and p.suffix in (".py", ".sh", ".patch") and "__pycache__" not in p.parts
     }

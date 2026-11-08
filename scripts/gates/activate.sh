@@ -13,10 +13,10 @@ source .venv-container/bin/activate
 venv_site=$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
 printf '%s\n' "$runtime_site" "$runtime_site/nvidia_cutlass_dsl/dsl_packages" > "$venv_site/image-runtime.pth"
 uv pip install --no-deps -e third_party/miles -e .
-uv pip install --no-deps -r tools/step04/miles-runtime.txt
+uv pip install --no-deps -r scripts/gates/miles-runtime.txt
 uv pip install --no-deps --no-build-isolation -e third_party/sglang-source/python
-python tools/step04/apply_miles_patch.py
-python tools/step04/apply_source_patch.py third_party/sglang-source tools/step04/sglang-source-audit.json tools/step04/sglang-gate.patch
+python scripts/gates/apply_miles_patch.py
+python scripts/gates/apply_source_patch.py third_party/sglang-source scripts/gates/sglang-source-audit.json scripts/gates/sglang-gate.patch
 export SGLANG_EXTERNAL_MODEL_PACKAGE=k2hv_sglang
 export SGLANG_EXTERNAL_MM_MODEL_ARCH=K2HorizonVForConditionalGeneration
 export SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE=k2hv_sglang

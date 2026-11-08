@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw
 from k2hv.data import build, images, overlap, pipeline, runtime, scoring, sources, text
 
 REPO = Path(__file__).resolve().parents[1]
-RECIPE = REPO / "configs/data/step05.toml"
+RECIPE = REPO / "configs/data/recipe.toml"
 HF = REPO / "hf/K2-Horizon-V-init"
 
 
@@ -87,7 +87,6 @@ def test_finevision_answers_are_normalized_without_truncation():
     assert build.sft_turn(src, RULES, "Why?", long)[1:] == (long, "text", "answer_explanation")
     assert build.sft_turn({"adapter": "chartverse_sft", "max_answer_decimals": 2}, RULES, "What share?", "0.21358378184590313")[3] == "answer_unrounded_computation"
     assert build.sft_turn({"adapter": "x", "question_exclude": "(?i)genre"}, RULES, "What is the genre of this book?", "Travel")[3] == "question_excluded_by_source_rule"
-
 
 
 def test_bad_images_are_rejected_with_reasons():
@@ -213,7 +212,6 @@ def test_dedup_key_needs_image_identity_and_split_follows_group():
     assert {uf.find(k) for k in (1, 2, 3)} == {1} and uf.find(0) == 0
 
 
-
 @pytest.mark.parametrize("problem,reference,answer_type,target,selector", [
     ("<image>\nFind x.", "\\boxed{2016}", "numeric", "2016", scoring.MATH),
     ("<image>\nPerimeter?", "\\boxed{20 cm}", "numeric", "20", scoring.MATH),
@@ -285,7 +283,6 @@ def test_rl_prompt_replaces_source_format_instructions():
     p, target, info = build.rl_turn("Which?\nA. cat\nB. dog\nAnswer with the letter inside \\boxed{}.", "B")
     assert p.startswith("<image>\nWhich?") and p.count("<image>") == 1 and target == "B" and "letter of the correct option" in p
     assert build.rl_turn("<image><image> two images", "1")[2]["reason"] == "multi_image_marker"
-
 
 
 @pytest.fixture(scope="module")
@@ -368,7 +365,6 @@ def test_rl_contract(tmp_path, checker):
     assert res["image_tokens"] == images.image_tokens(480, 320, checker.image_config)[0] and res["prompt_tokens"] > res["image_tokens"]
     with pytest.raises(contract.ContractError, match="row_selector"):
         checker.rl({**row, "metadata": {"data_source": "geo3k"}})
-
 
 
 def test_portable_hash_and_materialize_rewrite_only_the_root(tmp_path):
@@ -458,7 +454,6 @@ def test_recipe_is_complete_and_consistent():
     for ds in list(recipe["datasets"].values()) + list(recipe["evals"].values()):
         assert len(ds["revision"]) == 40
     assert set(recipe["evals"]) == {"mmmu_val", "mathvista_testmini", "chartqa_test", "docvqa_val", "textvqa_val", "mmbench_dev", "pope_test"}
-
 
 
 class FakeCoco:

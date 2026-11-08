@@ -1,4 +1,4 @@
-# Step 5 data recipe. Every source, revision, rule, limit, quota and split parameter used by
+# Data recipe. Every source, revision, rule, limit, quota and split parameter used by
 # `python -m k2hv.data` lives here; the recipe hash is recorded in every build manifest.
 # status: include (built and exported), pending (not built until a recorded gap is closed: terms
 # evidence or data integrity), exclude (audited and rejected for quality or fit). terms_note records
@@ -9,7 +9,7 @@
 # Rows inside an included source can be pending too (metadata.pending_reason).
 
 [recipe]
-name = "k2hv-step05"
+name = "k2hv-data"
 version = "v3"
 seed = 20261031
 processor = "hf/K2-Horizon-V-init"
@@ -330,7 +330,7 @@ task = "counting"
 terms = "odc-by"
 terms_note = "allenai/pixmo-count card (Ai2): 'licensed under ODC-BY-1.0. It is intended for research and educational use'. Media: images fetched from their original URLs under each site's terms"
 redistribution = "ODC-BY for the annotations; images not redistributed"
-missing_evidence = "image integrity: no fetched image matches its published image_sha256 (see docs/evidence/step05/pixmo-count.json)"
+missing_evidence = "image integrity: no fetched image matches its published image_sha256"
 # Pilot (923 sampled URLs): 830 fetched with bytes not matching the supplied image_sha256, 29 gone
 # (404/410), 64 rate-limited (429), 0 matched. Pending while image integrity is unverified.
 status = "pending"
@@ -476,7 +476,7 @@ revision = "5c86ea41d624e27e53002af47b8cf4538aa2c88f"
 repo = "hiyouga/geometry3k"
 revision = "fd21e533e1e50d0662a2bf7b223e60511bd5f8b7"
 
-# ---------------------------------------------------------------- evaluation exclusions (step 7)
+# ---------------------------------------------------------------- evaluation exclusions
 [evals.mmmu_val]
 repo = "lmms-lab/MMMU"
 revision = "364f2e2eb107b36e07ff4c5a15f5947a759cef47"

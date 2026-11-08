@@ -33,7 +33,7 @@ def verify(checkpoint, manifest):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", type=Path, default=Path("hf/K2-Horizon-V-init"))
-    parser.add_argument("--manifest", type=Path, default=Path("outputs/step04/archive/SHA256SUMS"))
+    parser.add_argument("--manifest", type=Path, default=Path("outputs/gates/archive/SHA256SUMS"))
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
     result = verify(args.checkpoint, args.manifest)

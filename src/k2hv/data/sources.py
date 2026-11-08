@@ -77,9 +77,6 @@ def one_image(images):
     return data, None if data else "image_missing"
 
 
-# ------------------------------------------------------------------- SFT adapters
-
-
 class FineVision:
     dataset = "finevision"
     columns = ["images", "texts", "visual_dependency_ratings", "image_correspondence_ratings", "relevance_ratings", "formatting_ratings"]
@@ -302,9 +299,6 @@ class NemotronCoco:
                 yield {"row": i, "upstream_id": r["id"], "image": ("zip", "coco_train2017", images[0]) if images else None, "reject": reject, "turns": [turn], "orig_split": "train", "group_hint": None, "external_ids": [f"coco:{int(m.group(1))}"] if m else []}
 
 
-# ------------------------------------------------------------------- RL adapters
-
-
 class ViRL39K:
     dataset = "virl39k"
 
@@ -411,9 +405,6 @@ ADAPTERS = {
     "thinklite": ThinkLite(),
     "geometry3k": Geometry3K(),
 }
-
-
-# ------------------------------------------------------------------- evaluation sets
 
 
 def eval_rows(ctx, name, spec):

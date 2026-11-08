@@ -3,8 +3,7 @@
 import re
 import unicodedata
 
-# Strings that would be split as Miles media placeholders, rejected by the processor or confused with template structure.
-RESERVED = ("<image>", "</image>", "<video>", "<audio>", "reserved_special_token", "<|ifm|", "<ifm|think>", "</ifm|think>", "<think>", "</think>")
+RESERVED_MARKUP = ("<image>", "</image>", "<video>", "<audio>", "reserved_special_token", "<|ifm|", "<ifm|think>", "</ifm|think>", "<think>", "</think>")
 CODE = re.compile(r"(^|\n)\s*(import |from \S+ import |def |class \w+[:(])|```|\bplt\.|\bmatplotlib\b|\bpd\.DataFrame\b|\bnp\.array\(|<\s*(html|div|svg|table)\b|\\begin\{(tikzpicture|tabular|document)\}|\bprint\(", re.I)
 FOLLOW_UP = re.compile(r"\b(previous|preceding|prior|last|earlier) (question|answer|response|turn)s?\b|\b(you|we) (said|mentioned|discussed)\b|\bas (mentioned|discussed|stated) (above|before|earlier)\b|^(and|also|what about|how about)\b", re.I)
 MC_ANSWER = re.compile(r"^(?:answer\s*:\s*)?\(?([A-J])\)?\.?$", re.I)
@@ -28,7 +27,7 @@ def words(text):
 
 
 def reserved(text):
-    return next((r for r in RESERVED if r in text), None)
+    return next((r for r in RESERVED_MARKUP if r in text), None)
 
 
 def strip_period(answer, max_words=8):
