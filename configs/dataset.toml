@@ -1,0 +1,15 @@
+# The standalone vision post-training dataset this repo consumes.
+# Bump revision to move to a new dataset release. Nothing else in the repo
+# should name a dataset revision or export directory.
+[dataset]
+repo = "immanuelpeter/Vision-PT-Data"
+revision = "87767e0986ba0aaaba7bdc1bb35c5f4cf50d7ec8"
+export_dir = "vision-pt-v1"
+local_root = "data/vision-pt"
+
+[buckets]
+sft_train = "default/sft/train"
+sft_validation = "default/sft/validation"
+sft_sweep = "default/sft/sweep50k"
+rl_pool = "default/rl/pool"
+rl_heldout = "default/rl/heldout"

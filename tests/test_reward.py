@@ -113,6 +113,20 @@ def test_decimal_with_stated_precision():
     assert s(D, done("683.6"), "683", {"answer_decimals": 0})["score"] == 0.0
 
 
+def test_neutral_selectors_and_legacy_aliases_score_the_same():
+    cases = [
+        ("math_v1", "k2hv_math_v1", done("\\frac{3}{2}"), "1.5", None, 1.0),
+        ("math_v1", "k2hv_math_v1", done("1.51"), "1.5", None, 0.0),
+        ("choice_v1", "k2hv_choice_v1", done("B"), "B", None, 1.0),
+        ("choice_v1", "k2hv_choice_v1", done("C"), "B", None, 0.0),
+        ("decimal_v1", "k2hv_decimal_v1", done("0.4082"), "0.4082", {"answer_decimals": 4}, 1.0),
+        ("decimal_v1", "k2hv_decimal_v1", done("0.4083"), "0.4082", {"answer_decimals": 4}, 0.0),
+    ]
+    for canonical, legacy, response, label, meta, expected in cases:
+        assert s(canonical, response, label, meta)["score"] == expected, canonical
+        assert s(legacy, response, label, meta) == s(canonical, response, label, meta), legacy
+
+
 def test_no_blanket_tolerance_selector():
     with pytest.raises(ValueError, match="Unsupported"):
         reward.score("pending_numeric_tolerance", done("689.5"), "683.3333333333334")
@@ -156,8 +170,8 @@ def test_miles_entry_point_separates_format_and_infrastructure_failures(monkeypa
     assert [r["score"] for r in run([sample(done("1", "think_fast"), label="1", source=C), sample(done("B", "think_fast"), label="B", source=C)])] == [0.0, 1.0]
 
 
-# Raw targets taken from TIGER-Lab/ViRL39K, russwang/ThinkLite-VL-70k and TIGER-Lab/VisualWebInstruct-verified,
-# classified the way admission does, then scored against correct, equivalent, wrong and near-wrong answers.
+# Admission classification of raw targets lives with the dataset builder; its copy of this
+# suite covers those cases against the same scorer contract.
 REAL_TARGETS = [
     ("\\boxed{\\frac{5\\pi }{4}}", ["\\frac{5\\pi}{4}", "5π/4", "1.25\\pi"], ["\\frac{4\\pi}{5}", "\\frac{5\\pi}{3}", "3.93"]),
     ("\\boxed{y=\\frac{3}{4}x-\\frac{3}{4}}", ["y = \\frac{3}{4}x - \\frac{3}{4}", "\\frac{3x-3}{4}", "0.75x-0.75"], ["\\frac{3}{4}x+\\frac{3}{4}", "\\frac{3}{4}x"]),
@@ -173,11 +187,7 @@ REAL_TARGETS = [
 
 @pytest.mark.parametrize("reference,right,wrong", REAL_TARGETS)
 def test_real_rl_targets(reference, right, wrong):
-    from k2hv.data import scoring
-
-    info = scoring.classify("<image>\nFind the value.", reference)
-    assert info["selector"] == M and info["reason"] is None, info
-    label = info["target"]
+    label = reference[len("\\boxed{"):-1] if reference.startswith("\\boxed{") else reference
     for a in right:
         assert s(M, done(a), label)["score"] == 1.0, a
         assert s(M, done(a, "think_faster"), label, effort="low")["score"] == 1.0, a
@@ -189,21 +199,8 @@ def test_real_rl_targets(reference, right, wrong):
 
 
 def test_real_choice_target():
-    from k2hv.data import scoring
-
-    problem = "<image>\nWhich shape has the largest area?\nA. the circle\nB. the square\nC. the triangle"
-    info = scoring.classify(problem, "\\boxed{B}")
-    assert info["selector"] == C and info["target"] == "B"
     for a in ("B", "(B)", "\\boxed{B}", "B. the square"):
         assert s(C, done(a), "B")["score"] == 1.0, a
     for a in ("C", "A. the circle"):
         assert s(C, done(a), "B")["score"] == 0.0, a
     assert s(C, "B", "B")["outcome"] == "format_unclosed_think"
-
-
-@pytest.mark.parametrize("reference", ["\\boxed{\\dfrac{18}{5}\\ \\unit{}}", "\\boxed{0<x<5}", "200 mph", "12:30 P.M.", "194.6 N.m", "90° - A/2", "C) 64", "(0, 0)", "pi(2*sqrt(e) - 3)", "Answer: 6 \\, \\text{cm}^2"])
-def test_real_targets_the_scorer_cannot_verify_are_not_admitted(reference):
-    from k2hv.data import scoring
-
-    info = scoring.classify("<image>\nFind the value.", reference)
-    assert info["selector"] is None and info["reason"], info

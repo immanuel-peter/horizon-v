@@ -1,8 +1,9 @@
-"""Pinned Miles, qwen-vl-utils and RL360 code used to validate exported rows.
+"""Pinned Miles code loading for the consumer side of this repo.
 
 Importing ``miles.utils.data`` pulls in SGLang through the rollout and chat-template
-packages, so the data stage loads only the functions it needs from the pinned
-checkout and verifies their source hashes. The executed code is the pinned code.
+packages, so only the functions training and its tests need are loaded from the pinned
+checkout, after verifying the checkout commit and the source hashes. The executed code
+is the pinned code. The dataset builder keeps its own fuller copy of this machinery.
 """
 
 import ast
@@ -17,7 +18,7 @@ import types
 from functools import cache
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = Path(__file__).resolve().parents[2]
 
 MILES_COMMIT = "5078ff7cd6387f553db010bb38148a59e9e12cb0"
 MILES_SOURCES = {
@@ -26,25 +27,7 @@ MILES_SOURCES = {
     "miles/utils/types.py": "0a60609a1a3407da1161fe5341d9aa3661d0533c47088bffd84673246ce28cd2",
     "miles/rollout/data_source.py": "ab91c7c94088fb099a3f844a5e22016ce86d8db801535bf4e8e7ea709eb57317",
 }
-RL360_COMMIT = "3e13010e0e47b7d08f19dfb6bdd3ac6d21dc200e"
-RL360_SOURCES = {
-    "src/miles360/reward/math_dapo.py": "fa80849a7942e781c09f123e4e0670f63d45b80365231df1022914f844c8a3ee",
-    "src/miles360/reward/supergpqa.py": "013fa894df95d0bbbae935d3c15641f9a0b866f0ee3b90a02857956f48fbcd7c",
-}
 QWEN_VL_UTILS = "0.0.14"
-
-
-def limit_threads(n=1):
-    for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
-        os.environ[key] = str(n)
-    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-    import torch
-
-    torch.set_num_threads(n)
-    try:
-        torch.set_num_interop_threads(n)
-    except RuntimeError:
-        pass
 
 
 def _checkout(env, default, commit, sources):
@@ -64,6 +47,13 @@ def _function(path, name, namespace):
     node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
     exec(compile(ast.Module([node], []), str(path), "exec"), namespace)
     return namespace[name], ast.get_source_segment(path.read_text(), node)
+
+
+def _class(path, name, namespace):
+    tree = ast.parse(path.read_text())
+    node = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name)
+    exec(compile(ast.Module([node], []), str(path), "exec"), namespace)
+    return namespace[name]
 
 
 @cache
@@ -86,13 +76,6 @@ def miles():
     read_file, _ = _function(data_py, "read_file", ns)
     _, load_source = _function(root / "miles/utils/processing_utils.py", "load_processor", {})
     return types.SimpleNamespace(root=root, build_messages=build_messages, read_file=read_file, process_vision_info=process_vision_info, Sample=Sample, load_processor_source=load_source)
-
-
-def _class(path, name, namespace):
-    tree = ast.parse(path.read_text())
-    node = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name)
-    exec(compile(ast.Module([node], []), str(path), "exec"), namespace)
-    return namespace[name]
 
 
 @cache
@@ -156,45 +139,9 @@ def load_processor(path):
     return proc
 
 
-@cache
-def rl360():
-    root = _checkout("K2HV_RL360_ROOT", "third_party/rl360", RL360_COMMIT, RL360_SOURCES)
-    package = types.ModuleType("k2hv_rl360_reward")
-    package.__path__ = []
-    utils = types.ModuleType("k2hv_rl360_reward.utils")
-    # The scorers' process-based timeout wrapper belongs to RL training; admission tests call the scoring logic directly.
-    utils.timeout_limit = lambda seconds, use_signals=False: (lambda func: func)
-    sys.modules.update({package.__name__: package, utils.__name__: utils})
-    modules = {}
-    for name in ("math_dapo", "supergpqa"):
-        path = root / f"src/miles360/reward/{name}.py"
-        module = types.ModuleType(f"{package.__name__}.{name}")
-        module.__package__ = package.__name__
-        module.__file__ = str(path)
-        sys.modules[module.__name__] = module
-        exec(compile(path.read_text(), str(path), "exec"), module.__dict__)
-        modules[name] = module
-    return types.SimpleNamespace(root=root, **modules)
-
-
-def temp_path(path):
-    """Unique sibling temporary path for an atomic write (unique per process, thread and call)."""
-    import threading
-    import uuid
-
-    path = Path(path)
-    return path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex[:8]}.tmp")
-
-
 def file_sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
-
-
-def processor_fingerprint(path):
-    path = Path(path)
-    names = ["chat_template.jinja", "processor_config.json", "preprocessor_config.json", "tokenizer_config.json", "special_tokens_map.json", "tokenizer.json", "processing_k2_horizon_v.py"]
-    return {name: file_sha256(path / name) for name in names}
