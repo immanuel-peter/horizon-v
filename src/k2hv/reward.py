@@ -10,12 +10,14 @@ Contract, for every selector:
 2. The final answer is the value on the last ``Answer:`` line after the closing tag, or else the last
    ``\\boxed{...}`` there. A boxed value on the ``Answer:`` line is unboxed.
 3. Selectors (``metadata.data_source``):
-   ``k2hv_math_v1``    exact equality after normalization, or exact symbolic equivalence (rationals,
+   ``math_v1``    exact equality after normalization, or exact symbolic equivalence (rationals,
                        roots, pi, single-letter variables) with sympy. ``1/2``, ``\\frac12``,
                        ``\\dfrac{1}{2}`` and ``0.5`` are equal; ``0.33`` and ``\\frac13`` are not.
-   ``k2hv_choice_v1``  the option letter A-J.
-   ``k2hv_decimal_v1`` a number that rounds (half up) to the target at the precision the question
+   ``choice_v1``  the option letter A-J.
+   ``decimal_v1`` a number that rounds (half up) to the target at the precision the question
                        states, given as ``metadata.answer_decimals``.
+   The legacy spellings ``k2hv_math_v1``, ``k2hv_choice_v1`` and ``k2hv_decimal_v1`` from the
+   first dataset build are accepted as aliases for the same three selectors.
 4. Model-format failures score 0 with an ``outcome`` naming the cause. Infrastructure failures
    (aborted or failed rollouts, scorer exceptions) return ``score=None`` so group filters can drop
    the attempt instead of training on a zero. An unknown selector raises.
@@ -30,10 +32,17 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 logger = logging.getLogger(__name__)
 
-MATH = "k2hv_math_v1"
-CHOICE = "k2hv_choice_v1"
-DECIMAL = "k2hv_decimal_v1"
+MATH = "math_v1"
+CHOICE = "choice_v1"
+DECIMAL = "decimal_v1"
 SELECTORS = (MATH, CHOICE, DECIMAL)
+LEGACY_SELECTORS = {"k2hv_math_v1": MATH, "k2hv_choice_v1": CHOICE, "k2hv_decimal_v1": DECIMAL}
+
+
+def canonical_selector(selector):
+    if selector in SELECTORS:
+        return selector
+    return LEGACY_SELECTORS.get(selector)
 
 THINK = {"high": "ifm|think", "medium": "ifm|think_fast", "low": "ifm|think_faster"}
 CLOSE_TAG = re.compile(r"</ifm\|think(?:_fast|_faster)?>")
@@ -363,8 +372,10 @@ def decimal_equal(pred, target, decimals):
 
 def score(selector, response, label, metadata=None, effort=None):
     """Score one response. Returns dict(score, acc, outcome, pred)."""
-    if selector not in SELECTORS:
+    canonical = canonical_selector(selector)
+    if canonical is None:
         raise ValueError(f"Unsupported data_source selector: {selector!r}")
+    selector = canonical
     if not isinstance(response, str):
         return result(None, "infra_no_response")
     region, failure = final_region(response, effort)
@@ -399,7 +410,7 @@ def score_sample(args, sample):
         return result(None, f"infra_{status}")
     meta = sample.metadata if isinstance(sample.metadata, dict) else {}
     selector = meta.get("data_source")
-    if selector not in SELECTORS:
+    if canonical_selector(selector) is None:
         raise ValueError(f"Unsupported data_source selector: {selector!r}")
     try:
         out = score(selector, sample.response, sample.label, meta, _effort(args, sample))

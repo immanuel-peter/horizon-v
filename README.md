@@ -28,8 +28,8 @@ src/k2hv/hf             symlink to hf/K2-Horizon-V-init, importable as k2hv.hf.*
 src/k2hv/               checkpoint builder, verifier and file helpers
 src/k2hv_sglang/        external SGLang model, multimodal processor and runtime checks
 tests/                 CPU tests with tiny configs
-src/k2hv/data/          data preparation (`python -m k2hv.data`)
-configs/data/           data recipe: pinned sources, rules, limits and quotas
+src/k2hv/dataset.py     dataset consumer (`python -m k2hv.dataset fetch|materialize|check`)
+configs/dataset.toml    pinned dataset release this repo consumes
 scripts/gates/          GPU gate scripts, source patches and their audit files
 models/                downloaded source checkpoints, git-ignored
 data/, outputs/         data builds and reports, git-ignored

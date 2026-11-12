@@ -53,7 +53,7 @@ def same(a, b):
 
 @pytest.fixture(scope="module")
 def pinned():
-    from k2hv.data import runtime
+    from k2hv import miles_runtime as runtime
 
     m = runtime.miles()
     proc = runtime.load_processor(HF)
@@ -128,7 +128,7 @@ def test_epochs_and_checkpoint_resume_match_uninterrupted(tmp_path, pinned):
 
 
 def _child(blob, index, queue):
-    from k2hv.data import runtime
+    from k2hv import miles_runtime as runtime
 
     m = runtime.miles()
     ds = pickle.loads(blob)
