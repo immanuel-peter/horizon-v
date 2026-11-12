@@ -1,5 +1,6 @@
 import hashlib
 import json
+from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -31,7 +32,7 @@ def write_export(root):
 
 def test_check_and_materialize(tmp_path):
     edir = write_export(tmp_path)
-    out = dataset.check(tmp_path)
+    out = dataset.check(tmp_path, buckets={"sft_train": "default/sft/train", "rl_pool": "default/rl/pool"})
     assert out["buckets"] == {"default/rl/pool": 1, "default/sft/train": 1}
     assert out["selectors"] == ["math_v1"]
     written = dataset.materialize(tmp_path)
@@ -53,4 +54,48 @@ def test_check_rejects_unknown_selector(tmp_path):
         sums.append(f"{hashlib.sha256(data).hexdigest()}  {rel}")
     (edir / "SHA256SUMS").write_text("\n".join(sums) + "\n")
     with pytest.raises(ValueError, match="unknown RL selectors"):
-        dataset.check(tmp_path)
+        dataset.check(tmp_path, buckets={"sft_train": "default/sft/train", "rl_pool": "default/rl/pool"})
+
+
+def test_check_rejects_missing_configured_bucket(tmp_path):
+    write_export(tmp_path)
+    with pytest.raises(ValueError, match="configured buckets missing"):
+        dataset.check(tmp_path, buckets={"sft_validation": "default/sft/validation"})
+
+
+def test_resolve_root_ignores_cwd(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    pin = dataset.load_pin()
+    assert dataset.resolve_root(pin) == Path(__file__).resolve().parents[1] / "data" / "vision-pt"
+
+
+def make_images_tree(root, payload=b"fake-image-bytes"):
+    import io
+    import tarfile
+
+    shard_dir = root / "images" / "shards"
+    shard_dir.mkdir(parents=True)
+    shard = shard_dir / "images-00000-of-00001.tar"
+    with tarfile.open(shard, "w") as tf:
+        info = tarfile.TarInfo("images/ab/abc.png")
+        info.size = len(payload)
+        tf.addfile(info, io.BytesIO(payload))
+    digest = hashlib.sha256(shard.read_bytes()).hexdigest()
+    (root / "images" / "SHARDS.json").write_text(json.dumps({"images": 1, "shards": [{"shard": "images/shards/images-00000-of-00001.tar", "sha256": digest, "bytes": shard.stat().st_size, "members": 1}]}) + "\n")
+    return shard
+
+
+def test_unpack_images_verifies_and_removes_shard(tmp_path):
+    shard = make_images_tree(tmp_path)
+    dataset.unpack_images(tmp_path)
+    assert (tmp_path / "images" / "ab" / "abc.png").read_bytes() == b"fake-image-bytes"
+    assert not shard.exists()
+
+
+def test_unpack_images_rejects_corrupt_shard(tmp_path):
+    shard = make_images_tree(tmp_path)
+    shard.write_bytes(shard.read_bytes() + b"corruption")
+    with pytest.raises(ValueError, match="shard checksum"):
+        dataset.unpack_images(tmp_path)
+    assert shard.exists()
+    assert not (tmp_path / "images" / "ab" / "abc.png").exists()

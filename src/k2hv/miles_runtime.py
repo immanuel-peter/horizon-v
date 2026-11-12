@@ -46,7 +46,7 @@ def _function(path, name, namespace):
     tree = ast.parse(path.read_text())
     node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
     exec(compile(ast.Module([node], []), str(path), "exec"), namespace)
-    return namespace[name], ast.get_source_segment(path.read_text(), node)
+    return namespace[name]
 
 
 def _class(path, name, namespace):
@@ -71,11 +71,10 @@ def miles():
 
     ns["pq"] = pq
     data_py = root / "miles/utils/data.py"
-    build_messages, _ = _function(data_py, "_build_messages", ns)
+    build_messages = _function(data_py, "_build_messages", ns)
     _function(data_py, "_parse_generalized_path", ns)
-    read_file, _ = _function(data_py, "read_file", ns)
-    _, load_source = _function(root / "miles/utils/processing_utils.py", "load_processor", {})
-    return types.SimpleNamespace(root=root, build_messages=build_messages, read_file=read_file, process_vision_info=process_vision_info, Sample=Sample, load_processor_source=load_source)
+    read_file = _function(data_py, "read_file", ns)
+    return types.SimpleNamespace(root=root, build_messages=build_messages, read_file=read_file, process_vision_info=process_vision_info, Sample=Sample)
 
 
 @cache
@@ -137,11 +136,3 @@ def load_processor(path):
     if isinstance(proc, PreTrainedTokenizerBase) or not isinstance(proc, ProcessorMixin):
         raise RuntimeError("Expected a multimodal processor")
     return proc
-
-
-def file_sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()

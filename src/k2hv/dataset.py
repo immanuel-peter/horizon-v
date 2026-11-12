@@ -6,7 +6,8 @@ the local machine, and runs a light integrity check. Building, overlap
 exclusion and the full verification live with the dataset, not here.
 
 Usage:
-  python -m k2hv.dataset fetch       download the pinned release and unpack images
+  python -m k2hv.dataset fetch       download the pinned release, verify each image shard against
+                                     images/SHARDS.json, unpack it, then remove the shard tar
   python -m k2hv.dataset materialize write Miles Parquet with absolute image paths
   python -m k2hv.dataset check       export checksums, bucket counts, selector values
 """
@@ -24,14 +25,52 @@ import pyarrow.parquet as pq
 ALLOWED_SELECTORS = {"math_v1", "choice_v1", "decimal_v1", "pending_decimal_precision"}
 
 
-def load_pin(path=None):
-    pin_path = Path(path) if path else Path(__file__).resolve().parents[2] / "configs" / "dataset.toml"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def load_config(path=None):
+    pin_path = Path(path) if path else REPO_ROOT / "configs" / "dataset.toml"
     with open(pin_path, "rb") as f:
-        return tomllib.load(f)["dataset"]
+        return tomllib.load(f)
+
+
+def load_pin(path=None):
+    return load_config(path)["dataset"]
+
+
+def resolve_root(pin, root=None):
+    if root:
+        return Path(root)
+    local = Path(pin["local_root"])
+    return local if local.is_absolute() else REPO_ROOT / local
 
 
 def export_root(root, pin):
     return Path(root) / "exports" / pin["export_dir"]
+
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def unpack_images(root):
+    root = Path(root)
+    index = root / "images" / "SHARDS.json"
+    if not index.exists():
+        raise FileNotFoundError(f"downloaded tree at {root} has no images/SHARDS.json")
+    shards = json.loads(index.read_text())["shards"]
+    for entry in shards:
+        shard = root / entry["shard"]
+        if not shard.exists() or shard.stat().st_size != entry["bytes"] or sha256_file(shard) != entry["sha256"]:
+            raise ValueError(f"shard checksum mismatch: {entry['shard']}")
+        with tarfile.open(shard) as tf:
+            tf.extractall(root, filter="data")
+        shard.unlink()
+    return len(shards)
 
 
 def fetch(root, pin):
@@ -39,17 +78,12 @@ def fetch(root, pin):
 
     root = Path(root)
     snapshot_download(repo_id=pin["repo"], repo_type="dataset", revision=pin["revision"], local_dir=root)
-    images = root / "images"
-    if not (images / "SHARDS.json").exists():
-        raise FileNotFoundError(f"downloaded tree at {root} has no images/SHARDS.json")
-    for shard in sorted((images / "shards").glob("*.tar")):
-        with tarfile.open(shard) as tf:
-            tf.extractall(root, filter="data")
+    unpack_images(root)
     return root
 
 
-def materialize(root, target_root=None):
-    pin = load_pin()
+def materialize(root, target_root=None, pin=None):
+    pin = pin or load_pin()
     edir = export_root(root, pin)
     target = Path(target_root or root).resolve()
     written = {}
@@ -65,8 +99,10 @@ def materialize(root, target_root=None):
     return written
 
 
-def check(root):
-    pin = load_pin()
+def check(root, pin=None, buckets=None):
+    pin = pin or load_pin()
+    if buckets is None:
+        buckets = load_config().get("buckets", {})
     edir = export_root(root, pin)
     bad = []
     for line in (edir / "SHA256SUMS").read_text().splitlines():
@@ -77,15 +113,17 @@ def check(root):
     if bad:
         raise ValueError(f"export checksum failures: {bad[:5]}")
     manifest = json.loads((edir / "manifest.json").read_text())
+    missing = sorted(set(buckets.values()) - set(manifest["counts"]))
+    if missing:
+        raise ValueError(f"configured buckets missing from dataset manifest: {missing}")
     counts = {}
     selectors = set()
     for bucket, expected in manifest["counts"].items():
         total = 0
         for path in sorted((edir / "portable" / bucket).glob("*.parquet")):
-            table = pq.read_table(path, columns=["metadata"] if "rl" in bucket else None)
-            total += table.num_rows
+            total += pq.ParquetFile(path).metadata.num_rows
             if "rl" in bucket:
-                selectors.update(m["data_source"] for m in table.column("metadata").to_pylist())
+                selectors.update(m["data_source"] for m in pq.read_table(path, columns=["metadata"]).column("metadata").to_pylist())
         counts[bucket] = total
         if total != expected:
             raise ValueError(f"bucket {bucket}: {total} rows, manifest says {expected}")
@@ -101,16 +139,17 @@ def main(argv=None):
     parser.add_argument("--root", help="local dataset root (default: the pinned local_root)")
     parser.add_argument("--target-root", help="materialize: root that holds images/ on this machine")
     args = parser.parse_args(argv)
-    pin = load_pin()
-    root = Path(args.root) if args.root else Path(pin["local_root"])
+    config = load_config()
+    pin = config["dataset"]
+    root = resolve_root(pin, args.root)
     if args.command == "fetch":
         fetch(root, pin)
         print(f"fetched {pin['repo']}@{pin['revision'][:12]} into {root}")
     elif args.command == "materialize":
-        written = materialize(root, args.target_root)
+        written = materialize(root, args.target_root, pin)
         print(f"materialized {len(written)} files under {export_root(root, pin) / 'miles'}")
     else:
-        print(json.dumps(check(root), indent=1, sort_keys=True))
+        print(json.dumps(check(root, pin, config.get("buckets", {})), indent=1, sort_keys=True))
 
 
 if __name__ == "__main__":
