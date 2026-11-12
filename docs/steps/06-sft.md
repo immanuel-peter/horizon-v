@@ -11,11 +11,13 @@ Train only the projector on short-answer image data with upstream Miles, FSDP an
 | `src/k2hv/packed_attention.py` | Document-sized SDPA calls inside one packed row, with packed linear layers. |
 | `scripts/gates/miles_sft.sh` | The launch that passed the gate. |
 
-The loss covers only the answer and `<|ifm|im_end|>`, excluding prompt, image and empty-thinking tokens. `prepare_sample` tokenizes the rendered template with `add_special_tokens=False`, so a sequence starts with exactly one BOS. Step 4 certified the earlier version, which added a second BOS (found during the dataset build); rerun a short GPU SFT check on the fixed path before a long run. Only the vision tower runs under `no_grad`; the frozen language model passes gradients back to the projector.
+The loss covers only the answer and `<|ifm|im_end|>`, excluding prompt, image and empty-thinking tokens. `prepare_sample` tokenizes the rendered template with `add_special_tokens=False`, so a sequence starts with exactly one BOS. The [PR #7 recertification](../handoff/04-gate-checks.md) includes this correction on the 64-example fixture. Only the vision tower runs under `no_grad`; the frozen language model passes gradients back to the projector.
 
 Do not pass `--apply-chat-template`. Miles would turn `sample.prompt` into a generation-prompt string and lose the assistant turn. With `--multimodal-keys` and no template flag, Miles keeps the message list and fills `sample.multimodal_inputs["images"]`. The row format is on the dataset card, linked from [step 5](05-data.md).
 
 ### Loading the dataset
+
+On the training machine, run `uv run python -m k2hv.dataset fetch`, then `materialize` and `check`. The pin and bucket mapping are in [`configs/dataset.toml`](../../configs/dataset.toml). Set `--prompt-data` to the materialized `sft_train` bucket, use `sft_sweep` for short sweeps, and measure held-out loss on `sft_validation`. Keep the release's split assignments and exclude all pending buckets. These are the existing dataset-client commands; the builder is not needed.
 
 Pinned Miles `Dataset` decodes every image when it is built and keeps it, about 3 MB per row here, which is terabytes for this export. Pass `--data-source-path k2hv.lazy_data.LazyRolloutDataSource`. It keeps the rows as Arrow text and image paths and decodes a sample's images only when `get_samples` returns it. Batching, epochs, the shuffle permutation and data-source checkpoints are the pinned `RolloutDataSource` code. `--prompt-data` can be a directory of export parts, read in sorted order, or a comma-separated list. It refuses `--apply-chat-template`, `--tool-key` and `--rollout-max-prompt-len`; the dataset release already validated every row's length.
 
@@ -25,6 +27,8 @@ CPU evidence (`tests/test_lazy_data.py`; the original comparison run is archived
 - Building it over the 839,928-row v1 training split takes 1.1 s and 614 MB RSS and decodes no image. Each 256-row batch decodes 256 images (about 740 MB of resized RGB) in about 9 s on one thread. After each batch is released, RSS returns to 466 MB above the start across 12 batches, so memory follows the batch, not the corpus.
 
 Not yet shown, and needed in the first GPU run: the source inside Miles's Ray rollout actor with `k2hv.sft_rollout.generate_rollout`, whether samples or pixel tensors are retained after a training step, and whether single-threaded decoding (about 28 rows/s here) keeps up with the trainer. If it does not, decode in parallel inside `get_samples`.
+
+Before the long run, exercise the materialized release through this loader and the real SFT rollout, measure memory and throughput, and verify save/restart behavior. The fixture gates do not certify this bulk-data path.
 
 ### Template compatibility
 
@@ -55,6 +59,7 @@ Measure before committing compute. The gate peaked at 44.4 GB for SFT, 75.5 GB f
 - `python -m k2hv.verify_frozen_master --checkpoint <iter dir> --report <path>` compares every frozen FP32 checkpoint tensor with the promoted init value.
 - Track the training loss from the Miles log and a held-out loss on the validation split from [step 5](05-data.md). `miles_training_report` and `miles_sft_evaluate` depend on the gate's captured fixture, so they are regression checks on the 64 examples, not bulk-run metrics.
 - Confirm the trainable set stays the six projector tensors.
+- Record the model/code revisions, dataset pin and bucket mapping, materialization root, any training subset's selected record IDs and sampling seed, and the run settings. A dataset release change is an input change and must be recorded separately.
 
 ## Export
 

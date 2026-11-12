@@ -22,7 +22,7 @@ Run lmms-eval or VLMEvalKit against the OpenAI-compatible endpoint.
 | MMBench | dev | General perception |
 | POPE | Pin selection | Object hallucination |
 
-Pin the harness version, dataset revisions, exact splits (and POPE selection), image budget, reasoning effort, sampling settings and max tokens before the first run.
+Pin the harness version, dataset revisions, exact splits (and POPE selection), image budget, reasoning effort, sampling settings and max tokens before the first run. Match the benchmark identities and splits against the exclusion record of the training dataset release pinned in `configs/dataset.toml`. If the evaluation material changes, establish its overlap status on the dataset side before claiming it is held out. This repo's dataset client does not perform that audit.
 
 ## Text regression
 
@@ -37,6 +37,7 @@ For each checkpoint, record:
 - benchmark scores at a fixed reasoning effort and max tokens;
 - the reasoning effort, image budget and generation settings used;
 - the checkpoint's provenance, meaning the SFT run, the export hash and the serve command;
+- the training dataset repository, revision and bucket/subset identity from the SFT run;
 - mean response length;
 - the rate of responses whose think block never closes.
 

@@ -12,7 +12,9 @@ uv run python -m k2hv.dataset materialize  # write Miles Parquet with absolute i
 uv run python -m k2hv.dataset check        # export checksums, bucket row counts, RL selector values
 ```
 
-`fetch` downloads into the `local_root` from the pin (`data/vision-pt`, git-ignored) and unpacks the 20 image tar shards there. `materialize` rewrites the portable `images/...` paths in each row to absolute paths under that root and writes the result under `exports/vision-pt-v1/miles/`. Training reads the `miles/` tree. `check` is a light consumer check. The full verification runs on the dataset side before a release is pinned here.
+`fetch` downloads into the configured `local_root`, verifies each image shard against `images/SHARDS.json`, and unpacks it. `materialize` rewrites portable `images/...` paths to absolute paths for this machine under `exports/<export_dir>/miles/`. Resolve the root, export directory and bucket names from `configs/dataset.toml`; training reads the corresponding materialized bucket.
+
+`check` verifies portable export checksums, bucket row counts and RL selectors. It does not rerun image decoding, overlap detection or full row validation. Those checks belong to the dataset release. Run fetch, materialize and check on each training machine, and keep the dataset pin and local materialization root with the experiment record.
 
 The pinned revision was verified from a fresh download on 2026-11-08: all archive checksums passed, and the full verify reported 1,003,854 of 1,003,854 rows with 0 mismatches and 627,987 images with 0 bad images.
 
@@ -27,6 +29,8 @@ The pinned revision was verified from a fresh download on 2026-11-08: all archiv
 | `default/rl/heldout` | Held-out RL prompts in [step 8](08-rl.md) |
 
 The `pending` buckets are not trained on. Each pending row names its reason in `metadata.pending_reason`.
+
+Use the release's existing assignments. The SFT sweep is a subset of SFT train, validation and RL held-out rows stay outside optimizer updates, and RL image groups are reserved from SFT. The dataset card records the grouping and benchmark-exclusion rules. Changing sources, splits or exclusions requires a dataset-side release and a pin update here.
 
 SFT rows are one user and assistant turn with `think` markers for the empty reasoning block. [Step 6](06-sft.md) documents how Miles loads them through `k2hv.lazy_data.LazyRolloutDataSource`.
 
@@ -51,3 +55,5 @@ Use our checkpoint's measured pass rates, not difficulty or pass-rate annotation
 The pipeline that built this data (source audit, overlap exclusion, splits, export and the full verify) lives in the separate `vision-pt-builder` repository, copied out of this repo at the commit that built the current release. Dataset releases are versioned there and on the Hub. This repo records only the pin above.
 
 The earlier in-repo build, its source audit and its build results are preserved in the dataset archive at the previous revision and in git history. Nothing in steps 6 to 9 depends on the builder being present.
+
+The numbered pages are implementation notes that can be removed before publication. Dataset consumption lives in `configs/dataset.toml` and `src/k2hv/dataset.py`; training and reward behavior live in their runtime modules and scripts.
