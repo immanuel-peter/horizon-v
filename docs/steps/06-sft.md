@@ -1,6 +1,6 @@
 # Step 6: Stage 1, projector SFT
 
-Train only the projector on short-answer image data with upstream Miles, FSDP and no rollout engines. [Step 4](04-gate-checks.md) validated this path on the 64-example fixture on one SM120 GPU (real Miles FSDP packing, FP32 projector masters, 512-update overfit). It did not run bulk data, multiple GPUs or any other GPU/attention backend. Everything under "Full run" below is proposed and unmeasured.
+Train only the projector on short-answer image data with upstream Miles, FSDP and no rollout engines. [Step 4](04-gate-checks.md) validated this path on the 64-example fixture on one SM120 GPU (real Miles FSDP packing, FP32 projector masters, 512-update overfit). The [real-data smoke](../handoff/06-sft-smoke.md) then ran the pinned dataset through the same path on one and two GPUs, including save/restart. No full run, LR sweep or quality evaluation has been done.
 
 ## What exists
 
@@ -30,9 +30,7 @@ CPU evidence (`tests/test_lazy_data.py`; the original comparison run is archived
 - Against the pinned eager `Dataset` on a fixture, the lazy source returns the same prompts, images, metadata and order for three shuffled epochs. Save, restart and load reproduce an uninterrupted run, and a pickled dataset rebuilds the same sample in a spawned process.
 - Building it over the 839,928-row v1 training split takes 1.1 s and 614 MB RSS and decodes no image. Each 256-row batch decodes 256 images (about 740 MB of resized RGB) in about 9 s on one thread. After each batch is released, RSS returns to 466 MB above the start across 12 batches, so memory follows the batch, not the corpus.
 
-Not yet shown, and needed in the first GPU run: the source inside Miles's Ray rollout actor with `k2hv.sft_rollout.generate_rollout`, whether samples or pixel tensors are retained after a training step, and whether single-threaded decoding (about 28 rows/s here) keeps up with the trainer. If it does not, decode in parallel inside `get_samples`.
-
-Before the long run, exercise the materialized release through this loader and the real SFT rollout, measure memory and throughput, and verify save/restart behavior. The fixture gates do not certify this bulk-data path.
+The [real-data smoke](../handoff/06-sft-smoke.md) ran the source inside Miles's Ray rollout actor with `k2hv.sft_rollout.generate_rollout`. Decoded images equal the samples requested, three batches at most stay live, and single-threaded decoding (about 35 rows/s) is 10× what two GPUs consume.
 
 ### Template compatibility
 
@@ -42,21 +40,29 @@ The rollout is single-turn with empty thinking. Before extending it to multi-tur
 
 ## Full run
 
-Create a bulk launcher from `scripts/gates/miles_sft.sh` in the step 4 container/environment. Preserve the registration variables, `UV_NO_SYNC=1`, `--attn-implementation sdpa --true-on-policy-mode --gradient-checkpointing` and the SFT loss/rollout flags. Replace the fixture input, run length and save path with the pinned dataset and a separate output directory.
+The [real-data smoke](../handoff/06-sft-smoke.md) ran `scripts/sft/launch.sh` on one and two RTX PRO 6000 GPUs. It exercised lazy loading, packing, frozen masters, save/restart and both two-GPU layouts on 320 subset rows. The launcher keeps the gate's registration variables, `UV_NO_SYNC=1`, `--attn-implementation sdpa --true-on-policy-mode --gradient-checkpointing` and the SFT loss and rollout flags. It never sets `K2HV_MILES_GATE`.
 
-Remove its `K2HV_MILES_GATE` export before using new data: it enables capture hooks and writes sample tensors into the step 4 evidence directory. The script's one actor GPU, 4-sample batch and constant 1e-3 LR are the tested gate settings; the full-run settings below need measurement.
+Measured on that subset (medians):
 
-Proposed settings to sweep, none yet measured on bulk data:
+| Layout | Global / micro batch | Samples/s | Peak reserved per GPU |
+|---|---|---|---|
+| 1 GPU | 64 / 8 | 2.08 | 54.5 GiB |
+| 2 GPUs, FSDP shard | 64 / 8 | 2.82 | 49.8 GiB |
+| 2 GPUs, `--dp-replicate-size 2` | 64 / 8 | 3.53 | 57.5 GiB |
+
+Replicating the frozen weights beats sharding them because the shard layout re-gathers 9.4B FP32 masters over PCIe for every micro-batch. Miles also runs a forward-only log-prob pass that SFT does not use, about a third of each step. A checkpoint is about 37 GiB. Two uninterrupted runs are not bitwise reproducible; restarting from a checkpoint is.
+
+Settings still to choose, none measured for quality:
 
 | Setting | Starting value | Note |
 |---|---|---|
-| LR | 1e-3, cosine to 1e-5 | LLaVA's projector-pretraining value. Sweep {2e-4, 1e-3} on the 50k subset from [step 5](05-data.md). The gate used a constant 1e-3. |
-| Warmup | 3% | Not in `miles_sft.sh`; add the Miles LR flags. |
-| Batch | 256 | Gate used 4. Memory at this size is unmeasured. |
+| LR | 1e-3, cosine to 1e-5 | LLaVA's projector-pretraining value. Sweep {2e-4, 1e-3} on the 50k subset from [step 5](05-data.md). The smoke ran these flags only to exercise the scheduler. |
+| Warmup | 3% | `--lr-warmup-fraction 0.03`. Warmup starts at LR 0, so update 0 does not move the projector. |
+| Batch | 256 | Memory depends on the micro-batch, not the global batch; 64 was the largest global batch run. |
 | Weight decay | 0 | Matches the gate. |
 | Epochs | 1 | |
 
-Measure before committing compute. The gate peaked at 44.4 GB for SFT, 75.5 GB for the full packing check, on 97.9 GB. Time a few hundred steps to get tokens per second, peak memory and the cost of a 256-sample batch, then size the run. Multi-GPU FSDP, other GPUs and `flash_attention_2` are untested here (flash-attn 2/3 are absent from the step 4 image).
+Multi-node, other GPUs and `flash_attention_2` are untested here (flash-attn 2/3 are absent from the step 4 image).
 
 ## Check the result
 
