@@ -10,6 +10,10 @@ Train only the projector on short-answer image data with upstream Miles, FSDP an
 | `src/k2hv/miles_gate_adapter.py` | `K2HorizonVAdapter` freezes everything except the projector, installs packed attention, keeps projector masters in FP32 and sets its FSDP2 precision. |
 | `src/k2hv/packed_attention.py` | Document-sized SDPA calls inside one packed row, with packed linear layers. |
 | `scripts/gates/miles_sft.sh` | The launch that passed the gate. |
+| `scripts/sft/launch.sh` | Real-data launcher: the gate's flags with `LazyRolloutDataSource`, no `K2HV_MILES_GATE` capture hooks and caller-supplied data, batch, schedule and save flags. |
+| `scripts/sft/select_subset.py` | Deterministic stratified subset of the configured SFT buckets for smoke runs. |
+| `src/k2hv/sft_monitor.py` | Optional instrumentation (`K2HV_SFT_MONITOR=<dir>`): per-sample BOS/mask/image checks, decode timing, rollout and trainer memory, projector gradients. |
+| `src/k2hv/sft_eval.py`, `src/k2hv/sft_resume_check.py` | Held-out loss of a checkpoint's projector; control versus restarted-run comparison. |
 
 The loss covers only the answer and `<|ifm|im_end|>`, excluding prompt, image and empty-thinking tokens. `prepare_sample` tokenizes the rendered template with `add_special_tokens=False`, so a sequence starts with exactly one BOS. The [PR #7 recertification](../handoff/04-gate-checks.md) includes this correction on the 64-example fixture. Only the vision tower runs under `no_grad`; the frozen language model passes gradients back to the projector.
 
@@ -19,7 +23,7 @@ Do not pass `--apply-chat-template`. Miles would turn `sample.prompt` into a gen
 
 On the training machine, run `uv run python -m k2hv.dataset fetch`, then `materialize` and `check`. The pin and bucket mapping are in [`configs/dataset.toml`](../../configs/dataset.toml). Set `--prompt-data` to the materialized `sft_train` bucket, use `sft_sweep` for short sweeps, and measure held-out loss on `sft_validation`. Keep the release's split assignments and exclude all pending buckets. These are the existing dataset-client commands; the builder is not needed.
 
-Pinned Miles `Dataset` decodes every image when it is built and keeps it, about 3 MB per row here, which is terabytes for this export. Pass `--data-source-path k2hv.lazy_data.LazyRolloutDataSource`. It keeps the rows as Arrow text and image paths and decodes a sample's images only when `get_samples` returns it. Batching, epochs, the shuffle permutation and data-source checkpoints are the pinned `RolloutDataSource` code. `--prompt-data` can be a directory of export parts, read in sorted order, or a comma-separated list. It refuses `--apply-chat-template`, `--tool-key` and `--rollout-max-prompt-len`; the dataset release already validated every row's length.
+Pinned Miles `Dataset` decodes every image when it is built and keeps it, about 3 MB per row here, which is terabytes for this export. Pass `--data-source-path k2hv.lazy_data.LazyRolloutDataSource`. It keeps the rows as Arrow text and image paths and decodes a sample's images only when `get_samples` returns it. Batching, epochs, the shuffle permutation and data-source checkpoints are the pinned `RolloutDataSource` code. `--prompt-data` can be a directory of export parts, read in sorted order, or a comma-separated list. It refuses `--apply-chat-template`, `--rollout-max-prompt-len` and rows with a tools column; the dataset release already validated every row's length. Pinned Miles defaults `--tool-key` to `tools`, so the source accepts that default when the rows have no such column, as the pinned `Dataset` does.
 
 CPU evidence (`tests/test_lazy_data.py`; the original comparison run is archived with the dataset build):
 

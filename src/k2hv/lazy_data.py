@@ -8,7 +8,7 @@ dataset: rows stay as Arrow text and image paths, and a sample's images are deco
 
 Use with ``--data-source-path k2hv.lazy_data.LazyRolloutDataSource``. ``--prompt-data`` may be a
 Parquet file, a directory of Parquet parts (read in sorted order) or a comma-separated list.
-Supported configuration: ``--multimodal-keys`` without ``--apply-chat-template``, ``--tool-key``
+Supported configuration: ``--multimodal-keys`` without ``--apply-chat-template``, a tools column
 or ``--rollout-max-prompt-len`` (the data pipeline validates every row's length).
 """
 
@@ -139,13 +139,17 @@ class LazyInit:
         if not args.rollout_global_dataset:
             self.dataset = None
             return
-        unsupported = {"apply_chat_template": args.apply_chat_template, "tool_key": args.tool_key, "rollout_max_prompt_len": args.rollout_max_prompt_len}
+        unsupported = {"apply_chat_template": args.apply_chat_template, "rollout_max_prompt_len": args.rollout_max_prompt_len}
         if any(v for v in unsupported.values()):
             raise ValueError(f"LazyRolloutDataSource does not support {[k for k, v in unsupported.items() if v]}")
         self.dataset = LazyDataset(
             args.prompt_data, self.load_processor(args), prompt_key=args.input_key, multimodal_keys=args.multimodal_keys,
             label_key=args.label_key, metadata_key=args.metadata_key, seed=args.rollout_seed, miles=self.miles,
         )
+        # Pinned Miles defaults --tool-key to "tools" and its Dataset reads tools only from rows that have that
+        # key, so only a tools column in the data is unsupported.
+        if args.tool_key and args.tool_key in self.dataset.table.column_names:
+            raise ValueError(f"LazyRolloutDataSource does not support tool_key: rows have a {args.tool_key!r} column")
         if args.rollout_shuffle:
             self.dataset.shuffle(self.epoch_id)
 
