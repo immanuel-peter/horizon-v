@@ -11,3 +11,11 @@ if os.environ.get("K2HV_SFT_MONITOR"):
         wrap_adapter()
     except ImportError:
         pass
+
+if os.environ.get("K2HV_VISION_GEMM", "deepgemm") != "deepgemm":
+    try:
+        from .vision_gemm import wrap_adapter as wrap_vision_gemm
+
+        wrap_vision_gemm()
+    except ImportError:
+        pass

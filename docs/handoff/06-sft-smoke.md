@@ -2,7 +2,7 @@
 
 The real-data projector SFT path runs through pinned Miles, Ray and FSDP2 on one and two SM120 GPUs. It loads the pinned dataset lazily, applies the certified attention, packing and FP32-projector policy, keeps all 666 frozen FP32 masters equal to the promoted init, and saves and restarts exactly. This was a bounded systems smoke of 281 optimizer updates on a 320-row subset. It was not a full run, an LR sweep or a quality evaluation. [The structured report](../evidence/step06/report.json) holds every number below, together with the [selected rows](../evidence/step06/selection.json) and the [control run's per-update log](../evidence/step06/g1-control-steps.csv).
 
-One finding needs attention before a long run. The Miles FSDP path is not bitwise reproducible across processes (see [Reproducibility](#reproducibility)). Restarting from the same checkpoint reproduces the next update bitwise, but two uninterrupted runs drift apart after a few updates.
+The smoke found that the Miles FSDP path was not bitwise reproducible across processes (see [Reproducibility](#reproducibility)). The source was the frozen vision tower's BF16 GEMMs on DeepGEMM's sm120 kernel. The training path now routes those GEMMs to cuBLASLt by default, without split-K, so the tower stays bitwise equal to the pinned HF reference (see [Vision GEMM backend](#vision-gemm-backend)), and restarts at the full-run configuration repeat bitwise.
 
 ## Machine, runtime and inputs
 
@@ -63,7 +63,28 @@ Two uninterrupted Miles runs with the same init, data, seed and flags match bitw
 - Forward hooks that copy every layer's output to the host make 1-GPU runs reproducible for 9 updates instead of 1–2, but do not remove the problem.
 - Packing, token counts and inputs were identical in every case.
 
-The source is somewhere in the pinned Miles trainer path and was not isolated. Training is unaffected. Resume correctness was proven by restarting from the control's own checkpoint (see above), which separates restore errors from this drift. `K2HV_SFT_DETERMINISTIC` and `K2HV_SFT_TRACE` in `src/k2hv/sft_monitor.py` remain as diagnostics.
+Resume correctness was proven by restarting from the control's own checkpoint (see above), which separates restore errors from this drift. `K2HV_SFT_DETERMINISTIC` and `K2HV_SFT_TRACE` in `src/k2hv/sft_monitor.py` remain as diagnostics.
+
+At global batch 256, micro-batch 8 and `--dp-replicate-size 2`, two restarts from the same checkpoint then produced different first-update gradients. Layer-by-layer traces showed the frozen vision tower returning different features for identical inputs before any weight update: 4 to 6 of 256 images per pass pair, first at a BF16 linear on DeepGEMM's sm120 kernel (`attn.qkv`, `mlp.gate_proj` and, later, `mlp.down_proj`), always 16 adjacent rows starting at a multiple of 64, then spread across the image by attention. Isolated repeated DeepGEMM calls on captured inputs did not reproduce it, and the same batches through plain HF are bitwise reproducible. Why DeepGEMM misbehaves inside the full forward was not investigated further.
+
+## Vision GEMM backend
+
+`src/k2hv/vision_gemm.py` sends every vision-tower matmul that meets the pinned DeepGEMM predicate through the same `deep_gemm.bf16_gemm_nn` binding with the library's deterministic flag cleared, which selects cuBLASLt. Where cuBLASLt does not split K it is bitwise equal to DeepGEMM's sm120 kernel. For the `mlp.down_proj` shape (K=4096, N=1024) it splits K at M ≤ 800 rows (scan of M = 4 to 16,384), so the default backend `cublaslt-padded` runs `down_proj` on at least 1,024 rows, zero-padding smaller inputs and slicing the result. Matmuls outside the tower (projector, decoder, loss) keep the pinned DeepGEMM path. Sites are identified by the tower's Linear module names.
+
+`scripts/sft/launch.sh` sets `K2HV_VISION_GEMM=cublaslt-padded` unless the caller sets `cublaslt` (no padding) or `deepgemm` (pinned), and `k2hv/__init__.py` installs it after the adapter's `patch_model`. Every trainer rank logs `k2hv.vision_gemm install {...}` with the backend and per-site routing, and `k2hv.vision_gemm first_forward {...}` with the call counts per site, route and K after the first tower forward. The certified adapter and model sources are unchanged. [The evidence](../evidence/step06/vision-gemm.json) holds the numbers below. Every Miles run restored `outputs/sft-batch256-followup/checkpoints/control-at5` at batch 256, micro-batch 8 and `--dp-replicate-size 2`, whose 21 file hashes were checked before and after.
+
+| Check | Limit | `cublaslt-padded` (default) |
+|---|---|---|
+| Reference agreement: HF encoder with the switch versus the pinned HF reference, all six step 4 fixtures | tower, projector, embeddings `atol=0.05`, `rtol=0.03`; logprob max 0.2, mean 0.03 | PASS, bitwise. Every tower, projector, embedding and token logprob is identical (max error 0). The log shows 240 padded and 96 unpadded `down_proj` calls |
+| Repeatability: real Miles log-prob pass, 5 passes in each of 4 fresh processes, both GPUs | all 256 images and all token logprobs bit-identical in every pass | PASS. 190 of 190 pass pairs are bit-identical on all 256 images, on all 120 per-site Linear output hashes per image and on all 817 token logprobs. The routing counters show every one of the 737,280 tower GEMMs on cuBLASLt, 28,800 of them padded `down_proj` calls. The profiler shows 120 `cutlass_80_tensorop_bf16_*` cuBLASLt kernels and no `deep_gemm::sm120_bf16_gemm_impl` per profiled vision call (both unpadded, M > 800). Pass time is 26.3–27.6 s with the per-site hashing on |
+| Restart: A and B from iteration 5, 4 updates each, A saving after update 2; C2 from that checkpoint, 2 updates | bitwise, else loss 1e-3, grad norm 1e-3 relative, projector 1e-4 | PASS, bitwise. Loss, grad norm and the SHA256 of every projector tensor on both ranks are equal at all 4 updates of A and B and at both updates of C2 versus A's updates 3 and 4. Batch record IDs, LR and loads match. A's update-2 checkpoint keeps all 666 frozen FP32 tensors exact (digest `e7d66180…`) |
+
+Two earlier routes failed and are kept in the evidence:
+
+- `cublaslt` without padding: repeatable (45 of 45 pass pairs bit-identical, versus 35 of 45 differing on DeepGEMM) and restartable bitwise, but it failed reference agreement on four of six fixtures (worst logprob max 1.217, mean 0.099 nats; tower max 0.78). The first difference was block 0's `down_proj`, where cuBLASLt split K.
+- K=1024 sites on cuBLASLt with `down_proj` left on DeepGEMM: reference agreement passed bitwise, but repeatability failed. In 1 of 20 passes, 1 image on rank 0 differed, first at `blocks.13.mlp.down_proj` on DeepGEMM, with 2 token logprobs up to 0.0625 nats apart. So the DeepGEMM fault is not limited to K=1024. The restart check was not run.
+
+The harnesses, logs and per-pass and per-site hashes are under `outputs/sft-unblock/` and `outputs/sft-unblock-2/`. The restart runs saved only A's update-2 checkpoint, which was deleted after the checks.
 
 ## Code revision
 
@@ -77,7 +98,8 @@ The runs used the code committed on `sft-real-data-smoke` (branched from `main` 
 
 ## Code
 
-- `scripts/sft/launch.sh`: the reusable real-data launcher. `K2HV_GPUS` sets the actor GPUs, and the caller passes data, batch, schedule, load and save flags.
+- `scripts/sft/launch.sh`: the reusable real-data launcher. `K2HV_GPUS` sets the actor GPUs, and the caller passes data, batch, schedule, load and save flags. `K2HV_VISION_GEMM` defaults to `cublaslt-padded`.
+- `src/k2hv/vision_gemm.py`: the vision-tower GEMM backend switch, per-site routing counters and its provenance record.
 - `scripts/sft/select_subset.py`: deterministic stratified subset with `selection.json`.
 - `src/k2hv/sft_monitor.py`: enabled by `K2HV_SFT_MONITOR=<dir>`. It wraps the rollout to check and time every sample, and hooks the trainer for per-rank memory and projector gradients. `summarize` and `sample` are CLIs. `k2hv/__init__.py` installs the trainer hooks only when that variable is set, so the certified adapter is unchanged.
 - `src/k2hv/sft_eval.py`: token-weighted held-out loss of a checkpoint's FP32 projector.

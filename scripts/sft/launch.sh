@@ -6,6 +6,7 @@
 # --num-rollout, --rollout-batch-size, --global-batch-size, --micro-batch-size, --seed,
 # --rollout-seed and the LR schedule. K2HV_GPUS sets the actor GPU count (default 1).
 # K2HV_SFT_MONITOR=<dir> enables k2hv.sft_monitor instrumentation (no change to the computation).
+# K2HV_VISION_GEMM selects the vision tower's BF16 GEMM backend (k2hv.vision_gemm): cublaslt-padded (default), cublaslt or deepgemm (pinned).
 set -euo pipefail
 cd /workspace
 source .venv-container/bin/activate
@@ -15,6 +16,8 @@ export UV_NO_SYNC=1 WANDB_MODE=disabled HF_HUB_OFFLINE=1
 export SGLANG_EXTERNAL_MODEL_PACKAGE=k2hv_sglang
 export SGLANG_EXTERNAL_MM_MODEL_ARCH=K2HorizonVForConditionalGeneration
 export SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE=k2hv_sglang
+export K2HV_VISION_GEMM=${K2HV_VISION_GEMM:-cublaslt-padded}
+echo "k2hv launch: K2HV_VISION_GEMM=$K2HV_VISION_GEMM" >&2
 rollout=k2hv.sft_rollout.generate_rollout
 if [[ -n ${K2HV_SFT_MONITOR:-} ]]; then
     rollout=k2hv.sft_monitor.generate_rollout
