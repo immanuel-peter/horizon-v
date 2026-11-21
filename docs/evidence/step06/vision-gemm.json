@@ -1,0 +1,2310 @@
+{
+ "host": "brev-pvj5tzwrv",
+ "container": "k2hv-sft-smoke",
+ "miles": "5078ff7c",
+ "sglang": "b8d46f2f",
+ "backend": "K2HV_VISION_GEMM=cublaslt-padded: every eligible vision-tower BF16 GEMM on cuBLASLt (deep_gemm.bf16_gemm_nn with the deterministic flag cleared); mlp.down_proj (K=4096, N=1024) runs on at least 1024 rows so cuBLASLt never splits K; everything outside the vision tower keeps the pinned DeepGEMM path",
+ "configuration": "rollout/global batch 256, micro-batch 8, --dp-replicate-size 2, GPUs 0,1, restart source outputs/sft-batch256-followup/checkpoints/control-at5 (iteration 5)",
+ "split_k_scan": {
+  "shape": "K=4096, N=1024, M=4..16384 step 4, random BF16 inputs, GPU 0",
+  "cublaslt_differs_from_deepgemm_at_M": [
+   4,
+   800,
+   200
+  ],
+  "differing_after_padding_to_rows": {
+   "256": 200,
+   "512": 200,
+   "1024": 0,
+   "2048": 0,
+   "4096": 0
+  }
+ },
+ "cublaslt_padded": {
+  "check1_reference_agreement": {
+   "reference": "outputs/sft-unblock/check2/hf-ref",
+   "candidate": "outputs/sft-unblock-2/fix2/check2/hf-padded",
+   "limits": {
+    "tower_projected_embeddings": {
+     "atol": 0.05,
+     "rtol": 0.03
+    },
+    "logprob": {
+     "max": 0.2,
+     "mean": 0.03
+    }
+   },
+   "passed": true,
+   "cases": {
+    "square": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "wide": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "tall": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "minimum": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "maximum": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "multiple": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    }
+   },
+   "first_forward_routing": {
+    "backend": "cublaslt-padded",
+    "calls": {
+     "attn.proj|cublaslt|K=1024": 24,
+     "attn.qkv|cublaslt|K=1024": 24,
+     "mlp.down_proj|cublaslt|K=4096": 24,
+     "mlp.gate_proj|cublaslt|K=1024": 24,
+     "mlp.up_proj|cublaslt|K=1024": 24
+    },
+    "deep_gemm_deterministic_default": false,
+    "linear_modules": {
+     "attn.proj": 24,
+     "attn.qkv": 24,
+     "mlp.down_proj": 24,
+     "mlp.gate_proj": 24,
+     "mlp.up_proj": 24
+    },
+    "patched": true,
+    "routing": {
+     "attn.proj": "cublaslt",
+     "attn.qkv": "cublaslt",
+     "mlp.down_proj": "cublaslt-min1024rows",
+     "mlp.gate_proj": "cublaslt",
+     "mlp.up_proj": "cublaslt"
+    },
+    "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+    "tower_forwards": 1
+   }
+  },
+  "check2_repeatability": {
+   "harness": "outputs/sft-unblock-2/probe/k2hv_repeat_probe.py: the real Miles _log_probs pass looped 5 times in each of 4 fresh processes on the restored rollout-5 batch of 256, per-row hash of every model.visual output and one hash per vision Linear call site (120 per image), then one profiled pass (torch.profiler, first vision call per rank), exit before training",
+   "runs": [
+    "pd-p1",
+    "pd-p2",
+    "pd-p3",
+    "pd-p4"
+   ],
+   "passes": 20,
+   "images_per_pass": 256,
+   "reference": "pd-p1 pass 0",
+   "pairwise_images_differing": {
+    "pairs": 190,
+    "pairs_with_any_difference": 0,
+    "max": 0,
+    "histogram": {
+     "0": 190
+    }
+   },
+   "all_bit_identical": true,
+   "sites_per_image": 120,
+   "site_hash_mismatches": 0,
+   "per_pass": [
+    {
+     "run": "pd-p1",
+     "pass": 0,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p1",
+     "pass": 1,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p1",
+     "pass": 2,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p1",
+     "pass": 3,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p1",
+     "pass": 4,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p2",
+     "pass": 0,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p2",
+     "pass": 1,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p2",
+     "pass": 2,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p2",
+     "pass": 3,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p2",
+     "pass": 4,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p3",
+     "pass": 0,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p3",
+     "pass": 1,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p3",
+     "pass": 2,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p3",
+     "pass": 3,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p3",
+     "pass": 4,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p4",
+     "pass": 0,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p4",
+     "pass": 1,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p4",
+     "pass": 2,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p4",
+     "pass": 3,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "pd-p4",
+     "pass": 4,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    }
+   ],
+   "processes": {
+    "pd-p1": {
+     "0": {
+      "pass_s": [
+       28.51,
+       27.56,
+       27.59,
+       27.68,
+       27.71
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "cublaslt-padded",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "cublaslt-min1024rows",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|cublaslt-min1024rows|K=4096": 3888,
+        "mlp.down_proj|cublaslt|K=4096": 14544,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 72,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x128_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x128_64x4_tn_align8::Params)": 24
+      }
+     },
+     "1": {
+      "pass_s": [
+       27.17,
+       26.38,
+       26.35,
+       26.27,
+       26.36
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "cublaslt-padded",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "cublaslt-min1024rows",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|cublaslt-min1024rows|K=4096": 3312,
+        "mlp.down_proj|cublaslt|K=4096": 15120,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8::Params)": 96
+      }
+     }
+    },
+    "pd-p2": {
+     "0": {
+      "pass_s": [
+       28.45,
+       27.65,
+       27.68,
+       27.65,
+       27.67
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "cublaslt-padded",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "cublaslt-min1024rows",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|cublaslt-min1024rows|K=4096": 3888,
+        "mlp.down_proj|cublaslt|K=4096": 14544,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 72,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x128_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x128_64x4_tn_align8::Params)": 24
+      }
+     },
+     "1": {
+      "pass_s": [
+       27.09,
+       26.3,
+       26.33,
+       26.29,
+       26.29
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "cublaslt-padded",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "cublaslt-min1024rows",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|cublaslt-min1024rows|K=4096": 3312,
+        "mlp.down_proj|cublaslt|K=4096": 15120,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8::Params)": 96
+      }
+     }
+    },
+    "pd-p3": {
+     "0": {
+      "pass_s": [
+       28.52,
+       27.71,
+       27.69,
+       27.65,
+       27.69
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "cublaslt-padded",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "cublaslt-min1024rows",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|cublaslt-min1024rows|K=4096": 3888,
+        "mlp.down_proj|cublaslt|K=4096": 14544,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 72,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x128_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x128_64x4_tn_align8::Params)": 24
+      }
+     },
+     "1": {
+      "pass_s": [
+       27.05,
+       26.31,
+       26.36,
+       26.3,
+       26.36
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "cublaslt-padded",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "cublaslt-min1024rows",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|cublaslt-min1024rows|K=4096": 3312,
+        "mlp.down_proj|cublaslt|K=4096": 15120,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8::Params)": 96
+      }
+     }
+    },
+    "pd-p4": {
+     "0": {
+      "pass_s": [
+       28.43,
+       27.52,
+       27.55,
+       27.58,
+       27.52
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "cublaslt-padded",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "cublaslt-min1024rows",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|cublaslt-min1024rows|K=4096": 3888,
+        "mlp.down_proj|cublaslt|K=4096": 14544,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 72,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x128_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x128_64x4_tn_align8::Params)": 24
+      }
+     },
+     "1": {
+      "pass_s": [
+       27.01,
+       26.25,
+       26.27,
+       26.29,
+       26.3
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "cublaslt-padded",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "cublaslt-min1024rows",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|cublaslt-min1024rows|K=4096": 3312,
+        "mlp.down_proj|cublaslt|K=4096": 15120,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8::Params)": 96
+      }
+     }
+    }
+   }
+  },
+  "check3_restart": {
+   "tolerances": {
+    "loss_abs": 0.001,
+    "grad_norm_rel": 0.001,
+    "projector_max_abs": 0.0001,
+    "projector_rel_frobenius": 0.0001,
+    "adam_moment_rel_frobenius": 0.001
+   },
+   "A_vs_B": {
+    "restart": 5,
+    "final_exclusive": 9,
+    "logs": {
+     "steps": [
+      {
+       "step": 5,
+       "loss": [
+        3.2,
+        3.2
+       ],
+       "grad_norm": [
+        32.73576736450195,
+        32.73576736450195
+       ],
+       "lr": [
+        6.408202499198975e-05,
+        6.408202499198975e-05
+       ],
+       "loss_ok": true,
+       "grad_norm_ok": true,
+       "lr_exact": true,
+       "exact": true
+      },
+      {
+       "step": 6,
+       "loss": [
+        3.02,
+        3.02
+       ],
+       "grad_norm": [
+        39.49687576293945,
+        39.49687576293945
+       ],
+       "lr": [
+        7.476236249065471e-05,
+        7.476236249065471e-05
+       ],
+       "loss_ok": true,
+       "grad_norm_ok": true,
+       "lr_exact": true,
+       "exact": true
+      },
+      {
+       "step": 7,
+       "loss": [
+        2.7121951219512197,
+        2.7121951219512197
+       ],
+       "grad_norm": [
+        8.389240264892578,
+        8.389240264892578
+       ],
+       "lr": [
+        8.544269998931967e-05,
+        8.544269998931967e-05
+       ],
+       "loss_ok": true,
+       "grad_norm_ok": true,
+       "lr_exact": true,
+       "exact": true
+      },
+      {
+       "step": 8,
+       "loss": [
+        2.267379679144385,
+        2.267379679144385
+       ],
+       "grad_norm": [
+        5.606031894683838,
+        5.606031894683838
+       ],
+       "lr": [
+        9.612303748798464e-05,
+        9.612303748798464e-05
+       ],
+       "loss_ok": true,
+       "grad_norm_ok": true,
+       "lr_exact": true,
+       "exact": true
+      }
+     ],
+     "all_steps_present": true,
+     "loss_within_tolerance": true,
+     "grad_norm_within_tolerance": true,
+     "lr_exact": true,
+     "losses_bitwise_equal": true,
+     "first_resumed_step": {
+      "step": 5,
+      "loss": [
+       3.2,
+       3.2
+      ],
+      "grad_norm": [
+       32.73576736450195,
+       32.73576736450195
+      ],
+      "lr": [
+       6.408202499198975e-05,
+       6.408202499198975e-05
+      ],
+      "loss_ok": true,
+      "grad_norm_ok": true,
+      "lr_exact": true,
+      "exact": true
+     },
+     "batch_ids_equal": {
+      "6": true,
+      "7": true,
+      "8": true
+     },
+     "resumed_trained_before_restart": [],
+     "resume_loads": {
+      "model": true,
+      "optimizer": true,
+      "LR scheduler": true
+     },
+     "passed": true
+    },
+    "projector_by_update": {
+     "5": {
+      "projector_bitwise_equal": true,
+      "ranks_agree": true,
+      "grad_norm_hex": [
+       "0x1.05e2da0000000p+5",
+       "0x1.05e2da0000000p+5"
+      ]
+     },
+     "6": {
+      "projector_bitwise_equal": true,
+      "ranks_agree": true,
+      "grad_norm_hex": [
+       "0x1.3bf99a0000000p+5",
+       "0x1.3bf99a0000000p+5"
+      ]
+     },
+     "7": {
+      "projector_bitwise_equal": true,
+      "ranks_agree": true,
+      "grad_norm_hex": [
+       "0x1.0c74a80000000p+3",
+       "0x1.0c74a80000000p+3"
+      ]
+     },
+     "8": {
+      "projector_bitwise_equal": true,
+      "ranks_agree": true,
+      "grad_norm_hex": [
+       "0x1.66c93a0000000p+2",
+       "0x1.66c93a0000000p+2"
+      ]
+     }
+    },
+    "bitwise": true,
+    "within_declared_bounds": true,
+    "passed": true
+   },
+   "A_vs_C2": {
+    "restart": 7,
+    "final_exclusive": 9,
+    "logs": {
+     "steps": [
+      {
+       "step": 7,
+       "loss": [
+        2.7121951219512197,
+        2.7121951219512197
+       ],
+       "grad_norm": [
+        8.389240264892578,
+        8.389240264892578
+       ],
+       "lr": [
+        8.544269998931967e-05,
+        8.544269998931967e-05
+       ],
+       "loss_ok": true,
+       "grad_norm_ok": true,
+       "lr_exact": true,
+       "exact": true
+      },
+      {
+       "step": 8,
+       "loss": [
+        2.267379679144385,
+        2.267379679144385
+       ],
+       "grad_norm": [
+        5.606031894683838,
+        5.606031894683838
+       ],
+       "lr": [
+        9.612303748798464e-05,
+        9.612303748798464e-05
+       ],
+       "loss_ok": true,
+       "grad_norm_ok": true,
+       "lr_exact": true,
+       "exact": true
+      }
+     ],
+     "all_steps_present": true,
+     "loss_within_tolerance": true,
+     "grad_norm_within_tolerance": true,
+     "lr_exact": true,
+     "losses_bitwise_equal": true,
+     "first_resumed_step": {
+      "step": 7,
+      "loss": [
+       2.7121951219512197,
+       2.7121951219512197
+      ],
+      "grad_norm": [
+       8.389240264892578,
+       8.389240264892578
+      ],
+      "lr": [
+       8.544269998931967e-05,
+       8.544269998931967e-05
+      ],
+      "loss_ok": true,
+      "grad_norm_ok": true,
+      "lr_exact": true,
+      "exact": true
+     },
+     "batch_ids_equal": {
+      "8": true
+     },
+     "resumed_trained_before_restart": [],
+     "resume_loads": {
+      "model": true,
+      "optimizer": true,
+      "LR scheduler": true
+     },
+     "passed": true
+    },
+    "projector_by_update": {
+     "7": {
+      "projector_bitwise_equal": true,
+      "ranks_agree": true,
+      "grad_norm_hex": [
+       "0x1.0c74a80000000p+3",
+       "0x1.0c74a80000000p+3"
+      ]
+     },
+     "8": {
+      "projector_bitwise_equal": true,
+      "ranks_agree": true,
+      "grad_norm_hex": [
+       "0x1.66c93a0000000p+2",
+       "0x1.66c93a0000000p+2"
+      ]
+     }
+    },
+    "bitwise": true,
+    "within_declared_bounds": true,
+    "passed": true
+   },
+   "passed": true
+  },
+  "frozen_master": {
+   "provenance": {
+    "commit": "4f67da9cd9ae750dd178088dbf4ded82775364c2",
+    "dirty": true,
+    "utc": "2026-11-20T21:28:51.093533+00:00",
+    "source_sha256": {
+     "src/k2hv_sglang/input_layout.py": "7b45c47973b4059431f42f6ddf3e7451c7d438f5a1e6c805a2a39fbeee31d9b1",
+     "src/k2hv_sglang/native_gates.py": "3d2aa6c18eb3d86f9b874500b630e947bdfd1262afa1e8effe3aa7b4c10e1a9c",
+     "src/k2hv_sglang/k2_horizon_v.py": "e7caf8d2089896fade424c64abbe4da350d86a077a580043e81832a89500b381",
+     "src/k2hv_sglang/smoke.py": "d70bf6a8833b73665dcb07972a73e66fc3d563c838684c9d6b178111a254a2ab",
+     "src/k2hv_sglang/__init__.py": "1b40f191ac05b61f868913986e98f7d5281ebfac43bc928e8d9762131e95fcff",
+     "src/k2hv_sglang/processor.py": "e3b0aec49344674c99f0cc8c28e16b5c60de1a4f6ee959c7a1038591fb56094c",
+     "src/k2hv_sglang/vision_reference.py": "d415651b87e27af071e42354e7aeb38e7610f4b289c65674ff2f08ce7af25874",
+     "src/k2hv_sglang/logprob_gate.py": "6c2b6cc487df1d169541dc15a22bb7b83e0dcc50ddc00087da5bdb6ad05f35db",
+     "src/k2hv_sglang/gate_trace.py": "8ec2d3ca64daeaefb327129204cf64ac795bfe566bc06606deb84d4578b879cf",
+     "src/k2hv_sglang/runtime.py": "19c06c8aed024e1aa356a5c8abaa37109c6034eaac6d943162978cb1cb39a6db",
+     "src/k2hv_sglang/text_reference.py": "2cb39dd26ff392f2f8addec38ac189ca03aa283a10c8a920fce6f7580b79691f",
+     "src/k2hv_sglang/check_runtime.py": "2ad2f642cd35df923b0873a5c9e362793e106e29ed6c65a09e5376a3ca1d2417",
+     "src/k2hv_sglang/cache_gate.py": "0099932804790914a1ed0adb7e91f484e6527d5b6b170b99b369b3207a59660a",
+     "src/k2hv/miles_gate_adapter.py": "92a195171f2161a7077028cdda8cb9f172c3f87685edc57d2ab1d5c0b82b02b0",
+     "src/k2hv/miles_training_report.py": "8f53460a72bb7c2816a9962941a8496e121cf114979a0fb0617cced8435d8d47",
+     "src/k2hv/verify_init.py": "00b25ee598a963043c75acd219546d88d2a512113fa43284d1b8e85f51997c79",
+     "src/k2hv/sft_rollout.py": "2c794a93d7b39faf0bf4f253af587083dad49ce4f2c4cfa043e1ef3270b985e3",
+     "src/k2hv/build_init.py": "b7e6907b78c4741cdc2fa1e511eb41f1a97c11f100e35745653392a4fc2a0ff1",
+     "src/k2hv/sft_monitor.py": "33db97133f708fff178463c0194f04d259fffecb893b48d589ca91051d8ea9c3",
+     "src/k2hv/miles_runtime.py": "5a49d7426b9754ef9cbed9f8ab038c17c9b10e30f076d85d3586df191b084e34",
+     "src/k2hv/gate_training.py": "f01f1731cd9621a9ee8e2cf26b99f3860c169bae5a2e7d169755c1b4761cb1d4",
+     "src/k2hv/gpu_numerics.py": "a9f1943b9d67b36d2e2377bc6950920504c5548455c364477e298c8bfceb7b5d",
+     "src/k2hv/sft_eval.py": "7a84fe03bd5f07f1326dfa4a61b99b036465659c0a65ab5891a35cb4a224e4a7",
+     "src/k2hv/verify_frozen_master.py": "8e0c58d7b74abc8f6e3b612eca0035113f1defc30c3205890b93204a6ff2809d",
+     "src/k2hv/vision_gemm.py": "1bfbc1e68bd8f332c76a3207a376500d9ec9e2a188e8ca63b238446399faabd7",
+     "src/k2hv/__init__.py": "5a04513dc925df92c605f18017bf1586475bd62b9d258b0c6dda0386e43b1c62",
+     "src/k2hv/gate_provenance.py": "c3e0f23f1dab7b74bfc78b98da4bead94db1f9a42e29a18900f0c46ec5c26270",
+     "src/k2hv/lazy_data.py": "35f9f4027f9d5f090c2e7f544214401542b0f78930b94e6405cdcfaed13b944e",
+     "src/k2hv/gate_report.py": "21b6cbf890fc8f1e1f081b475c690f18942fcf38b89c433d429d3d7c6fae0aa2",
+     "src/k2hv/gpu_gates.py": "aae6d2e82b9744f552ab713e62e4a81511ce5f9dc0becf38068901df255af996",
+     "src/k2hv/miles_packing_gate.py": "5973d6afc407d3385faea14a3fe5decd94aeee36ee5dc895468a4428ea390529",
+     "src/k2hv/reward.py": "a44c39429078e73fa9f2f840fb6a2f5c5261828377a95b17edfe9742126a7476",
+     "src/k2hv/packed_attention.py": "50fcabc3c9c5c23e326a9960b8a94b8da584768108b5e378d14501a42c84c5ce",
+     "src/k2hv/miles_sft_evaluate.py": "0e123bb1312ac4f844c1d2a9c3d0b36e29d5d275c0e6c03ad308d17a2e215864",
+     "src/k2hv/dataset.py": "fce149c0e532a78ae6426a27d2050b386ea39278792c6723f61486eb91800372",
+     "src/k2hv/checkpoint_io.py": "6c5a60e00c9f2b4bc5169be9f984ce9a81b7b5879b50eae9e1b63e9c9563d5d9",
+     "src/k2hv/sft_resume_check.py": "1fe5f30369cc266902729954f9efc1c8766e26a57ccedf94b46b93efc17bbc6a",
+     "src/k2hv/processor_assets.py": "51f96f9a642e4e7252db6ca0ba71c6d8b98e50b44838327de0abed913e280a6e",
+     "hf/K2-Horizon-V-init/modeling_k2_horizon_v.py": "302991dc4eac2c61b5906065aaf183cce2846d521ab6345bdbd015c4f7f5e190",
+     "hf/K2-Horizon-V-init/processing_k2_horizon_v.py": "463a5269b426979fe0b31fcee45dbf2a20ee93353fc3920839d5fb34079c5c50",
+     "hf/K2-Horizon-V-init/configuration_k2_horizon_v.py": "35e7f41051315f43fa4b31aafe6fae7e1ff6bc67266d044f9e6744718ced35a7",
+     "hf/K2-Horizon-V-init/modeling_k2_horizon.py": "fb09e010956bd51cfa7d4055b4381cff34c9e06164066b49e3546f38b2e6242f",
+     "hf/K2-Horizon-V-init/configuration_k2_horizon.py": "5c2f993c1053d9462ebea6dea416c897fddfbb4a5edd904e486936b20d4badc5",
+     "scripts/gates/sglang-gate.patch": "5b238df815770a91ec61e5d891021cc4e50b54ac69af128a01e0df9b78b0cb3e",
+     "scripts/gates/prepare_sft.py": "9650f2f385cd7c94d3d06cd3724e15b9d3f978756c821513a642b5f70c839dbb",
+     "scripts/gates/miles_sft.sh": "2499d88ec48dd8ea1be8f8f613a92c83888fcae2dd7d09d5667fa6b6eda7fe53",
+     "scripts/gates/activate.sh": "acf169c2fdce6f93f27d7e8d91024e7a0233e030f5549c25be46dd48b8b6c532",
+     "scripts/gates/miles-gate.patch": "f5dec690c0dc033eb070d1a2a741e8ca8ad748e6ad036647403b6d53a3c3d39e",
+     "scripts/gates/probe.py": "5aeab18c7d4074ff147f82cdb530d6f016cda142575b9ed72737f0e660e4cf26",
+     "scripts/gates/apply_miles_patch.py": "54e77ad2cf22f58021cd27dceafa76ded64e899dfd87f14212d92e93a18a0a91",
+     "scripts/gates/capture_runtime.py": "22c4fa02f650cc985d6948e78a0e8974f786d8831d8d26a781226b966ab3540a",
+     "scripts/gates/verify_archive.py": "c7f786a4558c589f78936ef391cf0e9281df3936f0aa406fd5ec565d16a7e4bb",
+     "scripts/gates/apply_source_patch.py": "2bebce43af269570a798cfde3a12c896baac77f89c4f6496ac2e62c49bfba54e",
+     "scripts/gates/serve.sh": "b3e220e712592052985cd6c71b56b9ccfead42020c498bd225674f56a5164828"
+    },
+    "packages": {
+     "torch": "2.14.1+cu130",
+     "transformers": "5.19.0",
+     "sglang": "0.5.24.dev61+gb8d46f2f3",
+     "triton": "3.8.0",
+     "ray": "2.58.0",
+     "pillow": "13.0.0",
+     "safetensors": "0.8.0",
+     "flashinfer-python": "0.7.1"
+    }
+   },
+   "passed": true,
+   "frozen_tensors_checked": 666,
+   "comparison": "exact FP32 checkpoint values versus archived BF16 values promoted to FP32, before any downcast",
+   "sha256": "e7d66180256dcc0c00d0ee8a066bd8de5e276766e5a67d7172abf8e8306376b8",
+   "peak_host_rss_bytes": 48464371712
+  }
+ },
+ "failed_hybrid": {
+  "note": "K2HV_VISION_GEMM=hybrid (uncommitted): K=1024 sites on cuBLASLt, mlp.down_proj on DeepGEMM. Reference agreement passed bitwise; repeatability failed: 1 of 20 passes had 1 image differ, first at blocks.13.mlp.down_proj on DeepGEMM. Check 3 was not run.",
+  "check1_reference_agreement": {
+   "reference": "outputs/sft-unblock/check2/hf-ref",
+   "candidate": "outputs/sft-unblock-2/check2/hf-hybrid",
+   "limits": {
+    "tower_projected_embeddings": {
+     "atol": 0.05,
+     "rtol": 0.03
+    },
+    "logprob": {
+     "max": 0.2,
+     "mean": 0.03
+    }
+   },
+   "passed": true,
+   "cases": {
+    "square": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "wide": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "tall": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "minimum": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "maximum": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "multiple": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    }
+   },
+   "first_forward_routing": {
+    "backend": "hybrid",
+    "calls": {
+     "attn.proj|cublaslt|K=1024": 24,
+     "attn.qkv|cublaslt|K=1024": 24,
+     "mlp.down_proj|deepgemm|K=4096": 24,
+     "mlp.gate_proj|cublaslt|K=1024": 24,
+     "mlp.up_proj|cublaslt|K=1024": 24
+    },
+    "deep_gemm_deterministic_default": false,
+    "linear_modules": {
+     "attn.proj": 24,
+     "attn.qkv": 24,
+     "mlp.down_proj": 24,
+     "mlp.gate_proj": 24,
+     "mlp.up_proj": 24
+    },
+    "patched": true,
+    "routing": {
+     "attn.proj": "cublaslt",
+     "attn.qkv": "cublaslt",
+     "mlp.down_proj": "deepgemm",
+     "mlp.gate_proj": "cublaslt",
+     "mlp.up_proj": "cublaslt"
+    },
+    "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+    "tower_forwards": 1
+   }
+  },
+  "check2_repeatability": {
+   "runs": [
+    "hy-p1",
+    "hy-p2",
+    "hy-p3",
+    "hy-p4"
+   ],
+   "passes": 20,
+   "images_per_pass": 256,
+   "reference": "hy-p1 pass 0",
+   "pairwise_images_differing": {
+    "pairs": 190,
+    "pairs_with_any_difference": 19,
+    "max": 1,
+    "histogram": {
+     "0": 171,
+     "1": 19
+    }
+   },
+   "all_bit_identical": false,
+   "sites_per_image": 120,
+   "site_hash_mismatches": 1,
+   "per_pass": [
+    {
+     "run": "hy-p1",
+     "pass": 0,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p1",
+     "pass": 1,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p1",
+     "pass": 2,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p1",
+     "pass": 3,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p1",
+     "pass": 4,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p2",
+     "pass": 0,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p2",
+     "pass": 1,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p2",
+     "pass": 2,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p2",
+     "pass": 3,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p2",
+     "pass": 4,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p3",
+     "pass": 0,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p3",
+     "pass": 1,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p3",
+     "pass": 2,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p3",
+     "pass": 3,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p3",
+     "pass": 4,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p4",
+     "pass": 0,
+     "images_differing": 1,
+     "differing": [
+      {
+       "rank": 0,
+       "image": 64,
+       "rows": 3772,
+       "differing_rows": [
+        0,
+        3771,
+        3772
+       ],
+       "first_differing_site": "blocks.13.mlp.down_proj"
+      }
+     ],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 409,
+       "tokens": 411,
+       "max_abs": 0.0625,
+       "mean_abs": 0.00023285431961994618
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p4",
+     "pass": 1,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p4",
+     "pass": 2,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p4",
+     "pass": 3,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    },
+    {
+     "run": "hy-p4",
+     "pass": 4,
+     "images_differing": 0,
+     "differing": [],
+     "token_logprobs_vs_reference": {
+      "0": {
+       "bit_equal": 411,
+       "tokens": 411,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      },
+      "1": {
+       "bit_equal": 406,
+       "tokens": 406,
+       "max_abs": 0.0,
+       "mean_abs": 0.0
+      }
+     }
+    }
+   ],
+   "processes": {
+    "hy-p1": {
+     "0": {
+      "pass_s": [
+       28.44,
+       27.56,
+       27.64,
+       27.64,
+       27.59
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "hybrid",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "deepgemm",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|deepgemm|K=4096": 18432,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 72,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8::Params)": 24,
+       "void deep_gemm::sm120_bf16_gemm_impl<0u, 0u, 0u, 1u, 128u, 64u, 64u, 128u, 128u, 128u, 3u, 128u, 256u, 188u, (deep_gemm::GemmType)0, false, cutlass::bfloat16_t, deep_gemm::epilogue::transform::EpilogueIdentity, true, 1u>(cutlass::bfloat16_t*, cutlass::bfloat16_t const*, cutlass::bfloat16_t*, cutlass::bfloat16_t*, int*, CUtensorMap_st*, unsigned int, unsigned int, unsigned int, CUtensorMap_st, CUtensorMap_st, CUtensorMap_st)": 24
+      }
+     },
+     "1": {
+      "pass_s": [
+       27.04,
+       26.31,
+       26.36,
+       26.32,
+       26.3
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "hybrid",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "deepgemm",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|deepgemm|K=4096": 18432,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8::Params)": 72,
+       "void deep_gemm::sm120_bf16_gemm_impl<0u, 0u, 0u, 1u, 128u, 96u, 64u, 128u, 128u, 128u, 3u, 128u, 256u, 188u, (deep_gemm::GemmType)0, false, cutlass::bfloat16_t, deep_gemm::epilogue::transform::EpilogueIdentity, true, 1u>(cutlass::bfloat16_t*, cutlass::bfloat16_t const*, cutlass::bfloat16_t*, cutlass::bfloat16_t*, int*, CUtensorMap_st*, unsigned int, unsigned int, unsigned int, CUtensorMap_st, CUtensorMap_st, CUtensorMap_st)": 24
+      }
+     }
+    },
+    "hy-p2": {
+     "0": {
+      "pass_s": [
+       28.33,
+       27.68,
+       27.71,
+       27.63,
+       27.63
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "hybrid",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "deepgemm",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|deepgemm|K=4096": 18432,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 72,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8::Params)": 24,
+       "void deep_gemm::sm120_bf16_gemm_impl<0u, 0u, 0u, 1u, 128u, 64u, 64u, 128u, 128u, 128u, 3u, 128u, 256u, 188u, (deep_gemm::GemmType)0, false, cutlass::bfloat16_t, deep_gemm::epilogue::transform::EpilogueIdentity, true, 1u>(cutlass::bfloat16_t*, cutlass::bfloat16_t const*, cutlass::bfloat16_t*, cutlass::bfloat16_t*, int*, CUtensorMap_st*, unsigned int, unsigned int, unsigned int, CUtensorMap_st, CUtensorMap_st, CUtensorMap_st)": 24
+      }
+     },
+     "1": {
+      "pass_s": [
+       26.95,
+       26.29,
+       26.27,
+       26.28,
+       26.31
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "hybrid",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "deepgemm",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|deepgemm|K=4096": 18432,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8::Params)": 72,
+       "void deep_gemm::sm120_bf16_gemm_impl<0u, 0u, 0u, 1u, 128u, 96u, 64u, 128u, 128u, 128u, 3u, 128u, 256u, 188u, (deep_gemm::GemmType)0, false, cutlass::bfloat16_t, deep_gemm::epilogue::transform::EpilogueIdentity, true, 1u>(cutlass::bfloat16_t*, cutlass::bfloat16_t const*, cutlass::bfloat16_t*, cutlass::bfloat16_t*, int*, CUtensorMap_st*, unsigned int, unsigned int, unsigned int, CUtensorMap_st, CUtensorMap_st, CUtensorMap_st)": 24
+      }
+     }
+    },
+    "hy-p3": {
+     "0": {
+      "pass_s": [
+       28.49,
+       27.68,
+       27.63,
+       27.65,
+       27.71
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "hybrid",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "deepgemm",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|deepgemm|K=4096": 18432,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 72,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8::Params)": 24,
+       "void deep_gemm::sm120_bf16_gemm_impl<0u, 0u, 0u, 1u, 128u, 64u, 64u, 128u, 128u, 128u, 3u, 128u, 256u, 188u, (deep_gemm::GemmType)0, false, cutlass::bfloat16_t, deep_gemm::epilogue::transform::EpilogueIdentity, true, 1u>(cutlass::bfloat16_t*, cutlass::bfloat16_t const*, cutlass::bfloat16_t*, cutlass::bfloat16_t*, int*, CUtensorMap_st*, unsigned int, unsigned int, unsigned int, CUtensorMap_st, CUtensorMap_st, CUtensorMap_st)": 24
+      }
+     },
+     "1": {
+      "pass_s": [
+       26.86,
+       26.24,
+       26.23,
+       26.18,
+       26.22
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "hybrid",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "deepgemm",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|deepgemm|K=4096": 18432,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8::Params)": 72,
+       "void deep_gemm::sm120_bf16_gemm_impl<0u, 0u, 0u, 1u, 128u, 96u, 64u, 128u, 128u, 128u, 3u, 128u, 256u, 188u, (deep_gemm::GemmType)0, false, cutlass::bfloat16_t, deep_gemm::epilogue::transform::EpilogueIdentity, true, 1u>(cutlass::bfloat16_t*, cutlass::bfloat16_t const*, cutlass::bfloat16_t*, cutlass::bfloat16_t*, int*, CUtensorMap_st*, unsigned int, unsigned int, unsigned int, CUtensorMap_st, CUtensorMap_st, CUtensorMap_st)": 24
+      }
+     }
+    },
+    "hy-p4": {
+     "0": {
+      "pass_s": [
+       28.46,
+       27.65,
+       27.58,
+       27.57,
+       27.57
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "hybrid",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "deepgemm",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|deepgemm|K=4096": 18432,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 72,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x64_64x4_tn_align8::Params)": 24,
+       "void deep_gemm::sm120_bf16_gemm_impl<0u, 0u, 0u, 1u, 128u, 64u, 64u, 128u, 128u, 128u, 3u, 128u, 256u, 188u, (deep_gemm::GemmType)0, false, cutlass::bfloat16_t, deep_gemm::epilogue::transform::EpilogueIdentity, true, 1u>(cutlass::bfloat16_t*, cutlass::bfloat16_t const*, cutlass::bfloat16_t*, cutlass::bfloat16_t*, int*, CUtensorMap_st*, unsigned int, unsigned int, unsigned int, CUtensorMap_st, CUtensorMap_st, CUtensorMap_st)": 24
+      }
+     },
+     "1": {
+      "pass_s": [
+       27.0,
+       26.2,
+       26.25,
+       26.25,
+       26.24
+      ],
+      "vision_calls_hashed": 640,
+      "vision_gemm": {
+       "backend": "hybrid",
+       "scope": "vision tower BF16 GEMMs meeting the pinned DeepGEMM predicate",
+       "patched": true,
+       "routing": {
+        "attn.proj": "cublaslt",
+        "attn.qkv": "cublaslt",
+        "mlp.down_proj": "deepgemm",
+        "mlp.gate_proj": "cublaslt",
+        "mlp.up_proj": "cublaslt"
+       },
+       "linear_modules": {
+        "attn.proj": 24,
+        "attn.qkv": 24,
+        "mlp.down_proj": 24,
+        "mlp.gate_proj": 24,
+        "mlp.up_proj": 24
+       },
+       "calls": {
+        "attn.proj|cublaslt|K=1024": 18432,
+        "attn.qkv|cublaslt|K=1024": 18432,
+        "mlp.down_proj|deepgemm|K=4096": 18432,
+        "mlp.gate_proj|cublaslt|K=1024": 18432,
+        "mlp.up_proj|cublaslt|K=1024": 18432
+       },
+       "tower_forwards": 768,
+       "deep_gemm_deterministic_default": false
+      },
+      "profiled_vision_call_gemm_kernels": {
+       "sm80_xmma_fprop_implicit_gemm_indexed_bf16bf16_bf16f32_f32_nhwckrsc_nhwc_tilesize64x128x32_stage5_warpsize2x2x1_g1_tensor16x8x16_execute_kernel__5x_cudnn": 1,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_tn_align1>(cutlass_80_simt_sgemm_128x64_8x5_tn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_simt_sgemm_64x64_8x5_nn_align1>(cutlass_80_simt_sgemm_64x64_8x5_nn_align1::Params)": 24,
+       "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x128_32x4_tn_align8::Params)": 72,
+       "void deep_gemm::sm120_bf16_gemm_impl<0u, 0u, 0u, 1u, 128u, 96u, 64u, 128u, 128u, 128u, 3u, 128u, 256u, 188u, (deep_gemm::GemmType)0, false, cutlass::bfloat16_t, deep_gemm::epilogue::transform::EpilogueIdentity, true, 1u>(cutlass::bfloat16_t*, cutlass::bfloat16_t const*, cutlass::bfloat16_t*, cutlass::bfloat16_t*, int*, CUtensorMap_st*, unsigned int, unsigned int, unsigned int, CUtensorMap_st, CUtensorMap_st, CUtensorMap_st)": 24
+      }
+     }
+    }
+   }
+  }
+ },
+ "earlier_all_cublaslt": {
+  "note": "K2HV_VISION_GEMM=cublaslt routed every eligible vision GEMM, including mlp.down_proj, to cuBLASLt. Repeatable and restartable, but failed reference agreement: cuBLASLt picks split-K for mlp.down_proj (K=4096). Evidence under outputs/sft-unblock/.",
+  "reference_agreement": {
+   "reference": "outputs/sft-unblock/check2/hf-ref",
+   "candidate": "outputs/sft-unblock/check2/hf-cublaslt",
+   "limits": {
+    "tower_projected_embeddings": {
+     "atol": 0.05,
+     "rtol": 0.03
+    },
+    "logprob": {
+     "max": 0.2,
+     "mean": 0.03
+    }
+   },
+   "passed": false,
+   "cases": {
+    "square": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "wide": {
+     "passed": false,
+     "tower_max_abs": 0.7822265625,
+     "projected_max_abs": 0.07421875,
+     "embeddings_max_abs": 0.07421875,
+     "logprob_max": 0.4706540107727051,
+     "logprob_mean": 0.06180321425199509,
+     "bit_equal": false
+    },
+    "tall": {
+     "passed": false,
+     "tower_max_abs": 0.5703125,
+     "projected_max_abs": 0.0615234375,
+     "embeddings_max_abs": 0.0615234375,
+     "logprob_max": 0.29704761505126953,
+     "logprob_mean": 0.06163262575864792,
+     "bit_equal": false
+    },
+    "minimum": {
+     "passed": false,
+     "tower_max_abs": 0.046875,
+     "projected_max_abs": 0.0078125,
+     "embeddings_max_abs": 0.0078125,
+     "logprob_max": 1.2168941497802734,
+     "logprob_mean": 0.09864026308059692,
+     "bit_equal": false
+    },
+    "maximum": {
+     "passed": true,
+     "tower_max_abs": 0.0,
+     "projected_max_abs": 0.0,
+     "embeddings_max_abs": 0.0,
+     "logprob_max": 0.0,
+     "logprob_mean": 0.0,
+     "bit_equal": true
+    },
+    "multiple": {
+     "passed": false,
+     "tower_max_abs": 0.7822265625,
+     "projected_max_abs": 0.07421875,
+     "embeddings_max_abs": 0.07421875,
+     "logprob_max": 0.2197265625,
+     "logprob_mean": 0.03691283240914345,
+     "bit_equal": false
+    }
+   }
+  },
+  "repeatability_deepgemm": {
+   "runs": [
+    "dg-p1",
+    "dg-p2"
+   ],
+   "passes": 10,
+   "images_per_pass": 256,
+   "reference": "dg-p1 pass 0",
+   "pairwise_images_differing": {
+    "pairs": 45,
+    "pairs_with_any_difference": 35,
+    "max": 5,
+    "histogram": {
+     "0": 10,
+     "1": 10,
+     "2": 11,
+     "3": 9,
+     "4": 3,
+     "5": 2
+    }
+   },
+   "all_bit_identical": false
+  },
+  "repeatability_cublaslt": {
+   "runs": [
+    "cub-p1",
+    "cub-p2"
+   ],
+   "passes": 10,
+   "images_per_pass": 256,
+   "reference": "cub-p1 pass 0",
+   "pairwise_images_differing": {
+    "pairs": 45,
+    "pairs_with_any_difference": 0,
+    "max": 0,
+    "histogram": {
+     "0": 45
+    }
+   },
+   "all_bit_identical": true
+  },
+  "restart_passed_bitwise": true
+ }
+}

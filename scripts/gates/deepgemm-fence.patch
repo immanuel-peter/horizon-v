@@ -1,0 +1,12 @@
+--- a/deep_gemm/include/deep_gemm/impls/sm120_bf16_gemm.cuh
++++ b/deep_gemm/include/deep_gemm/impls/sm120_bf16_gemm.cuh
+@@ -338,6 +338,9 @@
+                     compute_kstep(cur);
+                 }
+ 
++                // Order shared-memory reads before the TMA producer reuses the stage.
++                cutlass::arch::fence_view_async_shared();
++
+                 if (lane_idx == 0)
+                     empty_barriers[stage]->arrive();
+             }

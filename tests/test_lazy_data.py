@@ -159,8 +159,14 @@ def test_pickled_dataset_rebuilds_same_samples_in_spawned_worker(tmp_path, pinne
 @needs_miles
 def test_unsupported_configurations_raise(tmp_path, pinned):
     path, _ = write_rows(tmp_path, 2)
-    for kw in ({"apply_chat_template": True}, {"rollout_max_prompt_len": 2048}, {"tool_key": "tools"}):
+    for kw in ({"apply_chat_template": True}, {"rollout_max_prompt_len": 2048}):
         with pytest.raises(ValueError, match="does not support"):
             pinned.source(args_for(path, **kw))
+    # Pinned Miles passes --tool-key tools by default; rows without a tools column must load.
+    assert len(pinned.source(args_for(path, tool_key="tools")).dataset) == 2
+    table = pq.read_table(path / "part-00000.parquet")
+    pq.write_table(table.append_column("tools", pa.array([[]] * table.num_rows, pa.list_(pa.string()))), path / "part-00000.parquet")
+    with pytest.raises(ValueError, match="does not support tool_key"):
+        pinned.source(args_for(path, tool_key="tools"))
     with pytest.raises(FileNotFoundError):
         lazy_data.LazyDataset(tmp_path / "missing", None, prompt_key="messages", multimodal_keys=KEYS)

@@ -31,6 +31,7 @@ tests/                 CPU tests with tiny configs
 src/k2hv/dataset.py     dataset consumer (`python -m k2hv.dataset fetch|materialize|check`)
 configs/dataset.toml    pinned dataset release this repo consumes
 scripts/gates/          GPU gate scripts, source patches and their audit files
+scripts/sft/            real-data SFT launcher and smoke subset selector
 models/                downloaded source checkpoints, git-ignored
 data/, outputs/         data builds and reports, git-ignored
 docs/                  plan and handoff notes

@@ -1,0 +1,3479 @@
+{
+"seed": 0,
+"dataset": {
+"repo": "immanuelpeter/Vision-PT-Data",
+"revision": "87767e0986ba0aaaba7bdc1bb35c5f4cf50d7ec8",
+"export_dir": "vision-pt-v1",
+"local_root": "data/vision-pt"
+},
+"buckets": {
+"train": {
+"bucket": "default/sft/sweep50k",
+"index_sha256": "990788cdab1635e9000d6ffd6c4e92f1ea2fc5cd28ffcdbe9ff16d1e6eccdb84",
+"rows": [
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:3467:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 150,
+"image_tokens": 121,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:586:1",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 238,
+"image_tokens": 209,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:7994:1",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 213,
+"image_tokens": 176,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:2288:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 198,
+"image_tokens": 165,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00001-of-00002.parquet:3471:1",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 281,
+"image_tokens": 242,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:3463:3",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 306,
+"image_tokens": 255,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00001-of-00002.parquet:3472:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 269,
+"image_tokens": 240,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:5712:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 272,
+"image_tokens": 240,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:6715:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 617,
+"image_tokens": 580,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00009-of-00018.parquet:3144:0",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1001,
+"image_tokens": 966,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00006-of-00018.parquet:2950:73",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 989,
+"image_tokens": 925,
+"supervised_tokens": 7,
+"why": "stratum"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00003-of-00018.parquet:1505:0",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 980,
+"image_tokens": 943,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:1554:2",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 619,
+"image_tokens": 580,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:5379:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 623,
+"image_tokens": 580,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00001-of-00002.parquet:412:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 619,
+"image_tokens": 580,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00006-of-00018.parquet:6523:24",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1009,
+"image_tokens": 968,
+"supervised_tokens": 7,
+"why": "fill"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:7353:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 620,
+"image_tokens": 580,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:5823:1",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 618,
+"image_tokens": 580,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00009-of-00018.parquet:6298:4",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 741,
+"image_tokens": 700,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00000-of-00018.parquet:3111:48",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 991,
+"image_tokens": 943,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00009-of-00018.parquet:2725:17",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 840,
+"image_tokens": 782,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00000-of-00018.parquet:148:37",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1044,
+"image_tokens": 1000,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00000-of-00018.parquet:2776:89",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1055,
+"image_tokens": 1008,
+"supervised_tokens": 5,
+"why": "stratum"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00009-of-00018.parquet:7648:111",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1041,
+"image_tokens": 984,
+"supervised_tokens": 8,
+"why": "stratum"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00015-of-00018.parquet:6804:80",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1060,
+"image_tokens": 1008,
+"supervised_tokens": 8,
+"why": "stratum"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00012-of-00018.parquet:7361:50",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1065,
+"image_tokens": 1012,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00033-of-00051.parquet:1388:9",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 302,
+"image_tokens": 266,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00037-of-00051.parquet:1967:8",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 410,
+"image_tokens": 360,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00011-of-00051.parquet:1752:0",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 407,
+"image_tokens": 378,
+"supervised_tokens": 7,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00001-of-00051.parquet:768:0",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 500,
+"image_tokens": 468,
+"supervised_tokens": 7,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00001-of-00051.parquet:461:2",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1017,
+"image_tokens": 990,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00003-of-00051.parquet:245:6",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1017,
+"image_tokens": 990,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00035-of-00051.parquet:1682:6",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1012,
+"image_tokens": 972,
+"supervised_tokens": 13,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00001-of-00051.parquet:1805:2",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 730,
+"image_tokens": 696,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00041-of-00051.parquet:1097:1",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1040,
+"image_tokens": 1014,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00045-of-00051.parquet:2044:2",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1049,
+"image_tokens": 1008,
+"supervised_tokens": 15,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00039-of-00051.parquet:1746:4",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1052,
+"image_tokens": 1014,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00041-of-00051.parquet:2004:7",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1046,
+"image_tokens": 1020,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00007-of-00051.parquet:1882:7",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1052,
+"image_tokens": 1024,
+"supervised_tokens": 2,
+"why": "most_image_tokens"
+},
+{
+"record_id": "cosyn_chart:chart/train-00029-of-00051.parquet:690:2",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1044,
+"image_tokens": 1008,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00000-of-00051.parquet:875:5",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1052,
+"image_tokens": 1024,
+"supervised_tokens": 4,
+"why": "most_image_tokens"
+},
+{
+"record_id": "cosyn_chart:chart/train-00041-of-00051.parquet:2195:3",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1036,
+"image_tokens": 1000,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00005-of-00051.parquet:177:1",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1038,
+"image_tokens": 999,
+"supervised_tokens": 9,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00033-of-00051.parquet:440:0",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1041,
+"image_tokens": 1008,
+"supervised_tokens": 7,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00021-of-00051.parquet:2016:3",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1041,
+"image_tokens": 1000,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00015-of-00051.parquet:768:5",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1053,
+"image_tokens": 1024,
+"supervised_tokens": 5,
+"why": "most_image_tokens"
+},
+{
+"record_id": "cosyn_chart:chart/train-00017-of-00051.parquet:1912:0",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1039,
+"image_tokens": 1008,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00015-of-00051.parquet:1941:5",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1046,
+"image_tokens": 1015,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00025-of-00051.parquet:1588:8",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1030,
+"image_tokens": 1000,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00009-of-00051.parquet:623:4",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1054,
+"image_tokens": 1015,
+"supervised_tokens": 10,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00011-of-00051.parquet:1927:6",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1056,
+"image_tokens": 1015,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00005-of-00051.parquet:1591:3",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1051,
+"image_tokens": 1014,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00041-of-00051.parquet:1078:1",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1026,
+"image_tokens": 1000,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00045-of-00051.parquet:342:9",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1047,
+"image_tokens": 1014,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00033-of-00051.parquet:1735:9",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1053,
+"image_tokens": 1014,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00027-of-00051.parquet:467:3",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1054,
+"image_tokens": 1024,
+"supervised_tokens": 3,
+"why": "most_image_tokens"
+},
+{
+"record_id": "cosyn_chart:chart/train-00007-of-00051.parquet:1247:3",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1055,
+"image_tokens": 1024,
+"supervised_tokens": 4,
+"why": "most_image_tokens"
+},
+{
+"record_id": "cosyn_chart:chart/train-00045-of-00051.parquet:1380:9",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1030,
+"image_tokens": 968,
+"supervised_tokens": 33,
+"why": "longest_answer"
+},
+{
+"record_id": "cosyn_chart:chart/train-00047-of-00051.parquet:742:5",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1101,
+"image_tokens": 1008,
+"supervised_tokens": 42,
+"why": "longest_answer"
+},
+{
+"record_id": "cosyn_chart:chart/train-00000-of-00051.parquet:843:3",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1086,
+"image_tokens": 1014,
+"supervised_tokens": 42,
+"why": "longest_answer"
+},
+{
+"record_id": "cosyn_chart:chart/train-00005-of-00051.parquet:953:4",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1068,
+"image_tokens": 999,
+"supervised_tokens": 44,
+"why": "longest_answer"
+},
+{
+"record_id": "cosyn_chart:chart/train-00027-of-00051.parquet:2147:7",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1081,
+"image_tokens": 1014,
+"supervised_tokens": 34,
+"why": "longest_answer"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00008-of-00010.parquet:7868:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 244,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00002-of-00010.parquet:5416:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 244,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00002-of-00010.parquet:8335:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 244,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00004-of-00010.parquet:5797:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 245,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00005-of-00010.parquet:4792:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 382,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00002-of-00010.parquet:4690:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 421,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00004-of-00010.parquet:5297:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 376,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00007-of-00010.parquet:3466:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 375,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00004-of-00010.parquet:7534:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 264,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00002-of-00010.parquet:692:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 375,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00008-of-00010.parquet:5612:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 489,
+"image_tokens": 460,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00002-of-00010.parquet:378:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00003-of-00010.parquet:6062:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 423,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00005-of-00010.parquet:4501:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 264,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00001-of-00010.parquet:1424:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 420,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00006-of-00010.parquet:6166:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 265,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00001-of-00010.parquet:1948:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 465,
+"image_tokens": 437,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00006-of-00010.parquet:7999:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 421,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00006-of-00010.parquet:7028:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 375,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00007-of-00010.parquet:208:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 421,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00000-of-00010.parquet:6346:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 265,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00004-of-00010.parquet:8658:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00004-of-00010.parquet:1574:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 264,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00004-of-00010.parquet:56:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 420,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00006-of-00010.parquet:5012:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00007-of-00010.parquet:167:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00007-of-00010.parquet:3561:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 421,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00005-of-00010.parquet:2019:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00000-of-00010.parquet:5024:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 375,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00003-of-00010.parquet:4299:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 269,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00005-of-00010.parquet:4842:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 422,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00006-of-00010.parquet:6081:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 264,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00006-of-00010.parquet:52:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 263,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00003-of-00010.parquet:4417:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 264,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00008-of-00010.parquet:9259:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 420,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00003-of-00010.parquet:3853:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 374,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00001-of-00010.parquet:3468:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 918,
+"image_tokens": 888,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00003-of-00010.parquet:201:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 512,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00004-of-00010.parquet:5580:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 514,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00003-of-00010.parquet:3987:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 512,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00008-of-00010.parquet:2245:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 1031,
+"image_tokens": 999,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00000-of-00010.parquet:2:3",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 1028,
+"image_tokens": 999,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00000-of-00010.parquet:9254:3",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 1050,
+"image_tokens": 1020,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00009-of-00010.parquet:6791:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 1029,
+"image_tokens": 999,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:4523:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 229,
+"image_tokens": 180,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:4586:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 254,
+"image_tokens": 198,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:4311:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 239,
+"image_tokens": 184,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:12826:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 239,
+"image_tokens": 180,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:13162:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 450,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:10625:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 442,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:9490:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 404,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:13130:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 394,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:7462:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 557,
+"image_tokens": 506,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:7369:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 527,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:7047:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 528,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:6178:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 543,
+"image_tokens": 483,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_clevr:clevr/train-00003-of-00022.parquet:2034:2",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 232,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_clevr:clevr/train-00013-of-00022.parquet:1895:0",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 224,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_clevr:clevr/train-00003-of-00022.parquet:1714:9",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 225,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_clevr:clevr/train-00016-of-00022.parquet:2934:3",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 221,
+"image_tokens": 187,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_clevr:clevr/train-00016-of-00022.parquet:887:8",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 233,
+"image_tokens": 187,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00005-of-00022.parquet:1736:0",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 235,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00010-of-00022.parquet:508:1",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 230,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00015-of-00022.parquet:2948:6",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 244,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00011-of-00022.parquet:1765:2",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 229,
+"image_tokens": 187,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00000-of-00022.parquet:2734:0",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 224,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00000-of-00022.parquet:570:5",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 230,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00015-of-00022.parquet:2019:6",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 217,
+"image_tokens": 187,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00013-of-00022.parquet:2399:0",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 244,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:1918:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 121,
+"image_tokens": 66,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:1949:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 223,
+"image_tokens": 160,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:102:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 227,
+"image_tokens": 176,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:1664:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 233,
+"image_tokens": 176,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:2316:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 263,
+"image_tokens": 208,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:2269:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 342,
+"image_tokens": 286,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:1420:2",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 337,
+"image_tokens": 280,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:357:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 351,
+"image_tokens": 299,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:866:1",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 584,
+"image_tokens": 529,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:2057:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 722,
+"image_tokens": 667,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:421:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 987,
+"image_tokens": 918,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:1317:6",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 888,
+"image_tokens": 832,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:194:1",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 1077,
+"image_tokens": 1023,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:2385:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 1063,
+"image_tokens": 1008,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:789:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 1060,
+"image_tokens": 1008,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:2293:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 1045,
+"image_tokens": 984,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:11022:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 44,
+"image_tokens": 22,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:19732:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 86,
+"image_tokens": 40,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:14301:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 94,
+"image_tokens": 70,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:19150:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 81,
+"image_tokens": 36,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:21720:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 317,
+"image_tokens": 260,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:14166:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 329,
+"image_tokens": 273,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:14362:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 472,
+"image_tokens": 450,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:17738:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 472,
+"image_tokens": 450,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00004-of-00014.parquet:553:8",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 251,
+"image_tokens": 221,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00012-of-00014.parquet:126:5",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 241,
+"image_tokens": 207,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00003-of-00014.parquet:1855:4",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 246,
+"image_tokens": 216,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00010-of-00014.parquet:2408:3",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 992,
+"image_tokens": 968,
+"supervised_tokens": 6,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00004-of-00014.parquet:1615:2",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 998,
+"image_tokens": 968,
+"supervised_tokens": 5,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00011-of-00014.parquet:285:1",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 831,
+"image_tokens": 805,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00011-of-00014.parquet:616:1",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 924,
+"image_tokens": 896,
+"supervised_tokens": 5,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00012-of-00014.parquet:1770:0",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 1050,
+"image_tokens": 1020,
+"supervised_tokens": 6,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00008-of-00014.parquet:1464:3",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 1038,
+"image_tokens": 1015,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00010-of-00014.parquet:1576:4",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 1048,
+"image_tokens": 1023,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00013-of-00014.parquet:634:4",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 1051,
+"image_tokens": 1024,
+"supervised_tokens": 4,
+"why": "most_image_tokens"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00004-of-00014.parquet:2242:0",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 1076,
+"image_tokens": 1020,
+"supervised_tokens": 32,
+"why": "longest_answer"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00002-of-00014.parquet:1144:0",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 1068,
+"image_tokens": 1008,
+"supervised_tokens": 33,
+"why": "longest_answer"
+},
+{
+"record_id": "cosyn_document:document/train-00001-of-00041.parquet:492:4",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 337,
+"image_tokens": 312,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00017-of-00041.parquet:673:5",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 359,
+"image_tokens": 325,
+"supervised_tokens": 12,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00017-of-00041.parquet:551:7",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 385,
+"image_tokens": 350,
+"supervised_tokens": 12,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00025-of-00041.parquet:43:1",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 375,
+"image_tokens": 350,
+"supervised_tokens": 5,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00001-of-00041.parquet:445:4",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1012,
+"image_tokens": 984,
+"supervised_tokens": 8,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00017-of-00041.parquet:654:4",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1023,
+"image_tokens": 990,
+"supervised_tokens": 10,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00001-of-00041.parquet:528:7",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1016,
+"image_tokens": 989,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00031-of-00041.parquet:444:2",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1017,
+"image_tokens": 987,
+"supervised_tokens": 7,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00023-of-00041.parquet:775:0",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1044,
+"image_tokens": 1014,
+"supervised_tokens": 6,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00004-of-00041.parquet:569:5",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1040,
+"image_tokens": 1014,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00029-of-00041.parquet:1315:6",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1045,
+"image_tokens": 1015,
+"supervised_tokens": 7,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00012-of-00041.parquet:465:0",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1047,
+"image_tokens": 1015,
+"supervised_tokens": 10,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00014-of-00041.parquet:426:8",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1040,
+"image_tokens": 1008,
+"supervised_tokens": 7,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00015-of-00041.parquet:1398:5",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1050,
+"image_tokens": 1020,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00039-of-00041.parquet:1109:4",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1027,
+"image_tokens": 999,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00015-of-00041.parquet:40:6",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1043,
+"image_tokens": 1014,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00003-of-00041.parquet:997:4",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1038,
+"image_tokens": 1012,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00004-of-00041.parquet:758:7",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1037,
+"image_tokens": 1012,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00003-of-00041.parquet:597:1",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1036,
+"image_tokens": 1008,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00015-of-00041.parquet:248:4",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1026,
+"image_tokens": 999,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00007-of-00041.parquet:1168:0",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1044,
+"image_tokens": 1015,
+"supervised_tokens": 7,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00000-of-00041.parquet:278:3",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1043,
+"image_tokens": 1020,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00023-of-00041.parquet:1537:1",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1044,
+"image_tokens": 1012,
+"supervised_tokens": 9,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00026-of-00041.parquet:1075:5",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1030,
+"image_tokens": 999,
+"supervised_tokens": 8,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00006-of-00041.parquet:1557:0",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1064,
+"image_tokens": 1008,
+"supervised_tokens": 33,
+"why": "longest_answer"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00000-of-00009.parquet:128:4",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 246,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00000-of-00009.parquet:3372:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 246,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:5142:3",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 189,
+"image_tokens": 162,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00000-of-00009.parquet:5833:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 242,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:5371:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 243,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:4083:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 243,
+"image_tokens": 216,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00006-of-00009.parquet:1802:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 433,
+"image_tokens": 391,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:93:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 374,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:4114:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 421,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00003-of-00009.parquet:1406:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 415,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:1922:9",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 420,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:2128:11",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 419,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00006-of-00009.parquet:5999:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 418,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:7174:13",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 262,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00003-of-00009.parquet:2281:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 425,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00007-of-00009.parquet:8464:6",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 423,
+"image_tokens": 391,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00006-of-00009.parquet:187:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 264,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:6840:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 371,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00006-of-00009.parquet:4049:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 420,
+"image_tokens": 391,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:7540:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 261,
+"image_tokens": 234,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:43:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 418,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00001-of-00009.parquet:7485:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 416,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:5504:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00005-of-00009.parquet:4963:6",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 257,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00007-of-00009.parquet:8036:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 329,
+"image_tokens": 299,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00001-of-00009.parquet:1358:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 370,
+"image_tokens": 345,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:7103:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 395,
+"image_tokens": 368,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00000-of-00009.parquet:942:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 372,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:8822:6",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 418,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00003-of-00009.parquet:5806:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 267,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00001-of-00009.parquet:794:3",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 416,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00000-of-00009.parquet:2533:4",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 441,
+"image_tokens": 414,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:4084:3",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 416,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:1343:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 374,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:8831:3",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 375,
+"image_tokens": 345,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:1477:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 420,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:544:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 419,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00000-of-00009.parquet:2928:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 374,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:6893:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 418,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00007-of-00009.parquet:5641:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 371,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:5975:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 370,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00002-of-00009.parquet:6588:4",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 419,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00003-of-00009.parquet:332:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 331,
+"image_tokens": 304,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00000-of-00009.parquet:4689:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 375,
+"image_tokens": 345,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00007-of-00009.parquet:3478:3",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 260,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00003-of-00009.parquet:4331:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 259,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00005-of-00009.parquet:4574:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 304,
+"image_tokens": 276,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:4209:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00006-of-00009.parquet:3140:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 418,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:6475:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 421,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00003-of-00009.parquet:2127:8",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00001-of-00009.parquet:7490:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 512,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00007-of-00009.parquet:5618:1",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 535,
+"image_tokens": 506,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00006-of-00009.parquet:5378:3",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 513,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:1679:7",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 540,
+"image_tokens": 506,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__quadrilateral-00000-of-00001.parquet:5432:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 437,
+"image_tokens": 361,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/3d__size-00002-of-00004.parquet:2175:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 270,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/3d__size-00001-of-00004.parquet:1188:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 269,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:7582:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 458,
+"image_tokens": 342,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/3d__size-00001-of-00004.parquet:1795:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 269,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__angle-00000-of-00001.parquet:6879:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 686,
+"image_tokens": 572,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__quadrilateral-00000-of-00001.parquet:2930:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 796,
+"image_tokens": 720,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__triangle-00000-of-00001.parquet:5448:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 717,
+"image_tokens": 644,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:6916:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 836,
+"image_tokens": 720,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__quadrilateral-00000-of-00001.parquet:5531:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1064,
+"image_tokens": 988,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:1979:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1061,
+"image_tokens": 945,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__triangle-00000-of-00001.parquet:6815:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1089,
+"image_tokens": 1015,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__angle-00000-of-00001.parquet:7712:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1128,
+"image_tokens": 1014,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:8823:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1136,
+"image_tokens": 1020,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__area-00000-of-00001.parquet:6224:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1136,
+"image_tokens": 1020,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__angle-00000-of-00001.parquet:8283:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1136,
+"image_tokens": 1023,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:2550:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1139,
+"image_tokens": 1023,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:775:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1139,
+"image_tokens": 1023,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:8178:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1136,
+"image_tokens": 1020,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:7049:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1136,
+"image_tokens": 1020,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:6358:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1136,
+"image_tokens": 1020,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00001-of-00005.parquet:2136:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 440,
+"image_tokens": 407,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00002-of-00005.parquet:285:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 475,
+"image_tokens": 444,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00001-of-00005.parquet:228:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 511,
+"image_tokens": 481,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00003-of-00005.parquet:4203:1",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 476,
+"image_tokens": 444,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00001-of-00005.parquet:2782:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 804,
+"image_tokens": 777,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00001-of-00005.parquet:4258:1",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 924,
+"image_tokens": 888,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00004-of-00005.parquet:4095:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 918,
+"image_tokens": 888,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00002-of-00005.parquet:3777:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 954,
+"image_tokens": 925,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00003-of-00005.parquet:894:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1057,
+"image_tokens": 1024,
+"supervised_tokens": 4,
+"why": "most_image_tokens"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00004-of-00005.parquet:1436:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1057,
+"image_tokens": 1024,
+"supervised_tokens": 3,
+"why": "most_image_tokens"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00000-of-00005.parquet:3122:1",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1029,
+"image_tokens": 999,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00004-of-00005.parquet:5:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1036,
+"image_tokens": 999,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00002-of-00005.parquet:2803:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1039,
+"image_tokens": 999,
+"supervised_tokens": 7,
+"why": "fill"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00000-of-00005.parquet:4263:1",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1035,
+"image_tokens": 999,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:324:2",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 233,
+"image_tokens": 195,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:1829:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 254,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:1558:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 146,
+"image_tokens": 108,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:324:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 235,
+"image_tokens": 195,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:757:2",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 427,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:2139:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 384,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:500:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 272,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:354:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 428,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:1439:2",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 522,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:1478:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 522,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:751:2",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 523,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:343:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 518,
+"image_tokens": 483,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00000-of-00015.parquet:2497:5",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 253,
+"image_tokens": 216,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00004-of-00015.parquet:1124:2",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 248,
+"image_tokens": 207,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00002-of-00015.parquet:1626:8",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 248,
+"image_tokens": 207,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00000-of-00015.parquet:978:4",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 237,
+"image_tokens": 210,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00004-of-00015.parquet:1573:2",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 501,
+"image_tokens": 470,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00006-of-00015.parquet:1175:7",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 479,
+"image_tokens": 442,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00010-of-00015.parquet:1770:1",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 362,
+"image_tokens": 336,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00003-of-00015.parquet:285:6",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 447,
+"image_tokens": 420,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00000-of-00015.parquet:36:8",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 933,
+"image_tokens": 900,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00009-of-00015.parquet:2912:7",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 874,
+"image_tokens": 840,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00011-of-00015.parquet:2865:3",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 925,
+"image_tokens": 900,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00005-of-00015.parquet:2693:4",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 988,
+"image_tokens": 957,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00002-of-00015.parquet:478:4",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 756,
+"image_tokens": 720,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "cosyn_table:table/train-00004-of-00015.parquet:1385:0",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 713,
+"image_tokens": 684,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "cosyn_table:table/train-00005-of-00015.parquet:485:5",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 990,
+"image_tokens": 960,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "cosyn_table:table/train-00010-of-00015.parquet:491:2",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1049,
+"image_tokens": 1008,
+"supervised_tokens": 5,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00014-of-00015.parquet:2552:3",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1042,
+"image_tokens": 1012,
+"supervised_tokens": 5,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00003-of-00015.parquet:1495:1",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1048,
+"image_tokens": 1020,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00009-of-00015.parquet:2463:6",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1045,
+"image_tokens": 1020,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00010-of-00015.parquet:1061:9",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1057,
+"image_tokens": 1020,
+"supervised_tokens": 8,
+"why": "fill"
+},
+{
+"record_id": "cosyn_table:table/train-00005-of-00015.parquet:2803:7",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1041,
+"image_tokens": 1008,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "cosyn_table:table/train-00007-of-00015.parquet:1867:3",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1045,
+"image_tokens": 1008,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "cosyn_table:table/train-00005-of-00015.parquet:2640:3",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1025,
+"image_tokens": 1000,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "cosyn_table:table/train-00003-of-00015.parquet:1823:0",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1033,
+"image_tokens": 990,
+"supervised_tokens": 11,
+"why": "fill"
+},
+{
+"record_id": "cosyn_table:table/train-00006-of-00015.parquet:1561:0",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1030,
+"image_tokens": 999,
+"supervised_tokens": 3,
+"why": "fill"
+}
+]
+},
+"validation": {
+"bucket": "default/sft/validation",
+"index_sha256": "9808186518281afe8c1012c51d3352ff222089a92d4311ef5ed395e27c721ff3",
+"rows": [
+{
+"record_id": "fv_chartqa:chartqa/train-00001-of-00002.parquet:5151:1",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 135,
+"image_tokens": 98,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:7423:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 268,
+"image_tokens": 225,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "fv_chartqa:chartqa/train-00000-of-00002.parquet:1787:0",
+"source": "fv_chartqa",
+"task": "chart",
+"total_tokens": 617,
+"image_tokens": 580,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00015-of-00018.parquet:422:115",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1003,
+"image_tokens": 950,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "fv_plotqa:plotqa/train-00000-of-00018.parquet:2086:122",
+"source": "fv_plotqa",
+"task": "chart",
+"total_tokens": 1065,
+"image_tokens": 1008,
+"supervised_tokens": 4,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00037-of-00051.parquet:200:9",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1020,
+"image_tokens": 984,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00035-of-00051.parquet:1141:8",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1047,
+"image_tokens": 1014,
+"supervised_tokens": 5,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_chart:chart/train-00015-of-00051.parquet:1324:2",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1043,
+"image_tokens": 1014,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00031-of-00051.parquet:1800:5",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1065,
+"image_tokens": 1014,
+"supervised_tokens": 9,
+"why": "fill"
+},
+{
+"record_id": "cosyn_chart:chart/train-00027-of-00051.parquet:415:6",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1067,
+"image_tokens": 1000,
+"supervised_tokens": 32,
+"why": "longest_answer"
+},
+{
+"record_id": "cosyn_chart:chart/train-00025-of-00051.parquet:1907:9",
+"source": "cosyn_chart",
+"task": "chart_synthetic",
+"total_tokens": 1099,
+"image_tokens": 1014,
+"supervised_tokens": 60,
+"why": "longest_answer"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00004-of-00010.parquet:4462:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 244,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00009-of-00010.parquet:7516:0",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 244,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00008-of-00010.parquet:8699:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 419,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00003-of-00010.parquet:2721:1",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 421,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_tallyqa:tallyqa/train-00000-of-00010.parquet:7251:2",
+"source": "fv_tallyqa",
+"task": "counting",
+"total_tokens": 513,
+"image_tokens": 484,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:7172:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 176,
+"image_tokens": 115,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:2181:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 437,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "nemotron_coco_count_spatial:coco_count_spatial_qa/coco_count_spatial_qa.jsonl:1998:0",
+"source": "nemotron_coco_count_spatial",
+"task": "counting_spatial_choice",
+"total_tokens": 585,
+"image_tokens": 529,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_clevr:clevr/train-00015-of-00022.parquet:2310:6",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 231,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_clevr:clevr/train-00011-of-00022.parquet:403:3",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 218,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_clevr:clevr/train-00006-of-00022.parquet:2051:1",
+"source": "fv_clevr",
+"task": "counting_synthetic",
+"total_tokens": 225,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:706:2",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 167,
+"image_tokens": 108,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:1259:2",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 363,
+"image_tokens": 315,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:131:0",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 550,
+"image_tokens": 494,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_ai2d:ai2d_merged/train-00000-of-00002.parquet:1020:1",
+"source": "fv_ai2d",
+"task": "diagram_choice",
+"total_tokens": 1071,
+"image_tokens": 1015,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:2732:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 152,
+"image_tokens": 96,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_iconqa:iconqa/train-00000-of-00001.parquet:26915:0",
+"source": "fv_iconqa",
+"task": "diagram_math_choice",
+"total_tokens": 299,
+"image_tokens": 243,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00008-of-00014.parquet:1436:1",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 1006,
+"image_tokens": 980,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_diagram:diagram/train-00009-of-00014.parquet:15:6",
+"source": "cosyn_diagram",
+"task": "diagram_synthetic",
+"total_tokens": 1040,
+"image_tokens": 1012,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00036-of-00041.parquet:111:3",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 932,
+"image_tokens": 899,
+"supervised_tokens": 5,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00014-of-00041.parquet:1512:1",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1033,
+"image_tokens": 1008,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_document:document/train-00006-of-00041.parquet:402:7",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1028,
+"image_tokens": 999,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00023-of-00041.parquet:300:3",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1034,
+"image_tokens": 1008,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00017-of-00041.parquet:723:2",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1045,
+"image_tokens": 1012,
+"supervised_tokens": 13,
+"why": "fill"
+},
+{
+"record_id": "cosyn_document:document/train-00025-of-00041.parquet:228:0",
+"source": "cosyn_document",
+"task": "document_synthetic",
+"total_tokens": 1049,
+"image_tokens": 1024,
+"supervised_tokens": 2,
+"why": "most_image_tokens"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00000-of-00009.parquet:8574:11",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 242,
+"image_tokens": 216,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:6869:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 419,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:6188:5",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 423,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00003-of-00009.parquet:3493:3",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 420,
+"image_tokens": 391,
+"supervised_tokens": 4,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:958:4",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:7418:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 397,
+"image_tokens": 368,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00006-of-00009.parquet:6555:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 417,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:3660:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 374,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00005-of-00009.parquet:760:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 376,
+"image_tokens": 345,
+"supervised_tokens": 3,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00008-of-00009.parquet:7177:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 373,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00003-of-00009.parquet:1193:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 375,
+"image_tokens": 345,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00001-of-00009.parquet:2554:0",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 416,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00006-of-00009.parquet:1213:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 262,
+"image_tokens": 234,
+"supervised_tokens": 2,
+"why": "fill"
+},
+{
+"record_id": "fv_vqav2:vqav2/train-00004-of-00009.parquet:3937:2",
+"source": "fv_vqav2",
+"task": "general_vqa",
+"total_tokens": 512,
+"image_tokens": 483,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/3d__size-00002-of-00004.parquet:2316:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 270,
+"image_tokens": 187,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__angle-00000-of-00001.parquet:7289:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 685,
+"image_tokens": 572,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__quadrilateral-00000-of-00001.parquet:6000:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1075,
+"image_tokens": 999,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__angle-00000-of-00001.parquet:6752:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1137,
+"image_tokens": 1023,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "visonlyqa:data/syntheticgeometry__length-00000-of-00001.parquet:7465:0",
+"source": "visonlyqa",
+"task": "geometry_perception_choice",
+"total_tokens": 1139,
+"image_tokens": 1023,
+"supervised_tokens": 2,
+"why": "longest_total"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00000-of-00005.parquet:640:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 925,
+"image_tokens": 888,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00003-of-00005.parquet:2641:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1025,
+"image_tokens": 999,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00001-of-00005.parquet:1141:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1032,
+"image_tokens": 999,
+"supervised_tokens": 5,
+"why": "fill"
+},
+{
+"record_id": "fv_textvqa:textvqa/train-00000-of-00005.parquet:3526:0",
+"source": "fv_textvqa",
+"task": "scene_text",
+"total_tokens": 1051,
+"image_tokens": 1024,
+"supervised_tokens": 3,
+"why": "most_image_tokens"
+},
+{
+"record_id": "fv_vsr:vsr/train-00000-of-00001.parquet:1457:0",
+"source": "fv_vsr",
+"task": "spatial",
+"total_tokens": 429,
+"image_tokens": 391,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00005-of-00015.parquet:1756:4",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 170,
+"image_tokens": 140,
+"supervised_tokens": 6,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00000-of-00015.parquet:2396:6",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 391,
+"image_tokens": 360,
+"supervised_tokens": 2,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00006-of-00015.parquet:626:6",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 997,
+"image_tokens": 968,
+"supervised_tokens": 3,
+"why": "stratum"
+},
+{
+"record_id": "cosyn_table:table/train-00003-of-00015.parquet:343:1",
+"source": "cosyn_table",
+"task": "table_synthetic",
+"total_tokens": 1043,
+"image_tokens": 1015,
+"supervised_tokens": 2,
+"why": "stratum"
+}
+]
+}
+}
+}

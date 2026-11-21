@@ -17,6 +17,7 @@ uv pip install --no-deps -r scripts/gates/miles-runtime.txt
 uv pip install --no-deps --no-build-isolation -e third_party/sglang-source/python
 python scripts/gates/apply_miles_patch.py
 python scripts/gates/apply_source_patch.py third_party/sglang-source scripts/gates/sglang-source-audit.json scripts/gates/sglang-gate.patch
+python scripts/gates/apply_deepgemm_fence.py apply
 export SGLANG_EXTERNAL_MODEL_PACKAGE=k2hv_sglang
 export SGLANG_EXTERNAL_MM_MODEL_ARCH=K2HorizonVForConditionalGeneration
 export SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE=k2hv_sglang
