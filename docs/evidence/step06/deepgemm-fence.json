@@ -1,0 +1,141 @@
+{
+ "question": "Does sgl-project/DeepGEMM 22c7937a (fence_view_async_shared before empty_barriers[stage]->arrive in sm120_bf16_gemm.cuh) cure the vision-tower fault in the Miles training path?",
+ "answer": "yes (no fault in 30 passes / 435 pass pairs; unpatched baseline: 35 of 45 pairs differed)",
+ "header": {
+  "path": "/opt/sglang/lib/python3.12/site-packages/deep_gemm/include/deep_gemm/impls/sm120_bf16_gemm.cuh",
+  "original_sha256": "43b13d7b457079ae2bc84a452e40953af2ade83a7302f9c7370aef5b280a577e",
+  "patched_sha256": "25c4d2040e8601661ea0a0bb15a7320b9bb43b81e040a9386f4a9cf292743e06",
+  "restored_sha256": "43b13d7b457079ae2bc84a452e40953af2ade83a7302f9c7370aef5b280a577e",
+  "restored_byte_identical_to_backup": true,
+  "mtime_mode_owner_restored": true
+ },
+ "jit_cache": {
+  "default_dirs": [
+   "/root/.cache/sglang/deep_gemm (SGLang sets DG_JIT_CACHE_DIR from SGLANG_DG_CACHE_DIR; used by the Miles path)",
+   "/root/.dj (deep_jit default, used when SGLang's compile_utils is not imported)"
+  ],
+  "patched_runs_dir": "outputs/sft-deepgemm-fence/jit-cache-patched (DG_JIT_CACHE_DIR and SGLANG_DG_CACHE_DIR)",
+  "key_includes_header_content": true,
+  "evidence": "check0/: same instantiations (identical kernel.cu) get new keys under the patched header (e.g. 13e91f41 -> bbe82424); fresh unpatched compile reproduces the shared caches' keys and SASS",
+  "shared_caches_after": "no new entries, all file sha256 unchanged; only the empty .committed markers of the 6 entries the post-restore run loaded had their mtime refreshed (cache-hit touch)"
+ },
+ "check0_fresh_compile": {
+  "passed": true,
+  "patched_entries": 9,
+  "each_vs_original": "+1 FENCE.VIEW.ASYNC.S and +1 MEMBAR.ALL.CTA in SASS, different key, same kernel.cu",
+  "profiled_vision_kernels": "deep_gemm::sm120_bf16_gemm_impl (K2HV_VISION_GEMM=deepgemm)"
+ },
+ "check1_repeatability": {
+  "passed": true,
+  "processes": 5,
+  "passes": 30,
+  "pass_pairs": 435,
+  "pairs_with_any_difference": 0,
+  "site_hash_mismatches": 0,
+  "images_per_pass": 256,
+  "sites_per_image": 120,
+  "token_logprobs_bit_equal": "411/411 rank 0, 406/406 rank 1 every pass",
+  "required_minimum": "20 passes, 4 processes",
+  "vs_certified_cublaslt_padded_pd_p1": "bitwise identical (45/45 pairs incl. 5 pd-p1 passes)"
+ },
+ "check2_reference_agreement": {
+  "passed": true,
+  "fixtures": 6,
+  "max_error": 0.0,
+  "bitwise": true,
+  "limits": "tower/projector atol 0.05 rtol 0.03; logprob max 0.2 mean 0.03"
+ },
+ "check3_restart": {
+  "passed": true,
+  "A_vs_B_bitwise": true,
+  "A_vs_C2_bitwise": true,
+  "frozen_tensors_exact": 666,
+  "frozen_digest": "e7d66180256dcc0c00d0ee8a066bd8de5e276766e5a67d7172abf8e8306376b8",
+  "A_vs_certified_cublaslt_padded_A": "bitwise same trajectory: loss, grad norm, LR and all 6 projector tensors on both ranks at all 4 updates"
+ },
+ "timing_unhashed_pass_s": {
+  "deepgemm_patched_fd_p4": {
+   "rank0": [
+    21.22,
+    21.24
+   ],
+   "rank1": [
+    20.32,
+    20.37
+   ]
+  },
+  "cublaslt_padded_rs_default": {
+   "rank0": [
+    21.31,
+    21.31
+   ],
+   "rank1": [
+    20.34,
+    20.32
+   ]
+  }
+ },
+ "post_restore_default_forward": {
+  "backend": "cublaslt-padded",
+  "routing_logged": true,
+  "vs_certified_pd_p1": "bitwise identical: 256 images, 120 site hashes, all token logprobs"
+ },
+ "gpu_wall_minutes": 41.4,
+ "upstream": {
+  "repository": "sgl-project/DeepGEMM",
+  "commit": "22c7937ae388b71af048bcf3fd56ee024a95026e",
+  "title": "Fix SM120 BF16 shared-memory reuse ordering (#93)",
+  "first_release": "0.2.3",
+  "installed": "sgl-deep-gemm 0.2.2"
+ },
+ "harness": "outputs/sft-deepgemm-fence/ (machine-only). Checks 1-3 ran K2HV_VISION_GEMM=deepgemm at 4f34b46 with the patched header and a separate JIT cache; that switch is plain pinned DeepGEMM.",
+ "replaced_workaround": {
+  "backend": "K2HV_VISION_GEMM=cublaslt-padded",
+  "evidence": "docs/evidence/step06/vision-gemm.json",
+  "code": "4f34b46 (src/k2hv/vision_gemm.py, tests/test_vision_gemm.py), removed after this evidence"
+ },
+ "wiring_confirmation": {
+  "code": "the committed wiring: scripts/gates/apply_deepgemm_fence.py via activate.sh, launch.sh check, no k2hv.vision_gemm; default DeepGEMM JIT cache",
+  "apply": {
+   "via": "scripts/gates/activate.sh",
+   "installed_sha256": "25c4d2040e8601661ea0a0bb15a7320b9bb43b81e040a9386f4a9cf292743e06",
+   "byte_identical_to_certified_patched_header": true,
+   "reapply_idempotent": true
+  },
+  "cpu_tests": "224 passed in 32.46s",
+  "repeat_probe": {
+   "processes": 1,
+   "passes": 5,
+   "reference": "certified fd-p1 pass 0",
+   "images_per_pass": 256,
+   "sites_per_image": 120,
+   "site_hash_mismatches": 0,
+   "pairs": 45,
+   "pairs_with_any_difference": 0,
+   "token_logprobs_bit_equal": "411/411 rank 0, 406/406 rank 1 every pass",
+   "all_bit_identical": true,
+   "profiled_vision_call": "same kernel counts as fd-p1, including deep_gemm::sm120_bf16_gemm_impl",
+   "jit_cache": "the default cache compiled entries under the same keys as the certified patched cache"
+  },
+  "restart": {
+   "runs": "r1, r2: launch.sh from control-at5, 2 updates each, no save",
+   "r1_vs_r2_bitwise": true,
+   "vs_certified_ckA_first_2_updates_bitwise": true,
+   "updates": {
+    "5": {
+     "loss": 3.2,
+     "grad_norm": 32.73576736450195,
+     "grad_norm_hex": "0x1.05e2da0000000p+5"
+    },
+    "6": {
+     "loss": 3.02,
+     "grad_norm": 39.49687576293945,
+     "grad_norm_hex": "0x1.3bf99a0000000p+5"
+    }
+   }
+  },
+  "launcher_refusal": "launch.sh with a scratch copy of the original header first on PYTHONPATH logged 'is original' and exited 1 before Miles started; with the installed header it logged 'is patched' and continued",
+  "control_at5": "21/21 file hashes OK before and after; no checkpoints created",
+  "gpu_wall_minutes": 11.4
+ }
+}

@@ -10,7 +10,8 @@ Train only the projector on short-answer image data with upstream Miles, FSDP an
 | `src/k2hv/miles_gate_adapter.py` | `K2HorizonVAdapter` freezes everything except the projector, installs packed attention, keeps projector masters in FP32 and sets its FSDP2 precision. |
 | `src/k2hv/packed_attention.py` | Document-sized SDPA calls inside one packed row, with packed linear layers. |
 | `scripts/gates/miles_sft.sh` | The launch that passed the gate. |
-| `scripts/sft/launch.sh` | Real-data launcher: the gate's flags with `LazyRolloutDataSource`, no `K2HV_MILES_GATE` capture hooks and caller-supplied data, batch, schedule and save flags. |
+| `scripts/sft/launch.sh` | Real-data launcher: the gate's flags with `LazyRolloutDataSource`, no `K2HV_MILES_GATE` capture hooks and caller-supplied data, batch, schedule and save flags. Refuses to start unless the DeepGEMM header carries the fence below. |
+| `scripts/gates/apply_deepgemm_fence.py` | Applies the upstream DeepGEMM SM120 BF16 fence (sgl-project/DeepGEMM `22c7937a`) to the installed 0.2.2 header; `activate.sh` runs it. Hash-checked, idempotent, refuses unknown headers. |
 | `scripts/sft/select_subset.py` | Deterministic stratified subset of the configured SFT buckets for smoke runs. |
 | `src/k2hv/sft_monitor.py` | Optional instrumentation (`K2HV_SFT_MONITOR=<dir>`): per-sample BOS/mask/image checks, decode timing, rollout and trainer memory, projector gradients. |
 | `src/k2hv/sft_eval.py`, `src/k2hv/sft_resume_check.py` | Held-out loss of a checkpoint's projector; control versus restarted-run comparison. |
@@ -40,7 +41,7 @@ The rollout is single-turn with empty thinking. Before extending it to multi-tur
 
 ## Full run
 
-The [real-data smoke](../handoff/06-sft-smoke.md) ran `scripts/sft/launch.sh` on one and two RTX PRO 6000 GPUs. It exercised lazy loading, packing, frozen masters, save/restart and both two-GPU layouts on 320 subset rows. The launcher keeps the gate's registration variables, `UV_NO_SYNC=1`, `--attn-implementation sdpa --true-on-policy-mode --gradient-checkpointing` and the SFT loss and rollout flags. It never sets `K2HV_MILES_GATE`.
+The [real-data smoke](../handoff/06-sft-smoke.md) ran `scripts/sft/launch.sh` on one and two RTX PRO 6000 GPUs. It exercised lazy loading, packing, frozen masters, save/restart and both two-GPU layouts on 320 subset rows. The launcher keeps the gate's registration variables, `UV_NO_SYNC=1`, `--attn-implementation sdpa --true-on-policy-mode --gradient-checkpointing` and the SFT loss and rollout flags. It never sets `K2HV_MILES_GATE`, and it refuses to start unless `activate.sh` has applied the DeepGEMM fence.
 
 Measured on that subset (medians):
 
@@ -50,7 +51,7 @@ Measured on that subset (medians):
 | 2 GPUs, FSDP shard | 64 / 8 | 2.82 | 49.8 GiB |
 | 2 GPUs, `--dp-replicate-size 2` | 64 / 8 | 3.53 | 57.5 GiB |
 
-Replicating the frozen weights beats sharding them because the shard layout re-gathers 9.4B FP32 masters over PCIe for every micro-batch. Miles also runs a forward-only log-prob pass that SFT does not use, about a third of each step. A checkpoint is about 37 GiB. Two uninterrupted runs are not bitwise reproducible; restarting from a checkpoint is.
+Replicating the frozen weights beats sharding them because the shard layout re-gathers 9.4B FP32 masters over PCIe for every micro-batch. Miles also runs a forward-only log-prob pass that SFT does not use, about a third of each step. A checkpoint is about 37 GiB. The smoke's uninterrupted runs were not bitwise reproducible because of a race in DeepGEMM's SM120 BF16 kernel, used by the vision tower. With the upstream fence applied, the tower is bitwise repeatable and restarts from the same checkpoint repeat bitwise at batch 256 (see the [handoff](../handoff/06-sft-smoke.md#deepgemm-fence)).
 
 Settings still to choose, none measured for quality:
 
